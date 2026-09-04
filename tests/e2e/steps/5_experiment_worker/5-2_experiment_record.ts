@@ -1483,9 +1483,9 @@ async function upsertTransitionSet(
   console.log(`[5-2 upsertTransitionData] 開始: project_id=${projectId}, method_id=${methodId}, task_no=${taskNo}`);
   try {
     const transitions = [
-      { transition_id: 'E2E-TRANSITION-001', status: 0, progress_rate: 0 },
-      { transition_id: 'E2E-TRANSITION-002', status: 1, progress_rate: 25 },
-      { transition_id: 'E2E-TRANSITION-003', status: 0, progress_rate: 0 },
+      { transition_id: 'E2E-TRANSITION-001', status: 1, progress_rate: 0 },
+      { transition_id: 'E2E-TRANSITION-002', status: 2, progress_rate: 25 },
+      { transition_id: 'E2E-TRANSITION-003', status: 1, progress_rate: 0 },
     ];
 
     for (const t of transitions) {
@@ -1512,10 +1512,10 @@ async function upsertTransitionSet(
 }
 
 /**
- * テスト用トランジションデータを UPSERT する（5-2-15 用: E2E-TRANSITION-001 を status=5 で作成）
+ * テスト用トランジションデータを UPSERT する（5-2-15 用: E2E-TRANSITION-001 を status=6 で作成）
  *
  * Before @5-2-15 フックから呼び出す。
- * E2E-TRANSITION-001 を status=5（終状態）で UPSERT し、残りは status=0 で UPSERT する。
+ * E2E-TRANSITION-001 を status=6（終状態: COMPLETED）で UPSERT し、残りは status=1 で UPSERT する。
  * ページ遷移時点から終端ステータスになっているため、UIは最初から isTerminalStatus=true のデータを取得する。
  */
 async function upsertTransitionSetWithTerminal(
@@ -1526,9 +1526,9 @@ async function upsertTransitionSetWithTerminal(
   console.log(`[5-2-15 upsertTransitionSetWithTerminal] 開始: project_id=${projectId}`);
   try {
     const transitions = [
-      { transition_id: 'E2E-TRANSITION-001', status: 5, progress_rate: 100 }, // 終状態
-      { transition_id: 'E2E-TRANSITION-002', status: 1, progress_rate: 25 },
-      { transition_id: 'E2E-TRANSITION-003', status: 0, progress_rate: 0 },
+      { transition_id: 'E2E-TRANSITION-001', status: 6, progress_rate: 100 }, // 終状態
+      { transition_id: 'E2E-TRANSITION-002', status: 2, progress_rate: 25 },
+      { transition_id: 'E2E-TRANSITION-003', status: 1, progress_rate: 0 },
     ];
 
     for (const t of transitions) {

@@ -6,7 +6,7 @@
 
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
-import { TransitionStatus } from '../types/transitionData';
+import { TransitionStatus, TransitionStatusEnum } from '../types/transitionData';
 import type { PoolClient } from 'pg';
 import type { TransitionProgressRow, TransitionForUpdate } from '../types/database';
 
@@ -19,7 +19,7 @@ export interface TransitionDataRow {
   method_id: string;
   task_no: number;
   transition_id: string;
-  status: TransitionStatus; // 数値型（0-6）
+  status: TransitionStatus; // 数値型（1-7）
   progress_rate: number;
   /** 記録済みフラグ（TRUE=記録済み、FALSE=未記録） */
   is_recorded: boolean;
@@ -32,7 +32,7 @@ export interface TransitionDataRow {
  * トランジションステータス更新用データ
  */
 export interface TransitionDataUpdate {
-  status: TransitionStatus; // 数値型（0-6）
+  status: TransitionStatus; // 数値型（1-7）
   progress_rate: number;
   updated_by: string;
 }
@@ -278,12 +278,12 @@ export class TransitionDataRepository {
         methodId,
         taskNo,
         transitionId,
-        0,                          // status: 初期値0
-        0,                          // progress_rate: 初期値0
-        workOrder,                  // work_order: 実行順序
-        prerequisiteTransitionIds,  // prerequisite_transition_ids: 前提トランジションID配列
-        userId,                     // create_user_id
-        userId,                     // update_user_id
+        TransitionStatusEnum.INITIAL,   // status: 初期値（1 = INITIAL）
+        0,                              // progress_rate: 初期値0
+        workOrder,                      // work_order: 実行順序
+        prerequisiteTransitionIds,      // prerequisite_transition_ids: 前提トランジションID配列
+        userId,                         // create_user_id
+        userId,                         // update_user_id
       ];
       await client.query(query, params);
     } catch (error) {
@@ -441,6 +441,138 @@ export class TransitionDataRepository {
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while updating is_recorded flag',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * チェックアウト後にPREPARING状態になったトランジション一覧を取得
+   *
+   * updateStatusForCheckout 呼び出し直後に実行し、
+   * イベントログ記録対象のトランジション情報を返す。
+   *
+   * @param client PoolClient（トランザクション内で呼び出すこと）
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @returns チェックアウト対象トランジション（method_id / task_no / transition_id）の配列
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findPreparedForCheckout(
+    client: PoolClient,
+    organizationId: string,
+    projectId: string
+  ): Promise<Array<{ method_id: string; task_no: number; transition_id: string }>> {
+    try {
+      const query = await loadSqlFile('transition_data/findPreparedByCheckout.sql');
+      const result = await client.query(query, [organizationId, projectId]);
+      return result.rows;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding prepared transitions for checkout',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * チェックアウト時のトランジションステータス一括更新
+   *
+   * prerequisite_transition_ids が空配列（前提なし）のトランジションを
+   * 「1: 初期状態」→「2: 準備状態」に一括更新する。
+   * prerequisite_transition_ids が設定されているトランジションは「1: 初期状態」のまま据え置く。
+   *
+   * @param client PoolClient（トランザクション内で呼び出すこと）
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @param userId 更新者ユーザーID
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async updateStatusForCheckout(
+    client: PoolClient,
+    organizationId: string,
+    projectId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('transition_data/updateStatusForCheckout.sql');
+      await client.query(query, [organizationId, projectId, userId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while updating transition status for checkout',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * 前提トランジション完了時の連鎖更新対象取得
+   *
+   * 指定した完了トランジションIDを prerequisite_transition_ids に含む、
+   * 同プロジェクト内の INITIAL(1) なトランジションを返す。
+   *
+   * @param client PoolClient（トランザクション内で呼び出すこと）
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @param completedTransitionId 完了したトランジションID
+   * @returns 連鎖更新対象のトランジション情報の配列
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findDependentTransitions(
+    client: PoolClient,
+    organizationId: string,
+    projectId: string,
+    completedTransitionId: string
+  ): Promise<Array<{ method_id: string; task_no: number; transition_id: string; prerequisite_transition_ids: string[] }>> {
+    try {
+      const query = await loadSqlFile('transition_data/findDependentTransitions.sql');
+      const result = await client.query(query, [organizationId, projectId, completedTransitionId]);
+      return result.rows;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding dependent transitions',
+        error as Error
+      );
+    }
+  }
+
+
+  /**
+   * トランジションの前提ID配列を更新（実験計画保存時の同期用）
+   *
+   * 実験計画ダイアログで前提設定が変更された際に、
+   * transition_data.prerequisite_transition_ids を最新状態に同期する。
+   * task_no=0（順序管理行）は対象外（task_no > 0 の実績行のみ更新）。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param transitionId - トランジションID
+   * @param prerequisiteTransitionIds - 新しい前提トランジションID配列
+   * @param userId - 更新者ユーザーID
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async updatePrerequisiteIds(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    transitionId: string,
+    prerequisiteTransitionIds: string[],
+    userId: string
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('transition_data/updatePrerequisiteIds.sql');
+      await getPgp().none(query, [
+        organizationId,
+        projectId,
+        methodId,
+        transitionId,
+        prerequisiteTransitionIds,
+        userId,
+      ]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while updating prerequisite transition ids',
         error as Error
       );
     }

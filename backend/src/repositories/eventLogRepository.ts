@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EventLogRepository
  * 
  * maiml_event_logテーブルへのデータアクセスを担当するリポジトリ
@@ -6,35 +6,11 @@
  */
 
 import { PoolClient } from 'pg';
-import { TransitionStatus } from '../types/transitionData';
+import { TransitionStatus, TransitionStatusEnum } from '../types/transitionData';
 import { loadSqlFile } from '../sql/loader';
 import { getPgp } from '../database/db';
 import type { EventLogRow } from '../types/eventLog';
-
-/**
- * 指示送信ログのパラメータ
- */
-export interface InstructionSentLogParams {
-  /** メソッドID（nullの場合はファイル全体指示） */
-  methodId: string | null;
-  /** トランジションID */
-  transitionId: string | null;
-  /**
-   * programのID（MAIMLファイルから解析して取得）
-   * トランジション（target=3）・タスク（target=2）の場合に trace @ref として使用する。
-   */
-  programId: string | null;
-  /** タスク連番 */
-  taskNo: number | null;
-  /** 実験指示ID */
-  experimentInstructionId: string;
-  /** 送信ユーザID */
-  userId: string;
-  /** 送信日時（ISO8601文字列） */
-  sentAt: string;
-  /** 指示内容テキスト */
-  instructions: string | null;
-}
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * 指示確認ログのパラメータ
@@ -142,6 +118,84 @@ export class DatabaseError extends Error {
  * maiml_event_logテーブルへのイベント記録操作を提供します。
  * すべての操作でorganization_idによるマルチテナント分離を保証します。
  */
+/**
+ * lifecycle:transition プロパティの値マッピング
+ *
+ * トランジションステータスの遷移パターン（遷移元 → 遷移後）に対応する
+ * lifecycle:transition の値を定義する。
+ *
+ * @see .clinerules/references/eventlog_structure.md — セクション 2-4
+ *
+ * | 遷移前          | 遷移後        | 値           |
+ * |----------------|--------------|--------------|
+ * | 1(INITIAL)     | 2(PREPARING) | schedule     |
+ * | 2(PREPARING)   | 3(READY)     | assign       |
+ * | 1(INITIAL)     | 6(COMPLETED) | autoskip     |
+ * | 2(PREPARING)   | 6(COMPLETED) | manualskip   |
+ * | 3(READY)       | 3(READY)     | reassign     |
+ * | 2(PREPARING)   | 7(ERROR)     | withdraw     |
+ * | 3(READY)       | 7(ERROR)     | withdraw     |
+ * | 3(READY)       | 4(IN_PROG.)  | start        |
+ * | 4(IN_PROGRESS) | 5(PAUSED)    | suspend      |
+ * | 5(PAUSED)      | 4(IN_PROG.)  | resume       |
+ * | 4(IN_PROGRESS) | 6(COMPLETED) | complete     |
+ * | 4(IN_PROGRESS) | 7(ERROR)     | ate_abort    |
+ * | 5(PAUSED)      | 7(ERROR)     | ate_abort    |
+ */
+export const LIFECYCLE_TRANSITION_VALUE_MAP: Readonly<
+  Partial<Record<TransitionStatus, Partial<Record<TransitionStatus, string>>>>
+> = {
+  [TransitionStatusEnum.INITIAL]: {
+    [TransitionStatusEnum.PREPARING]: 'schedule',
+    [TransitionStatusEnum.COMPLETED]: 'autoskip',
+  },
+  [TransitionStatusEnum.PREPARING]: {
+    [TransitionStatusEnum.READY]:     'assign',
+    [TransitionStatusEnum.COMPLETED]: 'manualskip',
+    [TransitionStatusEnum.ERROR]:     'withdraw',
+  },
+  [TransitionStatusEnum.READY]: {
+    [TransitionStatusEnum.READY]:        'reassign',
+    [TransitionStatusEnum.IN_PROGRESS]:  'start',
+    [TransitionStatusEnum.ERROR]:        'withdraw',
+  },
+  [TransitionStatusEnum.IN_PROGRESS]: {
+    [TransitionStatusEnum.PAUSED]:    'suspend',
+    [TransitionStatusEnum.COMPLETED]: 'complete',
+    [TransitionStatusEnum.ERROR]:     'ate_abort',
+  },
+  [TransitionStatusEnum.PAUSED]: {
+    [TransitionStatusEnum.IN_PROGRESS]: 'resume',
+    [TransitionStatusEnum.ERROR]:       'ate_abort',
+  },
+} as const;
+
+/**
+ * lifecycle:transition の値を取得する
+ *
+ * fromStatus と toStatus の組み合わせから値を返す。
+ * マッピングに存在しない場合は statusLabel をフォールバックとして返す。
+ *
+ * @param fromStatus   - 遷移元ステータス（null/undefined の場合はフォールバック）
+ * @param toStatus     - 遷移先ステータス
+ * @param statusLabel  - フォールバック値（toStatus のラベル文字列）
+ * @returns lifecycle:transition に設定する文字列
+ */
+export function getLifecycleTransitionValue(
+  fromStatus: TransitionStatus | null | undefined,
+  toStatus: TransitionStatus | null | undefined,
+  statusLabel: string
+): string {
+  if (fromStatus == null || toStatus == null) {
+    return statusLabel;
+  }
+  const toMap = LIFECYCLE_TRANSITION_VALUE_MAP[fromStatus];
+  if (!toMap) {
+    return statusLabel;
+  }
+  return toMap[toStatus] ?? statusLabel;
+}
+
 export class EventLogRepository {
   private sequenceQueryPromise: Promise<string> = loadSqlFile('event_log/getNextSequenceNo.sql');
   private insertQueryPromise: Promise<string> = loadSqlFile('event_log/insertEventLog.sql');
@@ -278,208 +332,6 @@ export class EventLogRepository {
   }
 
   /**
-   * 指示送信イベントログを記録
-   *
-   * 指示送信（POST /instructions/send）時に未送信指示ごとに呼び出す。
-   * instruction_target に応じて以下のJSON構造を生成して maiml_event_log に保存する。
-   *
-   * - instruction_target = 1（ファイル全体）: eventLog > log > trace > evnet（ref なし）
-   * - instruction_target = 2（タスク）:       eventLog > log > trace(@taskno) > evnet
-   * - instruction_target = 3（トランジション）: eventLog > log > trace > evnet
-   *
-   * property のキーは確認時と異なり送信用のキーを使用する:
-   *   - sent_at: 送信日時
-   *   - experiment_instruction_id: 実験指示ID
-   *   - instruction_user_id: 送信ユーザID
-   *
-   * sequence_no は (organization_id, project_id) 単位で MAX+1 自動採番。
-   *
-   * @param organizationId - 組織ID（マルチテナント分離）
-   * @param projectId - プロジェクトID
-   * @param params - 指示送信ログパラメータ
-   * @param client - トランザクション用のPoolClient
-   * @throws {DatabaseError} データベースエラーが発生した場合
-   */
-  async insertInstructionSentLog(
-    organizationId: string,
-    projectId: string,
-    params: InstructionSentLogParams,
-    client: PoolClient
-  ): Promise<void> {
-    try {
-      // code_master から各区分のラベルマップを並列取得
-      // sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
-      const sequenceQuery = await this.sequenceQueryPromise;
-      const sequenceResult = await client.query(sequenceQuery, [
-        organizationId,
-        projectId,
-      ]);
-      const nextSequenceNo: number = sequenceResult.rows[0].next_sequence_no;
-
-      // methodId / transitionId / taskNo の有無に応じた JSON 構造を構築
-      const logJson = this.buildInstructionSentLogJson(
-        params,
-        nextSequenceNo,
-      );
-
-      const insertQuery = await this.insertQueryPromise;
-
-      await client.query(insertQuery, [
-        organizationId,
-        projectId,
-        nextSequenceNo,
-        JSON.stringify(logJson),
-        params.userId,
-      ]);
-    } catch (error) {
-      throw new DatabaseError(
-        'Database error occurred while inserting instruction sent log',
-        error as Error
-      );
-    }
-  }
-
-  /**
-   * 指示送信用の eventLog JSON 構造を生成するヘルパー
-   *
-   * methodId / transitionId / taskNo の有無で JSON 構造を判定する:
-   * - methodId あり && transitionId あり && taskNo あり → タスク指示
-   * - methodId あり && transitionId あり               → トランジション指示
-   * - methodId あり                                    → メソッド指示
-   * - それ以外                                         → ファイル全体指示
-   *
-   * @param params - 指示送信ログパラメータ
-   * @param sequenceNo - 採番済みの sequence_no（ID生成に使用）
-   * @returns eventLog JSON オブジェクト
-   */
-  private buildInstructionSentLogJson(
-    params: InstructionSentLogParams,
-    sequenceNo: number,
-  ): Record<string, unknown> {
-    const {
-      methodId,
-      transitionId,
-      programId,
-      taskNo,
-      experimentInstructionId,
-      userId,
-      sentAt,
-      instructions,
-    } = params;
-
-    const logId = `log_${sequenceNo}`;
-    const evnetId = `evnet_${sequenceNo}`;
-
-    // property 配列（全ターゲット共通）
-    const properties = [
-      {
-        '@key': 'sent_at',
-        '@xsi:type': 'dateTimeType',
-        '#text': sentAt,
-      },
-      {
-        '@key': 'experiment_instruction_id',
-        '@xsi:type': 'stringType',
-        '#text': experimentInstructionId,
-      },
-      {
-        '@key': 'instruction_user_id',
-        '@xsi:type': 'stringType',
-        '#text': userId,
-      },
-      {
-        '@key': 'instructions',
-        '@xsi:type': 'stringType',
-        '#text': instructions ?? '',
-      },
-    ];
-
-    if (!!methodId && taskNo != null) {
-      // タスク指示: eventLog > log > trace(@id, @ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
-      // transitionId は不要（methodId + taskNo でタスク指示を判定）
-      const traceId = `trace_${sequenceNo}`;
-      return {
-        eventLog: {
-          log: {
-            '@id': logId,
-            '@ref': methodId,
-            trace: {
-              '@id': traceId,
-              '@ref': programId ?? traceId,
-              '@taskno': String(taskNo),
-              evnet: {
-                '@id': evnetId,
-                '@ref': experimentInstructionId,
-                property: properties,
-              },
-            },
-          },
-        },
-      };
-    } else if (!!methodId && !!transitionId) {
-      // トランジション指示: eventLog > log > trace(@id, @ref=programId) > evnet(@ref=experimentInstructionId)
-      const traceId = `trace_${sequenceNo}`;
-      return {
-        eventLog: {
-          log: {
-            '@id': logId,
-            '@ref': methodId,
-            trace: {
-              '@id': traceId,
-              '@ref': programId ?? traceId,
-              evnet: {
-                '@id': evnetId,
-                '@ref': experimentInstructionId,
-                property: properties,
-              },
-            },
-          },
-        },
-      };
-    } else if (!!methodId) {
-      // メソッド指示: eventLog > log(@ref=methodId) > trace > evnet(@ref=experimentInstructionId)
-      const traceId = `trace_${sequenceNo}`;
-      return {
-        eventLog: {
-          log: {
-            '@id': logId,
-            '@ref': methodId,
-            trace: {
-              '@id': traceId,
-              // '@ref' は意図的に省略（programId は不要）
-              evnet: {
-                '@id': evnetId,
-                '@ref': experimentInstructionId,
-                property: properties,
-              },
-            },
-          },
-        },
-      };
-    } else {
-      // ファイル全体指示: eventLog > log > trace > evnet（ref なし）
-      const traceId = `trace_${sequenceNo}`;
-      return {
-        eventLog: {
-          log: {
-            '@id': logId,
-            // '@ref' は意図的に省略（ファイル全体指示はrefなし）
-            trace: {
-              '@id': traceId,
-              // '@ref' は意図的に省略
-              evnet: {
-                '@id': evnetId,
-                // '@ref' は意図的に省略
-                property: properties,
-              },
-            },
-          },
-        },
-      };
-    }
-  }
-
-  /**
    * トランジション進捗更新イベントログを記録
    *
    * トランジションの進捗が更新された際（みなし進捗・手動更新）に呼び出す。
@@ -490,12 +342,9 @@ export class EventLogRepository {
    *   <log id="work_{ts}_{shortName}_log_transition_{transitionId}" ref="{transitionId}">
    *     <trace id="trace_{transitionId}_work_{ts}_{shortName}" ref="{transitionId}">
    *       <event id="event_report_{loginId}_{ts}" ref="{transitionId}">
-   *         <property key="timestamp" xsi:type="xs:dateTime">...</property>
-   *         <property key="worker_id" xsi:type="xs:string">...</property>
-   *         <property key="status" xsi:type="xs:string">...</property>
-   *         <property key="progress_percentage" xsi:type="xs:int">...</property>
-   *         <property key="report_type" xsi:type="xs:string">transition_progress</property>
-   *         <property key="comments" xsi:type="xs:string">...</property>
+   *         <property key="Alchemia:status" xsi:type="stringType">...</property>
+   *         <property key="lifecycle:transition" xsi:type="stringType">...</property>
+   *         <property key="time:timestamp" xsi:type="dateTimeType">...</property>
    *       </event>
    *     </trace>
    *   </log>
@@ -512,8 +361,6 @@ export class EventLogRepository {
    * @param transitionId - トランジションID
    * @param userId - 更新者ユーザID（user_authenticationのuser_id）
    * @param statusLabel - ステータスラベル文字列（例: "running", "completed"）
-   * @param progressPercentage - 進捗率（0-100）
-   * @param comment - コメント（省略可）
    * @param client - トランザクション用のPoolClient
    * @throws {DatabaseError} データベースエラーが発生した場合
    */
@@ -523,8 +370,6 @@ export class EventLogRepository {
     transitionId: string,
     userId: string,
     statusLabel: string,
-    progressPercentage: number,
-    comment: string | null | undefined,
     client: PoolClient,
     /** log/@ref に使用するメソッドID（未指定時は transitionId をフォールバック） */
     methodId?: string | null,
@@ -533,7 +378,26 @@ export class EventLogRepository {
     /** event/@ref に使用するインストラクションID（未指定時は transitionId をフォールバック） */
     instructionId?: string | null,
     /** event/resultsRef の ref 値配列（data層の result-type place IDを参照） */
-    resultsRefs?: string[] | null
+    resultsRefs?: string[] | null,
+    /**
+     * 遷移元のステータス（数値型）。
+     * lifecycle:transition の値を遷移パターンから決定するために使用する。
+     * 未指定または null の場合は statusLabel をフォールバックとして使用する。
+     * @see LIFECYCLE_TRANSITION_VALUE_MAP
+     */
+    fromStatus?: TransitionStatus | null,
+    /**
+     * 遷移先のステータス（数値型）。
+     * fromStatus と組み合わせて lifecycle:transition の値を決定するために使用する。
+     * 未指定または null の場合は statusLabel をフォールバックとして使用する。
+     */
+    toStatus?: TransitionStatus | null,
+    /**
+     * プロジェクト名（ownerRef ID 命名規則に使用）。
+     * 未指定または null の場合は ownerRef ID に projectId をフォールバックとして使用する。
+     * @see .clinerules/references/eventlog_structure.md — セクション 2-5
+     */
+    projectName?: string | null
   ): Promise<void> {
     try {
       // 1. sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
@@ -554,7 +418,7 @@ export class EventLogRepository {
       const ts = Date.now();
       const atIndex = loginId.indexOf('@');
       const shortName = atIndex > 0 ? loginId.substring(0, atIndex) : loginId;
-      const nowIso = new Date(ts).toISOString();
+      const nowIso = toJSTIsoString(new Date(ts));
 
       // 4. JSON構造を構築
       // ref 採番ルール（MAIML XML 仕様準拠）:
@@ -572,41 +436,41 @@ export class EventLogRepository {
         ? resultsRefs.map(ref => ({ '@ref': ref }))
         : undefined;
 
+      // lifecycle:transition の値を遷移パターン（fromStatus → toStatus）から決定する
+      // fromStatus / toStatus が未指定の場合は statusLabel をフォールバックとして使用する
+      const lifecycleTransitionValue = getLifecycleTransitionValue(
+        fromStatus ?? null,
+        toStatus ?? null,
+        statusLabel
+      );
+
+      // ownerRef の ID 命名規則（eventlog_structure.md 2-1, 2-5）
+      // フェーズ名: WorkerTransition_update
+      // ownerRef/@id: ownerRef_{projectName}WorkerTransition_update_{seq}_issuer
+      const ownerRefIdBase = projectName ?? projectId;
+      const ownerRefId = `ownerRef_${ownerRefIdBase}WorkerTransition_update_${nextSequenceNo}_issuer`;
+      const ownerRefRef = userId.replace(/@/g, '_');
+      const ownerRef = {
+        '@id': ownerRefId,
+        '@ref': ownerRefRef,
+      };
+
       const eventObj: Record<string, unknown> = {
         '@id': `event_report_${loginId}_${ts}`,
         '@ref': eventRefId,
         property: [
           {
-            '@key': 'timestamp',
+            '@key': 'lifecycle:transition',
+            '@xsi:type': 'stringType',
+            '#text': lifecycleTransitionValue,
+          },
+          {
+            '@key': 'time:timestamp',
             '@xsi:type': 'dateTimeType',
             '#text': nowIso,
           },
-          {
-            '@key': 'worker_id',
-            '@xsi:type': 'stringType',
-            '#text': loginId,
-          },
-          {
-            '@key': 'status',
-            '@xsi:type': 'stringType',
-            '#text': statusLabel,
-          },
-          {
-            '@key': 'progress_percentage',
-            '@xsi:type': 'intType',
-            '#text': progressPercentage,
-          },
-          {
-            '@key': 'report_type',
-            '@xsi:type': 'stringType',
-            '#text': 'transition_progress',
-          },
-          {
-            '@key': 'comments',
-            '@xsi:type': 'stringType',
-            '#text': comment ?? '',
-          },
         ],
+        ownerRef,
       };
 
       // resultsRef が存在する場合のみ追加
@@ -682,17 +546,17 @@ export class EventLogRepository {
     // property 配列（全ターゲット共通）
     const properties = [
       {
-        '@key': 'acknowledged_at',
+        '@key': 'Alchemia:acknowledgedAt',
         '@xsi:type': 'dateTimeType',
         '#text': acknowledgedAt,
       },
       {
-        '@key': 'experiment_instruction_id',
+        '@key': 'Alchemia:experimentInstructionId',
         '@xsi:type': 'stringType',
         '#text': experimentInstructionId,
       },
       {
-        '@key': 'experiment_user_id',
+        '@key': 'Alchemia:experimentUserId',
         '@xsi:type': 'stringType',
         '#text': userId,
       },
@@ -901,7 +765,14 @@ export class EventLogRepository {
         description: `${projectName} ${phaseIdentifier}(${lifecycleValue})`,
       };
 
-      // 最小構成: time:timestamp + lifecycle:transition のみ
+      // ownerRef（issuer）: 指示出しユーザー（@→_置換）
+      // ID 命名規則（eventlog_structure.md 2-1, 2-5）: ownerRef_{projectName}Preparation_schedule_{seq}_issuer
+      const lifecycleOwnerRef = {
+        '@id': `ownerRef_${idPrefix}_issuer`,
+        '@ref': params.userId.replace(/@/g, '_'),
+      };
+
+      // 最小構成: time:timestamp + lifecycle:transition + ownerRef
       const logJson = {
         eventLog: {
           '@id': 'eventLogID', // MAIML上1つのみ存在。buildEventLogXML が既存MAIMLの値で上書きするため固定値
@@ -930,6 +801,7 @@ export class EventLogRepository {
                     '#text': lifecycleValue,
                   },
                 ],
+                ownerRef: lifecycleOwnerRef,
               },
             },
           },
@@ -1269,6 +1141,161 @@ export class EventLogRepository {
       await client.query(insertQuery, [organizationId, projectId, seq, JSON.stringify(logJson), reviewUserId]);
     } catch (error) {
       throw new DatabaseError('Database error occurred while inserting task review log', error as Error);
+    }
+  }
+
+  /**
+   * トランジションコメントイベントログを記録
+   *
+   * 実験作業者が ExperimentCommentDialog から入力したコメントを
+   * 対象トランジションのログとして maiml_event_log に保存する。
+   *
+   * 生成する XML 相当の JSON 構造:
+   * ```xml
+   * <eventLog id="eventLogID">
+   *   <log id="work_{ts}_{shortName}_log_transition_{transitionId}" ref="{transitionId}">
+   *     <trace id="trace_{transitionId}_work_{ts}_{shortName}" ref="{transitionId}">
+   *       <event id="event_comment_{loginId}_{ts}" ref="{transitionId}">
+   *         <property key="time:timestamp" xsi:type="dateTimeType">...</property>
+   *         <property key="Alchemia:transitionComment" xsi:type="stringType">...</property>
+   *       </event>
+   *     </trace>
+   *   </log>
+   * </eventLog>
+   * ```
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param transitionId - トランジションID
+   * @param userId - 記録者ユーザID（user_authenticationのuser_id）
+   * @param comment - コメント本文
+   * @param client - トランザクション用のPoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async insertTransitionCommentLog(
+    organizationId: string,
+    projectId: string,
+    transitionId: string,
+    userId: string,
+    comment: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      // 1. sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
+      const sequenceQuery = await this.sequenceQueryPromise;
+      const sequenceResult = await client.query(sequenceQuery, [
+        organizationId,
+        projectId,
+      ]);
+      const nextSequenceNo: number = sequenceResult.rows[0].next_sequence_no;
+
+      // 2. loginId の設定
+      const loginId: string = userId;
+
+      // 3. ID生成に必要な値を算出
+      //    ts: ログ生成タイムスタンプ（Unixミリ秒）
+      //    shortName: loginIdの@より前の部分（メールアドレス以外の場合はloginId全体）
+      const ts = Date.now();
+      const atIndex = loginId.indexOf('@');
+      const shortName = atIndex > 0 ? loginId.substring(0, atIndex) : loginId;
+      const nowIso = new Date(ts).toISOString();
+
+      // 4. JSON構造を構築
+      // ownerRef: コメント記入者（@→_置換）
+      // ID: ownerRef_comment_{loginId}_{ts}（コメントログ固有の命名）
+      const commentOwnerRef = {
+        '@id': `ownerRef_comment_${loginId}_${ts}`,
+        '@ref': userId.replace(/@/g, '_'),
+      };
+
+      const eventObj = {
+        '@id': `event_comment_${loginId}_${ts}`,
+        '@ref': transitionId,
+        property: [
+          {
+            '@key': 'time:timestamp',
+            '@xsi:type': 'dateTimeType',
+            '#text': nowIso,
+          },
+          {
+            '@key': 'Alchemia:transitionComment',
+            '@xsi:type': 'stringType',
+            '#text': comment,
+          },
+        ],
+        ownerRef: commentOwnerRef,
+      };
+
+      const logJson = {
+        eventLog: {
+          '@id': 'eventLogID',
+          log: {
+            '@id': `work_${ts}_${shortName}_log_transition_${transitionId}`,
+            '@ref': transitionId,
+            trace: {
+              '@id': `trace_${transitionId}_work_${ts}_${shortName}`,
+              '@ref': transitionId,
+              event: eventObj,
+            },
+          },
+        },
+      };
+
+      // 5. maiml_event_log にINSERT
+      const insertQuery = await this.insertQueryPromise;
+
+      await client.query(insertQuery, [
+        organizationId,
+        projectId,
+        nextSequenceNo,
+        JSON.stringify(logJson),
+        userId,
+      ]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while inserting transition comment log',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * プロジェクトの maiml_event_log 全件取得
+   *
+   * sequence_no 昇順で返す（eventLog 内のログ順序を保持するため）。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @returns EventLogRow 配列（sequence_no 昇順）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  /**
+   * トランジション進捗ログ取得（トランジション単位）
+   *
+   * 指定したトランジションIDに紐づく maiml_event_log を sequence_no 昇順で返す。
+   * transition_progress / transition_comment の両ログが含まれるため、
+   * 呼び出し元（サービス層）で report_type によるフィルタリングを行うこと。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @param transitionId   - トランジションID
+   * @returns EventLogRow 配列（sequence_no 昇順）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findTransitionStateRecords(
+    organizationId: string,
+    projectId: string,
+    transitionId: string
+  ): Promise<EventLogRow[]> {
+    try {
+      const sql = await loadSqlFile('event_log/findTransitionStateRecords.sql');
+      const pgp = getPgp();
+      return pgp.any<EventLogRow>(sql, [organizationId, projectId, transitionId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while fetching transition state records',
+        error as Error
+      );
     }
   }
 

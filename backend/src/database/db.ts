@@ -16,6 +16,16 @@ types.setTypeParser(23, (val: string) => parseInt(val, 10)); // INTEGER
 types.setTypeParser(20, (val: string) => parseInt(val, 10)); // BIGINT
 types.setTypeParser(1700, (val: string) => parseFloat(val)); // NUMERIC
 
+// OID 1114: TIMESTAMP WITHOUT TIME ZONE
+// DBに格納された文字列 "YYYY-MM-DD HH:MI:SS" はタイムゾーン情報を持たない。
+// postgres-date のデフォルトパーサーはタイムゾーン情報がない場合に
+// ローカルコンストラクタ new Date(year, month, ...) を使用するため、
+// TZ=UTC 環境では "02:55:00" という文字列が UTC の 02:55 として扱われる。
+// 末尾に "Z" を付加して UTC タイムスタンプとして明示的にパースすることで、
+// TZ 環境変数に関係なく常に UTC の Date オブジェクトが得られる。
+// これにより formatDateTimeJST() の +9h 変換が正しく機能する。
+types.setTypeParser(1114, (val: string) => new Date(val + 'Z'));
+
 // pg-promiseはモジュールレベルで1度だけ初期化する
 // （複数回pgPromise()を呼ぶとpgのグローバル状態が上書きされ、
 //   getPool()を使う既存Repositoryの動作が壊れるため）

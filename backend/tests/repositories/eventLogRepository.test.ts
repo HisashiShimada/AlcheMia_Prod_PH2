@@ -1,11 +1,12 @@
-/**
+﻿/**
  * EventLogRepositoryのユニットテスト
  * 
  * maiml_event_logテーブルへのイベント記録操作のテストを実施します。
  */
 
 import { PoolClient } from 'pg';
-import { EventLogRepository, EventLogData } from '../../src/repositories/eventLogRepository';
+import { EventLogRepository, EventLogData, LIFECYCLE_TRANSITION_VALUE_MAP, getLifecycleTransitionValue } from '../../src/repositories/eventLogRepository';
+import { TransitionStatusEnum } from '../../src/types/transitionData';
 import { getPool, initializePool, closePool, resetPool } from '../../src/database/db';
 
 describe('EventLogRepository', () => {
@@ -347,6 +348,255 @@ describe('EventLogRepository', () => {
       expect(result2.rows).toHaveLength(1);
       expect(result2.rows[0].sequence_no).toBe(1);
     });
+  });
+});
+
+/**
+ * insertTransitionProgressLog のユニットテスト
+ *
+ * lifecycle:transition と time:timestamp の両プロパティが
+ * event の property 配列内に含まれることを検証する。
+ */
+describe('EventLogRepository.insertTransitionProgressLog', () => {
+  let client: PoolClient;
+  let repository: EventLogRepository;
+
+  const testOrganizationId = 'test-org-progress-001';
+  const testProjectId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const testUserId = 'worker@example.com';
+  const testTransitionId = 'transition-progress-001';
+
+  beforeAll(async () => {
+    initializePool({
+      host: process.env.TEST_DB_HOST || 'localhost',
+      port: parseInt(process.env.TEST_DB_PORT || '5432'),
+      database: process.env.TEST_DB_NAME || 'mmdpf_test',
+      user: process.env.TEST_DB_USER || 'postgres',
+      password: process.env.TEST_DB_PASSWORD || '',
+    });
+
+    const pool = getPool();
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await setupTestData(client, testOrganizationId, testProjectId);
+    repository = new EventLogRepository();
+  });
+
+  afterAll(async () => {
+    await client.query('ROLLBACK');
+    client.release();
+  });
+
+  beforeEach(async () => {
+    await client.query(
+      'DELETE FROM maiml_event_log WHERE organization_id = $1',
+      [testOrganizationId]
+    );
+  });
+
+  it('lifecycle:transition プロパティが event.property に含まれること', async () => {
+    // Act: READY(3) → IN_PROGRESS(4) 遷移 → 期待値: 'start'
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      testUserId,
+      'running',
+      client,
+      undefined, // methodId
+      undefined, // programId
+      undefined, // instructionId
+      undefined, // resultsRefs
+      TransitionStatusEnum.READY,        // fromStatus
+      TransitionStatusEnum.IN_PROGRESS,  // toStatus
+      'TestProject'                      // projectName
+    );
+
+    // Assert
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventProperties: Array<{ '@key': string; '#text': unknown }> =
+      logJson?.eventLog?.log?.trace?.event?.property ?? [];
+
+    const lifecycleProp = eventProperties.find((p) => p['@key'] === 'lifecycle:transition');
+    expect(lifecycleProp).toBeDefined();
+    expect(lifecycleProp?.['#text']).toBe('start');
+  });
+
+  it('time:timestamp プロパティが event.property に含まれること', async () => {
+    // Act: IN_PROGRESS(4) → PAUSED(5) 遷移
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      testUserId,
+      'paused',
+      client,
+      undefined, // methodId
+      undefined, // programId
+      undefined, // instructionId
+      undefined, // resultsRefs
+      TransitionStatusEnum.IN_PROGRESS, // fromStatus
+      TransitionStatusEnum.PAUSED,      // toStatus
+      'TestProject'                     // projectName
+    );
+
+    // Assert
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventProperties: Array<{ '@key': string; '@xsi:type': string; '#text': unknown }> =
+      logJson?.eventLog?.log?.trace?.event?.property ?? [];
+
+    const timestampProp = eventProperties.find((p) => p['@key'] === 'time:timestamp');
+    expect(timestampProp).toBeDefined();
+    expect(timestampProp?.['@xsi:type']).toBe('dateTimeType');
+    expect(typeof timestampProp?.['#text']).toBe('string');
+    // ISO8601 形式であることを確認
+    expect(new Date(timestampProp?.['#text'] as string).toISOString()).toBeTruthy();
+  });
+
+  it('lifecycle:transition の値が遷移パターンから正しく決定されること', async () => {
+    /**
+     * 各遷移パターンとその期待される lifecycle:transition 値
+     * fromStatus × toStatus → 期待値
+     */
+    const transitionCases: Array<{
+      label: string;
+      fromStatus: number;
+      toStatus: number;
+      expectedValue: string;
+    }> = [
+      { label: 'INITIAL→PREPARING',    fromStatus: TransitionStatusEnum.INITIAL,     toStatus: TransitionStatusEnum.PREPARING,   expectedValue: 'schedule'   },
+      { label: 'PREPARING→READY',      fromStatus: TransitionStatusEnum.PREPARING,   toStatus: TransitionStatusEnum.READY,        expectedValue: 'assign'     },
+      { label: 'INITIAL→COMPLETED',    fromStatus: TransitionStatusEnum.INITIAL,     toStatus: TransitionStatusEnum.COMPLETED,   expectedValue: 'autoskip'   },
+      { label: 'PREPARING→COMPLETED',  fromStatus: TransitionStatusEnum.PREPARING,   toStatus: TransitionStatusEnum.COMPLETED,   expectedValue: 'manualskip' },
+      { label: 'READY→READY',          fromStatus: TransitionStatusEnum.READY,       toStatus: TransitionStatusEnum.READY,       expectedValue: 'reassign'   },
+      { label: 'PREPARING→ERROR',      fromStatus: TransitionStatusEnum.PREPARING,   toStatus: TransitionStatusEnum.ERROR,       expectedValue: 'withdraw'   },
+      { label: 'READY→ERROR',          fromStatus: TransitionStatusEnum.READY,       toStatus: TransitionStatusEnum.ERROR,       expectedValue: 'withdraw'   },
+      { label: 'READY→IN_PROGRESS',    fromStatus: TransitionStatusEnum.READY,       toStatus: TransitionStatusEnum.IN_PROGRESS, expectedValue: 'start'      },
+      { label: 'IN_PROGRESS→PAUSED',   fromStatus: TransitionStatusEnum.IN_PROGRESS, toStatus: TransitionStatusEnum.PAUSED,      expectedValue: 'suspend'    },
+      { label: 'PAUSED→IN_PROGRESS',   fromStatus: TransitionStatusEnum.PAUSED,      toStatus: TransitionStatusEnum.IN_PROGRESS, expectedValue: 'resume'     },
+      { label: 'IN_PROGRESS→COMPLETED',fromStatus: TransitionStatusEnum.IN_PROGRESS, toStatus: TransitionStatusEnum.COMPLETED,   expectedValue: 'complete'   },
+      { label: 'IN_PROGRESS→ERROR',    fromStatus: TransitionStatusEnum.IN_PROGRESS, toStatus: TransitionStatusEnum.ERROR,       expectedValue: 'ate_abort'  },
+      { label: 'PAUSED→ERROR',         fromStatus: TransitionStatusEnum.PAUSED,      toStatus: TransitionStatusEnum.ERROR,       expectedValue: 'ate_abort'  },
+    ];
+
+    for (const { label, fromStatus, toStatus, expectedValue } of transitionCases) {
+      // getLifecycleTransitionValue の単体テスト（DB不要）
+      const actualValue = getLifecycleTransitionValue(fromStatus, toStatus, 'fallback');
+      expect(actualValue).toBe(expectedValue);
+    }
+  });
+
+  it('ownerRef が event に付与されること（projectName 指定時）', async () => {
+    // Act: READY(3) → IN_PROGRESS(4) 遷移
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      testUserId,
+      'running',
+      client,
+      undefined,                         // methodId
+      undefined,                         // programId
+      undefined,                         // instructionId
+      undefined,                         // resultsRefs
+      TransitionStatusEnum.READY,        // fromStatus
+      TransitionStatusEnum.IN_PROGRESS,  // toStatus
+      'TestProject'                      // projectName
+    );
+
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventOwnerRef = logJson?.eventLog?.log?.trace?.event?.ownerRef;
+
+    // ownerRef が存在すること
+    expect(eventOwnerRef).toBeDefined();
+    // @id が WorkerTransition_update フェーズの命名規則に従うこと
+    expect(eventOwnerRef['@id']).toMatch(/^ownerRef_TestProjectWorkerTransition_update_\d+_issuer$/);
+    // @ref が userId であること（@ → _ 置換）
+    expect(eventOwnerRef['@ref']).toBe(testUserId.replace(/@/g, '_'));
+  });
+
+  it('ownerRef の @ref が userId の @ を _ に置換した値であること（メールアドレス形式）', async () => {
+    // Act: メールアドレス形式の userId でテスト
+    const emailUserId = 'worker@example.com';
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      emailUserId,
+      'running',
+      client,
+      undefined,                         // methodId
+      undefined,                         // programId
+      undefined,                         // instructionId
+      undefined,                         // resultsRefs
+      TransitionStatusEnum.READY,        // fromStatus
+      TransitionStatusEnum.IN_PROGRESS,  // toStatus
+      'MyProject'                        // projectName
+    );
+
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventOwnerRef = logJson?.eventLog?.log?.trace?.event?.ownerRef;
+
+    expect(eventOwnerRef).toBeDefined();
+    // @ が _ に置換されていること
+    expect(eventOwnerRef['@ref']).toBe('worker_example.com');
+  });
+
+  it('projectName が未指定（undefined）の場合に projectId をフォールバックとして ownerRef ID に使用すること', async () => {
+    // Act: projectName 未指定
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      testUserId,
+      'running',
+      client,
+      undefined,                         // methodId
+      undefined,                         // programId
+      undefined,                         // instructionId
+      undefined,                         // resultsRefs
+      TransitionStatusEnum.READY,        // fromStatus
+      TransitionStatusEnum.IN_PROGRESS   // toStatus
+      // projectName は省略
+    );
+
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventOwnerRef = logJson?.eventLog?.log?.trace?.event?.ownerRef;
+
+    expect(eventOwnerRef).toBeDefined();
+    // projectName 未指定時は projectId をフォールバックとして使用すること
+    expect(eventOwnerRef['@id']).toContain(`ownerRef_${testProjectId}WorkerTransition_update_`);
+    expect(eventOwnerRef['@id']).toContain('_issuer');
   });
 });
 

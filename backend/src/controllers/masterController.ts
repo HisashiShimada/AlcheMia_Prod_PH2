@@ -8,6 +8,7 @@ import * as masterService from '../services/masterService';
 import { v4 as uuidv4 } from 'uuid';
 import Papa from 'papaparse';
 import { getPgp } from '../database/db';
+import { getNowJST } from '../utils/dateUtils';
 
 /**
  * organization テーブルから corporationId を取得する。
@@ -814,14 +815,7 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
     });
 
     // ファイル名を master_creator_yyyyMMddhhssmm.csv 形式に変更
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hour = String(now.getHours()).padStart(2, '0');
-    const minute = String(now.getMinutes()).padStart(2, '0');
-    const second = String(now.getSeconds()).padStart(2, '0');
-    const timestamp = `${year}${month}${day}${hour}${minute}${second}`;
+    const timestamp = getNowJST();
     const filename = `master_creator_${timestamp}.csv`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -932,14 +926,7 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
     });
 
     // ファイル名を master_instrument_yyyyMMddhhssmm.csv 形式に変更
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hour = String(now.getHours()).padStart(2, '0');
-    const minute = String(now.getMinutes()).padStart(2, '0');
-    const second = String(now.getSeconds()).padStart(2, '0');
-    const timestamp = `${year}${month}${day}${hour}${minute}${second}`;
+    const timestamp = getNowJST();
     const filename = `master_instrument_${timestamp}.csv`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -1050,14 +1037,7 @@ export async function downloadVendorsCsv(req: Request, res: Response, next: Next
     });
 
     // ファイル名を master_vendor_yyyyMMddhhssmm.csv 形式に変更
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hour = String(now.getHours()).padStart(2, '0');
-    const minute = String(now.getMinutes()).padStart(2, '0');
-    const second = String(now.getSeconds()).padStart(2, '0');
-    const timestamp = `${year}${month}${day}${hour}${minute}${second}`;
+    const timestamp = getNowJST();
     const filename = `master_vendor_${timestamp}.csv`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -1282,8 +1262,7 @@ export async function downloadAttributesCsv(req: Request, res: Response, next: N
 
     const csv = Papa.unparse(csvData, { header: true });
 
-    const now = new Date();
-    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+    const timestamp = getNowJST();
     const filename = `master_attribute_${timestamp}.csv`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');

@@ -82,7 +82,8 @@
     "skipNoTarget": "スキップ先がありません",
     "skipNoTargetContent": "現在スキップできる別のトランジションがありません。進捗確認タブでスキップ中の作業を確認してください。",
     "commentSaved": "コメントを保存しました",
-    "commentSaveMock": "コメント保存（モック）",
+    "commentSaveMock": "コメント保存）",
+    "commentSaveError": "コメントの保存に失敗しました",
     "addProperty": "プロパティを追加",
     "customPropertyLabel": "カスタムプロパティ",
     "petriNetViewer": "ペトリネットを表示",
@@ -97,6 +98,7 @@
       "stateRecordButton": "状態記録",
       "stateRecordDialogTitle": "状態記録",
       "stateRecordSaved": "状態記録を保存しました",
+      "stateRecordLoadError": "状態遷移時刻の取得に失敗しました",
       "srTransitionTime": "状態遷移時刻",
       "srStatusPreparing": "準備状態",
       "srStatusReady": "準備完了状態",
@@ -106,10 +108,22 @@
       "srStatusError": "異常終了状態",
       "srAddPause": "+ 休止状態記録追加",
       "srRemovePause": "- 休止状態記録削除",
+      "srValidationPrepVsReady": "準備状態 → 準備完了状態の順序が正しくありません（準備完了状態は準備状態より後の時刻を入力してください）",
+      "srValidationReadyVsRunning": "準備完了状態 → 動作状態の順序が正しくありません（動作状態は準備完了状態より後の時刻を入力してください）",
+      "srValidationRunningVsPause": "動作状態 → 休止状態の順序が正しくありません（休止状態は動作状態より後の時刻を入力してください）",
+      "srValidationPauseVsResume": "休止状態 → 動作状態（再開）の順序が正しくありません（動作状態（再開）は休止状態より後の時刻を入力してください）",
+      "srValidationConsecutivePause": "連続する休止・再開の順序が正しくありません（次の休止状態は前回の動作状態（再開）より後の時刻を入力してください）",
+      "srValidationRunningVsCompleted": "動作状態 → 終状態の順序が正しくありません（終状態は動作状態より後の時刻を入力してください）",
+      "srValidationRunningVsError": "動作状態 → 異常終了状態の順序が正しくありません（異常終了状態は動作状態より後の時刻を入力してください）",
+      "srValidationCompletedAndError": "終状態と異常終了状態を同時に入力することはできません",
     "confirmInstruction": "指示確認",
     "instructionConfirmed": "プロジェクト指示を確認しました",
     "noInstructions": "指示がありません。",
-    "projectInstructions": "プロジェクト指示"
+    "projectInstructions": "プロジェクト指示",
+    "unsavedWarningTitle": "未保存のデータがあります",
+    "unsavedWarningContent": "プロパティカードに保存されていないデータがあります。このまま次へ進みますか？",
+    "unsavedWarningOk": "進む",
+    "unsavedWarningCancel": "キャンセル"
   },
   "dataRecordDialog": {
     "plannedValue": "指定値",
@@ -679,7 +693,9 @@
       "conditions": "条件",
       "results": "結果",
       "record": "記録",
-      "description": "説明"
+      "description": "説明",
+      "prerequisiteTooltip": "前提トランジション（{ids}）が全て完了してから開始できます",
+      "prerequisiteLockTooltip": "前提トランジション: {ids} が全て完了してから開始できます"
     },
     "actions": {
       "start": "開始",
@@ -1308,7 +1324,7 @@
       "fetchFailed": "タスク登録情報の取得に失敗しました",
       "saveFailed": "タスク情報の保存に失敗しました"
     },
-    "saveMockSuccess": "タスク登録を保存しました（モック）"
+    "saveMockSuccess": "タスク登録を保存しました"
   },
   "corporationManagement": {
     "title": "会社管理",

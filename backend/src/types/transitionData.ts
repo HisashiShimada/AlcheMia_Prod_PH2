@@ -14,25 +14,25 @@
  */
 export enum TransitionStatusEnum {
   /** 初期状態（未開始） */
-  INITIAL = 0,
+  INITIAL = 1,
   
-  /** 準備中 */
-  PREPARING = 1,
+  /** 準備状態 */
+  PREPARING = 2,
   
-  /** 準備完了 */
-  READY = 2,
+  /** 準備完了状態 */
+  READY = 3,
   
-  /** 実行中 */
-  IN_PROGRESS = 3,
+  /** 動作状態 */
+  IN_PROGRESS = 4,
   
-  /** 一時停止 */
-  PAUSED = 4,
+  /** 休止状態 */
+  PAUSED = 5,
   
-  /** 完了 */
-  COMPLETED = 5,
+  /** 終状態（完了） */
+  COMPLETED = 6,
   
-  /** エラー発生 */
-  ERROR = 6
+  /** 異常終了状態 */
+  ERROR = 7
 }
 
 /**
@@ -49,7 +49,7 @@ export interface TransitionData {
   method_id: string;
   task_no: number;
   transition_id: string;
-  status: TransitionStatus; // 数値型（0-6）
+  status: TransitionStatus; // 数値型（1-7）
   progress_rate: number; // 0-100
   updated_by: string;
   updated_at: Date;
@@ -74,7 +74,7 @@ export interface NewTransitionData {
  * トランジションデータ更新用の型
  */
 export interface TransitionDataUpdate {
-  status: TransitionStatus; // 数値型（0-6）
+  status: TransitionStatus; // 数値型（1-7）
   progress_rate?: number;
   updated_by: string;
 }
@@ -117,17 +117,17 @@ export function isValidTransitionStatus(value: any): value is TransitionStatus {
  * 
  * @example
  * const label = getTransitionStatusLabel(TransitionStatusEnum.COMPLETED);
- * console.log(label); // "完了"
+ * console.log(label); // "終状態"
  */
 export function getTransitionStatusLabel(status: TransitionStatus): string {
   const labels: Record<TransitionStatus, string> = {
-    [TransitionStatusEnum.INITIAL]: '未開始',
-    [TransitionStatusEnum.PREPARING]: '準備中',
-    [TransitionStatusEnum.READY]: '準備完了',
-    [TransitionStatusEnum.IN_PROGRESS]: '実行中',
-    [TransitionStatusEnum.PAUSED]: '一時停止',
-    [TransitionStatusEnum.COMPLETED]: '完了',
-    [TransitionStatusEnum.ERROR]: 'エラー'
+    [TransitionStatusEnum.INITIAL]: '初期状態',
+    [TransitionStatusEnum.PREPARING]: '準備状態',
+    [TransitionStatusEnum.READY]: '準備完了状態',
+    [TransitionStatusEnum.IN_PROGRESS]: '動作状態',
+    [TransitionStatusEnum.PAUSED]: '休止状態',
+    [TransitionStatusEnum.COMPLETED]: '終状態',
+    [TransitionStatusEnum.ERROR]: '異常終了状態'
   };
   return labels[status] || '不明';
 }

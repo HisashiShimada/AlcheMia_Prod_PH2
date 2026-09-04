@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 /**
  * 全体進捗タブ（パターンA固定）
@@ -57,31 +57,7 @@ const { Text } = Typography;
 // ビジネスロジック
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-/**
- * 対象トランジションにアクセス可能かどうかを判定する。
- *
- * prerequisiteTransitionIds が空または未設定のトランジションは常にアクセス可能。
- * prerequisiteTransitionIds が設定されている場合、同一タスク内の
- * 全ての前提トランジションが completed の場合のみアクセス可能。
- *
- * @example
- *   // TR_D の prerequisiteTransitionIds = ['TR_A', 'TR_B', 'TR_C']
- *   // → TR_A, TR_B, TR_C が全て completed のときのみ TR_D にアクセス可能
- */
-function canAccessTransition(target: ProgressRow, allRows: ProgressRow[]): boolean {
-  const prereqs = target.prerequisiteTransitionIds;
 
-  // 前提なし → いつでもアクセス可能
-  if (!prereqs || prereqs.length === 0) return true;
-
-  // 同一タスク内の全ての前提トランジションが completed であるか確認
-  return prereqs.every((prereqId) => {
-    const prereqRow = allRows.find(
-      (r) => r.taskNo === target.taskNo && r.transitionId === prereqId
-    );
-    return prereqRow?.status === 'completed';
-  });
-}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ステータス設定
@@ -279,6 +255,7 @@ export default function ProgressOverviewTab({
   onStartWork,
   projectStatus,
 }: ProgressOverviewTabProps) {
+  const { t } = useLanguage();
   const [filterTaskNo, setFilterTaskNo] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<ProgressRow['status'] | null>(null);
   const [filterMethodId, setFilterMethodId] = useState<string | null>(null);
@@ -381,10 +358,13 @@ export default function ProgressOverviewTab({
     }),
     [rows, filterTaskNo, filterStatus, filterMethodId, filterTransitionId]
   );
-
-  const { t } = useLanguage();
-
+  
   // ── 操作列 ─────────────────────────────────────────
+  // 活性条件:
+  //   - 前提トランジションが全て completed の場合のみ活性
+  //   - 前提なしの場合は常に活性
+  //   - ステータスが preparing・ready・on_hold・not_started の場合のみ活性対象
+  //     （completed・issue・in_progress は操作不要のため非活性）
   const renderAction = (_: unknown, r: ProgressRow) => {
     // isRecorded === true の行: 「記録確認」ボタンを優先表示（プロジェクトステータスによらず）
     if (r.isRecorded === true) {
@@ -406,57 +386,35 @@ export default function ProgressOverviewTab({
         </Tag>
       );
     }
-    if (r.status === 'completed' || r.status === 'issue') {
-      return <Button size="small" onClick={() => onViewDetail(r.taskNo, r.transitionId)}>{t('progressOverview.action.viewDetail')}</Button>;
-    }
-    if (r.status === 'in_progress' || r.status === 'ready') {
-      return (
-        <Button type="primary" size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
-          {t('progressOverview.action.goToWork')}
-        </Button>
+    const isPrerequisitesMet =
+      (r.prerequisiteTransitionIds ?? []).length === 0 ||
+      (r.prerequisiteTransitionIds ?? []).every(
+        (prereqId) => rows.find((row) => row.transitionId === prereqId)?.status === 'completed'
       );
-    }
-    if (r.status === 'on_hold') {
-      return (
-        <Button size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
-          {t('progressOverview.action.resume')}
-        </Button>
-      );
-    }
-    if (r.status === 'preparing') {
-      return (
-        <Button size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
-          {t('progressOverview.action.goToWork')}
-        </Button>
-      );
-    }
-    if (r.status === 'not_started') {
-      const accessible = canAccessTransition(r, rows);
-      if (!accessible) {
-        return (
-          <Tooltip title={t('progressOverview.action.startLockedTooltip')}>
-            <Button size="small" disabled>
-              {t('progressOverview.action.start')}
-            </Button>
-          </Tooltip>
-        );
-      }
-      return (
+
+    const isActive =
+      (r.status === 'preparing' ||
+       r.status === 'ready' ||
+       r.status === 'on_hold' ||
+       r.status === 'not_started') &&
+      isPrerequisitesMet;
+
+    const tooltipTitle =
+      !isPrerequisitesMet
+        ? t('experimentWork.table.prerequisiteTooltip', { ids: (r.prerequisiteTransitionIds ?? []).join(', ') })
+        : undefined;
+
+    return (
+      <Tooltip title={tooltipTitle}>
         <Button
           size="small"
-          onClick={() => {
-            if (onStartWork) {
-              onStartWork(r.taskNo, r.transitionId, r.methodId);
-            } else {
-              onGoToWork(r.taskNo, r.transitionId);
-            }
-          }}
+          disabled={!isActive}
+          onClick={() => onGoToWork(r.taskNo, r.transitionId)}
         >
-          {t('progressOverview.action.start')}
+          {t('experimentWork.table.record')}
         </Button>
-      );
-    }
-    return <Text type="secondary">—</Text>;
+      </Tooltip>
+    );
   };
 
   // ── ステータスタグ ───────────────────────────────────
@@ -496,7 +454,7 @@ export default function ProgressOverviewTab({
               <Text style={{ fontSize: 14 }}>{displayName}</Text>
             </Tooltip>
             {hasPrereqs && (
-              <Tooltip title={t('progressOverview.column.prereqTooltip', { ids: record.prerequisiteTransitionIds?.join(', ') ?? '' })}>
+              <Tooltip title={t('experimentWork.table.prerequisiteLockTooltip', { ids: record.prerequisiteTransitionIds?.join(', ') ?? '' })}>
                 <LockOutlined style={{ color: '#faad14', fontSize: 12 }} />
               </Tooltip>
             )}

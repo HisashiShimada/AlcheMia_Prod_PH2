@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ProjectService
  * 
  * @description プロジェクト一覧取得のビジネスロジック
@@ -15,6 +15,7 @@ import * as organizationGroupRepository from '../repositories/organizationGroupR
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
+import { TransitionStatusEnum } from '../types/transitionData';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import * as experimentPlanRepository from '../repositories/experimentPlanRepository';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
@@ -22,7 +23,6 @@ import * as instructionRepository from '../repositories/instructionRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
-import { TransitionStatusEnum } from '../types/transitionData';
 import { MaimlWriterService } from './maimlWriterService';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
@@ -716,6 +716,45 @@ export class ProjectService {
       );
 
       console.log(`[DEBUG] checkout - Updated worker_linked_flg for ${updatedTaskCount} tasks`);
+
+      // transition_data: prerequisite_transition_ids = '{}' のトランジションを「2: 準備状態」に更新
+      // prerequisite_transition_ids が設定されているトランジションは「1: 初期状態」のまま据え置く
+      const transitionDataRepository = new TransitionDataRepository();
+      await transitionDataRepository.updateStatusForCheckout(client, organizationId, projectId, userId);
+
+      console.log(`[DEBUG] checkout - Updated transition_data status to PREPARING for prerequisite-less transitions`);
+
+      // チェックアウト時イベントログ記録（COMMIT前・トランザクション内）
+      // updateStatusForCheckout で PREPARING になったトランジションに対して lifecycle:transition を記録する
+      try {
+        const preparedTransitions = await transitionDataRepository.findPreparedForCheckout(
+          client,
+          organizationId,
+          projectId
+        );
+        const eventLogRepository = new EventLogRepository();
+        for (const preparedTransition of preparedTransitions) {
+          await eventLogRepository.insertTransitionProgressLog(
+            organizationId,
+            projectId,
+            preparedTransition.transition_id,
+            userId,
+            'preparing',
+            client,
+            preparedTransition.method_id,
+            null,
+            null,
+            null,
+            TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): チェックアウト時は常に INITIAL → PREPARING
+            TransitionStatusEnum.PREPARING, // toStatus   = 2(PREPARING)
+            project.project_name            // ownerRef ID 命名用プロジェクト名
+          );
+        }
+        console.log(`[DEBUG] checkout - Inserted transition progress logs for ${preparedTransitions.length} transitions`);
+      } catch (logError) {
+        // イベントログ記録失敗はコンソール警告に留め、チェックアウト処理は続行する
+        console.warn('[checkout] insertTransitionProgressLog failed (checkout continues):', logError);
+      }
 
       // トランザクションコミット
       await client.query('COMMIT');

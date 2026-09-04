@@ -227,6 +227,7 @@ export interface WorkerProjectService {
   listWorkerAccessible(
     userId: string,
     organizationId: string,
+    organizationGroupCds: string[],
     params: ListWorkerProjectsParams
   ): Promise<WorkerProjectListResult>;
 }

@@ -677,7 +677,9 @@
       "conditions": "Conditions",
       "results": "Results",
       "record": "Record",
-      "description": "Description"
+      "description": "Description",
+      "prerequisiteTooltip": "Cannot start until all prerequisite transitions ({ids}) are completed",
+      "prerequisiteLockTooltip": "Prerequisite transitions: {ids} must all be completed before starting"
     },
     "actions": {
       "start": "Start",

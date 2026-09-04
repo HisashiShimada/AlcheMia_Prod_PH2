@@ -11,6 +11,9 @@ import type { ProjectFile } from '@/types/file';
 import type {
   UpdateTransitionStatusRequest,
   UpdateTransitionStatusResponse,
+  SaveTransitionCommentRequest,
+  SaveTransitionCommentResponse,
+  TransitionStateRecordsResult,
 } from '@/types/api';
 import type {
   Task,
@@ -1049,6 +1052,44 @@ export const updateTransitionStatus = async (
 };
 
 
+/**
+ * トランジション状態遷移時刻を取得（状態記録ダイアログ初期値用）
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records
+ *
+ * @param projectId    プロジェクトID
+ * @param methodId     メソッドID
+ * @param transitionId トランジションID
+ * @returns 各状態の遷移時刻（未記録は null）
+ * @throws Error APIエラー時
+ *
+ * @example
+ * ```typescript
+ * const records = await getTransitionStateRecords(projectId, methodId, transitionId);
+ * console.log(records.preparingTime); // "2026-09-01T05:08:08+09:00" | null
+ * ```
+ */
+export const getTransitionStateRecords = async (
+  projectId: string,
+  methodId: string,
+  transitionId: string
+): Promise<TransitionStateRecordsResult> => {
+  const client = createApiClient();
+
+  const response = await client.get<{
+    success: boolean;
+    data: TransitionStateRecordsResult;
+    meta: {
+      timestamp: string;
+      requestId: string;
+    };
+  }>(
+    `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/state-records`
+  );
+
+  return response.data.data;
+};
+
+
 // ========================================
 // 指示送信タブ用API関数
 // ========================================
@@ -1366,6 +1407,62 @@ export const sendInstructions = async (
     return response.data.data;
   } catch (error) {
     console.error('[DEBUG] sendInstructions - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * トランジションコメントを保存
+ * POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ *
+ * @param projectId - プロジェクトID（UUID）
+ * @param methodId - メソッドID
+ * @param transitionId - コメント対象のトランジションID
+ * @param request - コメント保存リクエスト（taskNo, comment）
+ * @returns 保存結果
+ * @throws Error APIエラー時
+ *
+ * @example
+ * ```typescript
+ * await saveTransitionComment(projectId, methodId, 'transition_t1', {
+ *   taskNo: 1,
+ *   comment: '温度が想定より0.2℃高かった。',
+ * });
+ * ```
+ */
+export const saveTransitionComment = async (
+  projectId: string,
+  methodId: string,
+  transitionId: string,
+  request: SaveTransitionCommentRequest
+): Promise<ServiceApiResponse<SaveTransitionCommentResponse>> => {
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<{
+      success: true;
+      data: SaveTransitionCommentResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(
+      `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/comment`,
+      request
+    );
+
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta,
+    };
+  } catch (error) {
+    console.error('[DEBUG] saveTransitionComment - Error', {
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,
@@ -1742,15 +1839,15 @@ export const deleteProject = async (
  */
 function getTransitionStatusLabel(status: number): string {
   const TRANSITION_STATUS_LABELS: Record<number, string> = {
-    0: '未開始',
-    1: '準備中',
-    2: '準備完了',
-    3: '実行中',
-    4: '一時停止',
-    5: '完了',
-    6: 'エラー',
+    1: '初期状態',
+    2: '準備状態',
+    3: '準備完了状態',
+    4: '動作状態',
+    5: '休止状態',
+    6: '終状態',
+    7: '異常終了状態',
   };
-  return TRANSITION_STATUS_LABELS[status] ?? '未開始';
+  return TRANSITION_STATUS_LABELS[status] ?? '初期状態';
 }
 
 /**

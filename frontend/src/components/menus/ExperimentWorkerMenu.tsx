@@ -354,15 +354,15 @@ export default function ExperimentWorkerMenu({
 
   /**
    * トランジションの数値ステータスを ProgressRow.status に変換
-   * (0=未開始, 1=準備中, 2=準備完了, 3=実行中, 4=一時停止, 5=完了, 6=エラー)
+   * (1=初期状態, 2=準備状態, 3=準備完了状態, 4=動作状態, 5=休止状態, 6=終状態, 7=異常終了状態)
    */
   const toProgressRowStatus = (progressStatus: string): ProgressRow['status'] => {
-    if (progressStatus === '完了') return 'completed';
-    if (progressStatus === '実行中') return 'in_progress';
-    if (progressStatus === '準備中') return 'preparing';
-    if (progressStatus === '準備完了') return 'ready';
-    if (progressStatus === '一時停止') return 'on_hold';
-    if (progressStatus === 'エラー') return 'issue';
+    if (progressStatus === '終状態') return 'completed';
+    if (progressStatus === '動作状態') return 'in_progress';
+    if (progressStatus === '準備状態') return 'preparing';
+    if (progressStatus === '準備完了状態') return 'ready';
+    if (progressStatus === '休止状態') return 'on_hold';
+    if (progressStatus === '異常終了状態') return 'issue';
     return 'not_started';
   };
 
