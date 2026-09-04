@@ -533,7 +533,12 @@ function finalizeProperty(result: Property, xmlProp: any): Property {
  */
 export function convertXmlJsProperty(xmlProp: any): Property {
   const key = xmlProp._attributes?.key || '';
-  const xsiType = (xmlProp._attributes?.['xsi:type'] || 'stringType') as PropertyType;
+  const rawXsiType = (xmlProp._attributes?.['xsi:type'] || 'stringType') as string;
+  // Namespace管理UIのtype_hint値（integerType等）をMAIML正式xsi:typeに正規化する
+  const LEGACY_XSI_TYPE_MAP: Record<string, string> = {
+    integerType: 'intType',
+  };
+  const xsiType = (LEGACY_XSI_TYPE_MAP[rawXsiType] ?? rawXsiType) as PropertyType;
   const description = xmlProp.description?._text || undefined;
   
   console.log(`🔄 [convertXmlJsProperty] ${key} (${xsiType})`);
