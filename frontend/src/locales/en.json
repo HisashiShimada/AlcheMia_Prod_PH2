@@ -64,6 +64,7 @@
     "taskStatus": "Task status",
     "allTransitionsCompleted": "All assigned transitions are completed.",
     "completedTransitionReadonly": "This transition is completed. Viewing in read-only mode.",
+    "errorTransitionReadonly": "This transition has ended with an error. View only.",
     "backToWork": "Back to work",
     "correctionModeAlert": "This transition has been rejected. Please review and correct if needed.",
     "startCorrectionButton": "Correct",
@@ -4761,6 +4762,8 @@
   },
   "experimentWorker": {
     "startFailed": "Failed to start",
+    "startNoTarget": "No target transition found to start",
+    "endNoTarget": "No target transition found to end",
     "switchFailed": "Failed to switch",
     "ngReason": {
       "button": "NG Reason",

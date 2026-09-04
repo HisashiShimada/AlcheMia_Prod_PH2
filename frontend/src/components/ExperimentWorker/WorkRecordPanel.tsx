@@ -1039,6 +1039,11 @@ interface WorkHeaderProps {
   endDisabled?: boolean;
   /** 異常終了ボタンの非活性フラグ */
   forceEndDisabled?: boolean;
+  /**
+   * 異常終了ステータス（status === 'issue'）フラグ。
+   * true のとき訂正ボタンを表示せず完全閲覧専用にする。
+   */
+  isErrorStatus?: boolean;
 }
 
 const WorkHeader: React.FC<WorkHeaderProps> = ({
@@ -1065,6 +1070,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
   startDisabled = false,
   endDisabled = false,
   forceEndDisabled = false,
+  isErrorStatus = false,
 }) => {
   const { t } = useLanguage();
 
@@ -1197,6 +1203,17 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
       </Flex>
 
       {isReadOnly && (() => {
+        // 異常終了（status === 'issue'）の場合は訂正不可・完全閲覧専用
+        if (isErrorStatus) {
+          return (
+            <Alert
+              type="error" showIcon
+              message={t('workRecord.errorTransitionReadonly')}
+              style={{ marginTop: 4, fontSize: 12, width: '100%' }}
+              action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
+            />
+          );
+        }
         // 訂正可能かどうかを判定
         // 条件①: プロジェクトステータスが訂正可能（1=実行待ち/2=実行中/6=差し戻し）
         const isProjectCorrectable =
@@ -1493,14 +1510,22 @@ interface PlanProps {
   onInstrumentRefChange: (value: string | null) => void;
   /** プロジェクト指示「確認」ボタン押下コールバック */
   onConfirmInstruction?: () => void;
-  /** 「開始」ボタン押下コールバック（準備完了→動作状態） */
-  onStart?: () => void;
-  /** 「終了」ボタン押下コールバック（動作状態→終状態） */
-  onEnd?: () => void;
+  /**
+   * 「開始」ボタン押下コールバック（準備完了→動作状態）
+   * displayKey の taskNo / transitionId を引数として受け取る。
+   */
+  onStart?: (taskNo: number, transitionId: string) => void;
+  /**
+   * 「終了」ボタン押下コールバック（動作状態→終状態）
+   * displayKey の taskNo / transitionId を引数として受け取る。
+   */
+  onEnd?: (taskNo: number, transitionId: string) => void;
   /** 「異常終了」ボタン押下コールバック（任意→異常終了状態） */
   onForceEnd?: () => void;
   /** 状態記録ボタン押下コールバック */
   onStateRecord?: () => void;
+  /** 状態プルダウン変更コールバック（transitionId, TransitionStatus文字列） */
+  onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
   /** Insertion アップロード準備完了コールバック */
   onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
   /**
@@ -1539,6 +1564,26 @@ interface PlanProps {
   correctionLoading?: boolean;
   /** 訂正保存コールバック */
   onSaveCorrection?: () => void;
+  /**
+   * 現在アクティブなトランジションのキー（本体で計算して渡す）。
+   * PlanB 内での二重計算を避けるために Props で受け取る。
+   */
+  activeEntry: { taskNo: number; transitionId: string } | null;
+  /**
+   * 現在表示中トランジションのキー（本体で計算して渡す）。
+   * viewingKey ?? pendingEndKey ?? activeEntry の優先順で決定される。
+   */
+  displayKey: { taskNo: number; transitionId: string } | null;
+  /**
+   * データ入力エリアの読み取り専用フラグ（本体で計算して渡す）。
+   * isRecorded === true && (isErrorStatus || !isCorrectionMode) で決定される。
+   */
+  isReadOnly: boolean;
+  /**
+   * 異常終了ステータス（status === 'issue'）フラグ（本体で計算して渡す）。
+   * true のとき訂正不可（完全閲覧専用）。
+   */
+  isErrorStatus: boolean;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1549,7 +1594,7 @@ const PlanB: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, onPropertyAdd, onPropertyRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
-  progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd,
+  progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onStatusChange,
   pendingEndKey, onSetPendingEndKey,
   onUncertaintyValuesChange,
   lastJudgeResultMap,
@@ -1559,6 +1604,11 @@ const PlanB: React.FC<PlanProps> = ({
   onCancelCorrectionMode,
   correctionLoading = false,
   onSaveCorrection,
+  // 本体で計算して渡す（二重計算解消）
+  activeEntry,
+  displayKey,
+  isReadOnly,
+  isErrorStatus,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1572,56 +1622,8 @@ const PlanB: React.FC<PlanProps> = ({
    */
   const effectiveTransitions = (apiTransitions && apiTransitions.length > 0) ? apiTransitions : [];
 
-  const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
-    // progressRows がある場合: API の実トランジションIDを優先使用
-    if (progressRows && progressRows.length > 0) {
-      // 優先順位: 動作状態(in_progress) > 準備完了状態(ready) > 準備状態(preparing)
-      // 同一ステータス内では order 昇順（若い順）を優先する
-      const statusPriority: Record<string, number> = { 'in_progress': 1, 'ready': 2, 'preparing': 3 };
-      const activeStatusRows = progressRows
-        .filter((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-        .sort((a, b) => {
-          const pA = statusPriority[a.status] ?? 99;
-          const pB = statusPriority[b.status] ?? 99;
-          if (pA !== pB) return pA - pB;
-          // 同一ステータスは order 昇順（若い順）
-          return (a.order ?? 0) - (b.order ?? 0);
-        });
-      // 1. activeTaskNo のステータス優先行を先に探す
-      const activeTaskRow = activeStatusRows.find((r) => r.taskNo === activeTaskNo);
-      if (activeTaskRow) return { taskNo: activeTaskRow.taskNo, transitionId: activeTaskRow.transitionId };
-      // 2. 全体でステータス優先行を探す
-      if (activeStatusRows.length > 0) {
-        const row = activeStatusRows[0];
-        return { taskNo: row.taskNo, transitionId: row.transitionId };
-      }
-      // 3. activeTaskNo の not_started（未着手でもカードを表示）
-      const notStartedRow = progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
-        // 4. 全体の not_started
-        ?? progressRows.find((r) => r.status === 'not_started');
-      if (notStartedRow) return { taskNo: notStartedRow.taskNo, transitionId: notStartedRow.transitionId };
-      return null;
-    }
-    // progressRows がない場合: task.transitions の順序でフォールバック
-    const task = tasks.find((t) => t.taskNo === activeTaskNo);
-    if (!task) return null;
-    for (const tt of task.transitions) {
-      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: activeTaskNo, transitionId: tt.transitionId };
-    }
-    return null;
-  }, [progressRows, tasks, activeTaskNo]);
+  // displayKey・isReadOnly・activeEntry・isErrorStatus は Props から受け取る（本体で一元計算）
 
-  // displayKey の優先順位:
-  // 1. viewingKey（完了済みトランジション閲覧モード）
-  // 2. pendingEndKey（終了/異常終了ボタン押下後のロック）
-  // 3. activeEntry（通常の作業中トランジション）
-  const displayKey = viewingKey ?? pendingEndKey ?? activeEntry;
-  // viewingKey がセットされていても、対象トランジションが completed / issue でない場合は
-  // 閲覧モードにしない（進捗確認タブの「作業へ」ボタン経由で来た場合の誤判定を防ぐ）
-  const viewingKeyStatusB = viewingKey
-    ? progressRows?.find((r) => r.taskNo === viewingKey.taskNo && r.transitionId === viewingKey.transitionId)?.status
-    : undefined;
-  const isReadOnly = viewingKey !== null && (viewingKeyStatusB === 'completed' || viewingKeyStatusB === 'issue') && !isCorrectionMode;
   const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
   const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
   // effectiveTransitions からテンプレートを解決する
@@ -1718,17 +1720,19 @@ const PlanB: React.FC<PlanProps> = ({
       <WorkHeader
         displayKey={displayKey} taskTransition={displayTTWithCurrentStatus} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
-        onStart={onStart}
-        onEnd={displayKey ? () => { onSetPendingEndKey?.(displayKey); onEnd?.(); } : undefined}
+        onStart={displayKey ? () => onStart?.(displayKey.taskNo, displayKey.transitionId) : undefined}
+        onEnd={displayKey ? () => { onSetPendingEndKey?.(displayKey); onEnd?.(displayKey.taskNo, displayKey.transitionId); } : undefined}
         onForceEnd={displayKey ? () => { onSetPendingEndKey?.(displayKey); onForceEnd?.(); } : undefined}
+        onStatusChange={onStatusChange}
         onStateRecord={onStateRecord}
         projectStatus={projectStatus}
-        taskStatus={viewingKey ? (progressRows?.find((r) => r.taskNo === viewingKey.taskNo && r.transitionId === viewingKey.transitionId)?.taskStatus) : undefined}
+        taskStatus={progressRows?.find((r) => displayKey !== null && r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId)?.taskStatus}
         isCorrectionMode={isCorrectionMode}
         onEnterCorrectionMode={onEnterCorrectionMode}
         onCancelCorrectionMode={onCancelCorrectionMode}
         correctionLoading={correctionLoading}
         onSaveCorrection={onSaveCorrection}
+        isErrorStatus={isErrorStatus}
         startDisabled={startDisabled}
         endDisabled={endDisabled}
         forceEndDisabled={forceEndDisabled}
@@ -2034,12 +2038,23 @@ interface WorkRecordPanelProps {
   allWorkerInstructions?: Instruction[];
   /** プロジェクト指示「確認」ボタン押下コールバック */
   onConfirmInstruction?: () => void;
-  /** 「開始」ボタン押下コールバック（準備完了→動作状態） */
-  onStart?: () => void;
-  /** 「終了」ボタン押下コールバック（動作状態→終状態） */
-  onEnd?: () => void;
+  /**
+   * 「開始」ボタン押下コールバック（準備完了→動作状態）
+   * displayKey の taskNo / transitionId を受け取る。
+   */
+  onStart?: (taskNo: number, transitionId: string) => void;
+  /**
+   * 「終了」ボタン押下コールバック（動作状態→終状態）
+   * displayKey の taskNo / transitionId を受け取る。
+   */
+  onEnd?: (taskNo: number, transitionId: string) => void;
   /** 「異常終了」ボタン押下コールバック（任意→異常終了状態） */
   onForceEnd?: () => void;
+  /**
+   * 状態プルダウン変更コールバック（transitionId, TransitionStatus 文字列）
+   * ExperimentWorkerMenu 側で updateTransitionStatus API を呼び出す。
+   */
+  onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
 }
 
 /** API の xsiType 文字列を WorkProperty の xsiType に変換する */
@@ -2145,6 +2160,7 @@ export default function WorkRecordPanel({
   onStart,
   onEnd,
   onForceEnd,
+  onStatusChange,
 }: WorkRecordPanelProps = {}) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
@@ -2717,6 +2733,9 @@ export default function WorkRecordPanel({
     }
   }, [projectId, methodId, tasks, t, uploadAllPendingInsertions]);
 
+  // ─── スキップ state ────────────────────────────────────────
+  const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
+
   const handleSaveAndNext = useCallback(
     async (taskNo: number, transitionId: string) => {
       // ── 未保存チェック ──────────────────────────────────────────
@@ -2813,27 +2832,20 @@ export default function WorkRecordPanel({
       setPendingEndKey(null);
       setIsDirty(false);
 
-      const task = tasks.find((t) => t.taskNo === taskNo);
-      if (!task) return;
-      // 次のトランジションを task.transitions の順序から探す（モック依存を排除）
-      const currentTtIdx = task.transitions.findIndex((tt) => tt.transitionId === transitionId);
-      const nextTt = currentTtIdx >= 0 ? task.transitions[currentTtIdx + 1] : null;
-      const nextId = nextTt?.transitionId ?? null;
+      // 次のトランジションを findNextAvailableTransition で探す（スキップ済み・前提条件を考慮）
+      const next = findNextAvailableTransition(taskNo, transitionId, skippedTransitionIds, tasks);
 
-      if (nextTt) {
+      if (next) {
         Modal.success({
           title: t('workRecord.transitionComplete'),
-          content: <span>{t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{nextId}</Text></span>,
+          content: <span>{t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{next.transitionId}</Text></span>,
         });
       } else {
         Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
       }
     },
-    [projectId, methodId, tasks, t, uploadAllPendingInsertions, isDirty]
+    [projectId, methodId, tasks, skippedTransitionIds, t, uploadAllPendingInsertions, isDirty]
   );
-
-  // ─── スキップ state ────────────────────────────────────────
-  const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
 
   const handleSkip = useCallback(
     (taskNo: number, transitionId: string) => {
@@ -3133,6 +3145,50 @@ export default function WorkRecordPanel({
       message.error(t('workRecord.commentSaveError'));
     }
   }, [projectId, methodId, t]);
+  // コメントダイアログに渡す displayKey（現在表示中のキー）
+  // progressRows (API データ) から in_progress / started なトランジションを優先使用する。
+  // モック ORDERED_TRANSITION_IDS との不一致により常に null になっていた問題を修正。
+  const activeEntry = useMemo(() => {
+    // progressRows がある場合: API の実トランジションIDを使用
+    if (progressRows && progressRows.length > 0) {
+      // まず ASSIGNED_TASK_NO のタスクで in_progress/ready/preparing を探す
+      const activeRow = progressRows.find(
+        (r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+      ) ?? progressRows.find(
+        // 見つからない場合はタスクNoに関わらず最初の作業中トランジションを使用
+        (r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing'
+      );
+      if (activeRow) {
+        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      }
+      // 全て完了済みの場合は null（「全トランジション完了」Alert を表示）
+      return null;
+    }
+    // progressRows が空の場合: task.transitions の順序でフォールバック
+    const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
+    if (!task) return null;
+    for (const tt of task.transitions) {
+      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tt.transitionId };
+    }
+    return null;
+  }, [progressRows, tasks, ASSIGNED_TASK_NO]);
+
+  // displayKey の優先順位:
+  // 1. viewingKey（別タブから遷移してきた指定トランジション）
+  // 2. pendingEndKey（終了/異常終了ボタン押下後のロック）
+  // 3. activeEntry（通常の作業中トランジション）
+  const displayKey = viewingKey ?? pendingEndKey ?? activeEntry;
+
+  // displayKey に対応する progressRow を取得（isReadOnly・isErrorStatus・ボタン活性制御に使用）
+  const displayKeyRow = progressRows?.find(
+    (r) => displayKey !== null && r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId
+  );
+  const isErrorStatus = displayKeyRow?.status === 'issue';
+
+  // データ入力エリアの読み取り専用フラグ
+  // - isRecorded === true（記録済み）かつ訂正モードでない場合: 読み取り専用
+  // - isRecorded === true かつ status === 'issue'（異常終了）: 訂正モードでも読み取り専用
+  const isReadOnly = displayKeyRow?.isRecorded === true && (isErrorStatus || !isCorrectionMode);
 
   const planProps: PlanProps = {
     tasks,
@@ -3207,13 +3263,12 @@ export default function WorkRecordPanel({
     onStart,
     onEnd,
     onForceEnd,
+    onStatusChange,
     pendingEndKey,
     onSetPendingEndKey: (key) => setPendingEndKey(key),
     onStateRecord: async () => {
-      // 表示中トランジション（viewingKey → pendingEndKey → activeTaskEntry の優先順）のIDを取得
-      // pendingEndKey: 終了/異常終了ボタン押下後にロックされたトランジションID
-      // activeTaskEntry: 通常作業中のトランジションID
-      const targetEntry = viewingKey ?? pendingEndKey ?? activeTaskEntry;
+      // 表示中トランジション（displayKey 優先）のIDを取得
+      const targetEntry = displayKey;
       if (!projectId || !methodId || !targetEntry) {
         setStateRecordDialogOpen(true);
         return;
@@ -3276,36 +3331,14 @@ export default function WorkRecordPanel({
     onCancelCorrectionMode: () => setIsCorrectionMode(false),
     correctionLoading,
     onSaveCorrection: handleSaveCorrection,
+    // 本体で一元計算して渡す（PlanB 内の二重計算を解消）
+    activeEntry,
+    displayKey,
+    isReadOnly,
+    isErrorStatus,
   };
 
-  // コメントダイアログに渡す displayKey（現在表示中のキー）
-  // progressRows (API データ) から in_progress / started なトランジションを優先使用する。
-  // モック ORDERED_TRANSITION_IDS との不一致により常に null になっていた問題を修正。
-  const activeTaskEntry = useMemo(() => {
-    // progressRows がある場合: API の実トランジションIDを使用
-    if (progressRows && progressRows.length > 0) {
-      // まず ASSIGNED_TASK_NO のタスクで in_progress/ready/preparing を探す
-      const activeRow = progressRows.find(
-        (r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-      ) ?? progressRows.find(
-        // 見つからない場合はタスクNoに関わらず最初の作業中トランジションを使用
-        (r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing'
-      );
-      if (activeRow) {
-        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
-      }
-      // 全て完了済みの場合は null（「全トランジション完了」Alert を表示）
-      return null;
-    }
-    // progressRows が空の場合: task.transitions の順序でフォールバック
-    const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
-    if (!task) return null;
-    for (const tt of task.transitions) {
-      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tt.transitionId };
-    }
-    return null;
-  }, [progressRows, tasks, ASSIGNED_TASK_NO]);
-  const commentTarget = viewingKey ?? activeTaskEntry;
+  const commentTarget = viewingKey ?? activeEntry;
 
   return (
     <div style={{ flex: 1, minHeight: 0 }}>
