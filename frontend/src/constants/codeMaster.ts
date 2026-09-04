@@ -32,9 +32,12 @@ export const ProjectStatus = {
   COMPLETED: 4,
   /** タスク異常終了 */
   ERROR: 5,
+  /** レビュー差戻（NGタスクのみ残り、追加タスクなしでチェックアウトした場合） */
+  REVIEW_REJECTED: 6,
 } as const;
 
 export type ProjectStatusType = typeof ProjectStatus[keyof typeof ProjectStatus];
+
 
 // ============================================================
 // checkout_status: プロジェクトチェックアウト状態

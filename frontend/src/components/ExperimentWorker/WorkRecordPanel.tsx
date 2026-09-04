@@ -51,8 +51,10 @@ import type { FileData } from '@/types/editor';
 import type { TemplateDataItem, ExperimentDataRecord } from '@/types/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { ProgressRow } from '@/types/progress';
-import InstructionConfirmationModal from './InstructionConfirmationModal';
-import type { ProjectStatus, Transition } from '@/types/experimentWorker';
+import type { Instruction, ProjectStatus, Transition } from '@/types/experimentWorker';
+import { INSTRUCTION_KEY_LABELS } from '@/types/instructionRegistration';
+import { ProjectStatus as ProjectStatusConst, TaskStatus as TaskStatusConst } from '@/constants/codeMaster';
+import { correctRecord } from '@/services/experimentInstructionApiService';
 
 const { Sider, Content } = Layout;
 
@@ -1017,12 +1019,31 @@ interface WorkHeaderProps {
   onInstructionClick?: () => void;
   /** Insertion アップロード準備完了コールバック */
   onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
+  /** プロジェクトステータス（訂正ボタン表示制御） */
+  projectStatus?: number;
+  /** タスクステータス（訂正ボタン表示制御） */
+  taskStatus?: number;
+  /** 訂正モード中かどうか */
+  isCorrectionMode?: boolean;
+  /** 訂正モード開始コールバック */
+  onEnterCorrectionMode?: () => void;
+  /** 訂正モードキャンセルコールバック */
+  onCancelCorrectionMode?: () => void;
+  /** 訂正保存中フラグ */
+  correctionLoading?: boolean;
+  /** 訂正保存コールバック */
+  onSaveCorrection?: () => void;
   /** 開始ボタンの非活性フラグ */
   startDisabled?: boolean;
   /** 終了ボタンの非活性フラグ */
   endDisabled?: boolean;
   /** 異常終了ボタンの非活性フラグ */
   forceEndDisabled?: boolean;
+  /**
+   * 異常終了ステータス（status === 'issue'）フラグ。
+   * true のとき訂正ボタンを表示せず完全閲覧専用にする。
+   */
+  isErrorStatus?: boolean;
 }
 
 const WorkHeader: React.FC<WorkHeaderProps> = ({
@@ -1038,10 +1059,18 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
   onForceEnd,
   onStateRecord,
   onStatusChange,
+  projectStatus,
+  taskStatus,
+  isCorrectionMode = false,
+  onEnterCorrectionMode,
+  onCancelCorrectionMode,
+  correctionLoading = false,
+  onSaveCorrection,
   onInstructionClick,
   startDisabled = false,
   endDisabled = false,
   forceEndDisabled = false,
+  isErrorStatus = false,
 }) => {
   const { t } = useLanguage();
 
@@ -1105,12 +1134,12 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
             }}
           />
         </Flex>
-        <Divider type="vertical" style={{ margin: 0 }} />
+        <Divider orientation="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
           <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.taskNo')}</Text>
           <Text strong style={{ fontSize: 13 }}>#{displayKey.taskNo}</Text>
         </Flex>
-        <Divider type="vertical" style={{ margin: 0 }} />
+        <Divider orientation="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
           <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.method')}</Text>
           <Tooltip title={method?.id ?? ''}>
@@ -1119,7 +1148,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
             </Text>
           </Tooltip>
         </Flex>
-        <Divider type="vertical" style={{ margin: 0 }} />
+        <Divider orientation="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
           <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.transition')}</Text>
           <Tooltip title={transition.id}>
@@ -1152,7 +1181,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
         >
           {t('workRecord.endButton')}
         </Button>
-        <Divider type="vertical" style={{ margin: '0 4px' }} />
+        <Divider orientation="vertical" style={{ margin: '0 4px' }} />
         <Button
           size="small"
           type="default"
@@ -1173,14 +1202,88 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
         </Button>
       </Flex>
 
-      {isReadOnly && (
-        <Alert
-          type="info" showIcon
-          message={t('workRecord.completedTransitionReadonly')}
-          style={{ marginTop: 4, fontSize: 12, width: '100%' }}
-          action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
-        />
-      )}
+      {isReadOnly && (() => {
+        // 異常終了（status === 'issue'）の場合は訂正不可・完全閲覧専用
+        if (isErrorStatus) {
+          return (
+            <Alert
+              type="error" showIcon
+              message={t('workRecord.errorTransitionReadonly')}
+              style={{ marginTop: 4, fontSize: 12, width: '100%' }}
+              action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
+            />
+          );
+        }
+        // 訂正可能かどうかを判定
+        // 条件①: プロジェクトステータスが訂正可能（1=実行待ち/2=実行中/6=差し戻し）
+        const isProjectCorrectable =
+          projectStatus === ProjectStatusConst.TASK_PENDING ||
+          projectStatus === ProjectStatusConst.TASK_IN_PROGRESS ||
+          projectStatus === ProjectStatusConst.REVIEW_REJECTED;
+        // 条件②: タスクステータスが訂正可能（0=待ち/1=実行中/5=NG）
+        const isTaskCorrectable =
+          taskStatus === TaskStatusConst.PENDING ||
+          taskStatus === TaskStatusConst.IN_PROGRESS ||
+          taskStatus === TaskStatusConst.REVIEW_NG;
+        const isCorrectable = isProjectCorrectable && isTaskCorrectable;
+
+        if (isCorrectionMode) {
+          // 訂正モード中: 「訂正保存」「キャンセル」ボタン表示
+          return (
+            <Alert
+              type="warning" showIcon
+              message={t('workRecord.correctionModeAlert')}
+              style={{ marginTop: 4, fontSize: 12, width: '100%' }}
+              action={
+                <Space size={4}>
+                  <Button
+                    size="small"
+                    type="primary"
+                    loading={correctionLoading}
+                    onClick={onSaveCorrection}
+                  >
+                    {t('workRecord.saveCorrectionButton')}
+                  </Button>
+                  <Button
+                    size="small"
+                    disabled={correctionLoading}
+                    onClick={onCancelCorrectionMode}
+                  >
+                    {t('workRecord.cancelCorrectionButton')}
+                  </Button>
+                </Space>
+              }
+            />
+          );
+        }
+        if (isCorrectable) {
+          // 訂正可能: 「訂正」ボタンと「作業に戻る」ボタンを表示
+          return (
+            <Alert
+              type="info" showIcon
+              message={t('workRecord.completedTransitionReadonly')}
+              style={{ marginTop: 4, fontSize: 12, width: '100%' }}
+              action={
+                <Space size={4}>
+                  <Button size="small" type="primary" onClick={onEnterCorrectionMode}>
+                    {t('workRecord.startCorrectionButton')}
+                  </Button>
+                  <Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>
+                </Space>
+              }
+            />
+          );
+        }
+        // 訂正不可: 「作業に戻る」のみ
+        return (
+          <Alert
+            type="info" showIcon
+            message={t('workRecord.completedTransitionReadonly')}
+            style={{ marginTop: 4, fontSize: 12, width: '100%' }}
+            action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
+          />
+        );
+      })()}
     </div>
   );
 };
@@ -1190,18 +1293,43 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface InstructionCollapseProps {
-  instructions: string[];
+  instructions: Instruction[];
   /** 指示確認ボタン押下コールバック */
   onConfirmInstruction?: () => void;
+  /**
+   * 初期表示時に展開しておくかどうか。
+   * true = 展開（準備状態など指示確認が必要なタイミング）
+   * false = 折りたたみ（動作状態以降）
+   * デフォルト: false
+   */
+  defaultOpen?: boolean;
+
   /** 指示確認ボタンの非活性フラグ */
   confirmInstructionDisabled?: boolean;
 }
 
-const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions, onConfirmInstruction, confirmInstructionDisabled = false }) => {
+const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions, onConfirmInstruction, defaultOpen = false, confirmInstructionDisabled = false }) => {
+
   const { t } = useLanguage();
+  const [activeKeys, setActiveKeys] = useState<string[]>(defaultOpen ? ['instructions'] : []);
+
+  // defaultOpen が変化したとき（トランジション切り替え）に開閉状態をリセット
+  useEffect(() => {
+    setActiveKeys(defaultOpen ? ['instructions'] : []);
+  }, [defaultOpen]);
+
+  /** instruction_key から表示名を解決する（未設定は「通常指示」相当にフォールバック） */
+  const resolveLabel = (instructionKey: string | undefined): string => {
+    const fallbackKey = 'Alchemia:SupervisorDirectiveContent';
+    const key = instructionKey || fallbackKey;
+    return INSTRUCTION_KEY_LABELS[key as keyof typeof INSTRUCTION_KEY_LABELS] ?? INSTRUCTION_KEY_LABELS[fallbackKey];
+  };
+
   return (
     <Collapse
       size="small"
+      activeKey={activeKeys}
+      onChange={(keys) => setActiveKeys(typeof keys === 'string' ? [keys] : keys)}
       style={{ marginBottom: 8, background: '#fffbe6', borderColor: '#ffe58f' }}
       items={[
         {
@@ -1221,9 +1349,12 @@ const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions,
                 </Text>
               ) : (
                 <>
-                  <ul style={{ margin: 0, paddingLeft: 18, marginBottom: 8 }}>
-                    {instructions.map((inst, i) => (
-                      <li key={i} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>{inst}</li>
+                  <ul style={{ margin: 0, paddingLeft: 18, marginBottom: 8, maxHeight: 240, overflowY: 'auto' }}>
+                    {instructions.map((inst) => (
+                      <li key={inst.instructionId} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>
+                        <Text strong style={{ fontSize: 13 }}>{resolveLabel(inst.instructionKey)}：</Text>
+                        {inst.content}
+                      </li>
                     ))}
                   </ul>
                   <Flex justify="flex-end">
@@ -1330,7 +1461,7 @@ interface PlanProps {
   activeTaskNo: number;
   viewingKey: { taskNo: number; transitionId: string } | null;
   skippedTransitionIds: string[];
-  instructions: string[];
+  instructions: Instruction[];
   onActualChange: (taskNo: number, transitionId: string, propKey: string, value: ActualValue) => void;
   onSave: (taskNo: number, transitionId: string) => void;
   onSaveAndNext: (taskNo: number, transitionId: string) => void;
@@ -1379,16 +1510,22 @@ interface PlanProps {
   onInstrumentRefChange: (value: string | null) => void;
   /** プロジェクト指示「確認」ボタン押下コールバック */
   onConfirmInstruction?: () => void;
-  /** 「開始」ボタン押下コールバック（準備完了→動作状態） */
-  onStart?: () => void;
-  /** 「終了」ボタン押下コールバック（動作状態→終状態） */
-  onEnd?: () => void;
+  /**
+   * 「開始」ボタン押下コールバック（準備完了→動作状態）
+   * displayKey の taskNo / transitionId を引数として受け取る。
+   */
+  onStart?: (taskNo: number, transitionId: string) => void;
+  /**
+   * 「終了」ボタン押下コールバック（動作状態→終状態）
+   * displayKey の taskNo / transitionId を引数として受け取る。
+   */
+  onEnd?: (taskNo: number, transitionId: string) => void;
   /** 「異常終了」ボタン押下コールバック（任意→異常終了状態） */
   onForceEnd?: () => void;
   /** 状態記録ボタン押下コールバック */
   onStateRecord?: () => void;
-  /** 作業指示ボタン押下コールバック */
-  onInstructionClick?: () => void;
+  /** 状態プルダウン変更コールバック（transitionId, TransitionStatus文字列） */
+  onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
   /** Insertion アップロード準備完了コールバック */
   onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
   /**
@@ -1415,6 +1552,38 @@ interface PlanProps {
    * PropertyCard 内のバッジ表示に使用する。
    */
   lastJudgeResultMap?: Record<string, '良好' | '不良'>;
+  /** プロジェクトステータス（訂正ボタン表示制御） */
+  projectStatus?: number;
+  /** 訂正モード中かどうか */
+  isCorrectionMode?: boolean;
+  /** 訂正モード開始コールバック */
+  onEnterCorrectionMode?: () => void;
+  /** 訂正モードキャンセルコールバック */
+  onCancelCorrectionMode?: () => void;
+  /** 訂正保存中フラグ */
+  correctionLoading?: boolean;
+  /** 訂正保存コールバック */
+  onSaveCorrection?: () => void;
+  /**
+   * 現在アクティブなトランジションのキー（本体で計算して渡す）。
+   * PlanB 内での二重計算を避けるために Props で受け取る。
+   */
+  activeEntry: { taskNo: number; transitionId: string } | null;
+  /**
+   * 現在表示中トランジションのキー（本体で計算して渡す）。
+   * viewingKey ?? pendingEndKey ?? activeEntry の優先順で決定される。
+   */
+  displayKey: { taskNo: number; transitionId: string } | null;
+  /**
+   * データ入力エリアの読み取り専用フラグ（本体で計算して渡す）。
+   * isRecorded === true && (isErrorStatus || !isCorrectionMode) で決定される。
+   */
+  isReadOnly: boolean;
+  /**
+   * 異常終了ステータス（status === 'issue'）フラグ（本体で計算して渡す）。
+   * true のとき訂正不可（完全閲覧専用）。
+   */
+  isErrorStatus: boolean;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1425,10 +1594,21 @@ const PlanB: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, onPropertyAdd, onPropertyRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
-  progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onInstructionClick,
+  progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onStatusChange,
   pendingEndKey, onSetPendingEndKey,
   onUncertaintyValuesChange,
   lastJudgeResultMap,
+  projectStatus,
+  isCorrectionMode = false,
+  onEnterCorrectionMode,
+  onCancelCorrectionMode,
+  correctionLoading = false,
+  onSaveCorrection,
+  // 本体で計算して渡す（二重計算解消）
+  activeEntry,
+  displayKey,
+  isReadOnly,
+  isErrorStatus,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1442,56 +1622,8 @@ const PlanB: React.FC<PlanProps> = ({
    */
   const effectiveTransitions = (apiTransitions && apiTransitions.length > 0) ? apiTransitions : [];
 
-  const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
-    // progressRows がある場合: API の実トランジションIDを優先使用
-    if (progressRows && progressRows.length > 0) {
-      // 優先順位: 動作状態(in_progress) > 準備完了状態(ready) > 準備状態(preparing)
-      // 同一ステータス内では order 昇順（若い順）を優先する
-      const statusPriority: Record<string, number> = { 'in_progress': 1, 'ready': 2, 'preparing': 3 };
-      const activeStatusRows = progressRows
-        .filter((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-        .sort((a, b) => {
-          const pA = statusPriority[a.status] ?? 99;
-          const pB = statusPriority[b.status] ?? 99;
-          if (pA !== pB) return pA - pB;
-          // 同一ステータスは order 昇順（若い順）
-          return (a.order ?? 0) - (b.order ?? 0);
-        });
-      // 1. activeTaskNo のステータス優先行を先に探す
-      const activeTaskRow = activeStatusRows.find((r) => r.taskNo === activeTaskNo);
-      if (activeTaskRow) return { taskNo: activeTaskRow.taskNo, transitionId: activeTaskRow.transitionId };
-      // 2. 全体でステータス優先行を探す
-      if (activeStatusRows.length > 0) {
-        const row = activeStatusRows[0];
-        return { taskNo: row.taskNo, transitionId: row.transitionId };
-      }
-      // 3. activeTaskNo の not_started（未着手でもカードを表示）
-      const notStartedRow = progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
-        // 4. 全体の not_started
-        ?? progressRows.find((r) => r.status === 'not_started');
-      if (notStartedRow) return { taskNo: notStartedRow.taskNo, transitionId: notStartedRow.transitionId };
-      return null;
-    }
-    // progressRows がない場合: task.transitions の順序でフォールバック
-    const task = tasks.find((t) => t.taskNo === activeTaskNo);
-    if (!task) return null;
-    for (const tt of task.transitions) {
-      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: activeTaskNo, transitionId: tt.transitionId };
-    }
-    return null;
-  }, [progressRows, tasks, activeTaskNo]);
+  // displayKey・isReadOnly・activeEntry・isErrorStatus は Props から受け取る（本体で一元計算）
 
-  // displayKey の優先順位:
-  // 1. viewingKey（完了済みトランジション閲覧モード）
-  // 2. pendingEndKey（終了/異常終了ボタン押下後のロック）
-  // 3. activeEntry（通常の作業中トランジション）
-  const displayKey = viewingKey ?? pendingEndKey ?? activeEntry;
-  // viewingKey がセットされていても、対象トランジションが completed / issue でない場合は
-  // 閲覧モードにしない（進捗確認タブの「作業へ」ボタン経由で来た場合の誤判定を防ぐ）
-  const viewingKeyStatusB = viewingKey
-    ? progressRows?.find((r) => r.taskNo === viewingKey.taskNo && r.transitionId === viewingKey.transitionId)?.status
-    : undefined;
-  const isReadOnly = viewingKey !== null && (viewingKeyStatusB === 'completed' || viewingKeyStatusB === 'issue');
   const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
   const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
   // effectiveTransitions からテンプレートを解決する
@@ -1575,16 +1707,32 @@ const PlanB: React.FC<PlanProps> = ({
       <InstructionCollapse
         instructions={instructions}
         onConfirmInstruction={onConfirmInstruction}
+        defaultOpen={(() => {
+          // 現在のアクティブトランジションのステータスが preparing / ready（準備状態）の場合は開いておく
+          if (!activeEntry || !progressRows) return false;
+          const currentRow = progressRows.find(
+            (r) => r.taskNo === activeEntry.taskNo && r.transitionId === activeEntry.transitionId
+          );
+          return currentRow?.status === 'preparing' || currentRow?.status === 'ready';
+        })()}
         confirmInstructionDisabled={confirmInstructionDisabled}
       />
       <WorkHeader
         displayKey={displayKey} taskTransition={displayTTWithCurrentStatus} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
-        onStart={onStart}
-        onEnd={displayKey ? () => { onSetPendingEndKey?.(displayKey); onEnd?.(); } : undefined}
+        onStart={displayKey ? () => onStart?.(displayKey.taskNo, displayKey.transitionId) : undefined}
+        onEnd={displayKey ? () => { onSetPendingEndKey?.(displayKey); onEnd?.(displayKey.taskNo, displayKey.transitionId); } : undefined}
         onForceEnd={displayKey ? () => { onSetPendingEndKey?.(displayKey); onForceEnd?.(); } : undefined}
+        onStatusChange={onStatusChange}
         onStateRecord={onStateRecord}
-        onInstructionClick={onInstructionClick}
+        projectStatus={projectStatus}
+        taskStatus={progressRows?.find((r) => displayKey !== null && r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId)?.taskStatus}
+        isCorrectionMode={isCorrectionMode}
+        onEnterCorrectionMode={onEnterCorrectionMode}
+        onCancelCorrectionMode={onCancelCorrectionMode}
+        correctionLoading={correctionLoading}
+        onSaveCorrection={onSaveCorrection}
+        isErrorStatus={isErrorStatus}
         startDisabled={startDisabled}
         endDisabled={endDisabled}
         forceEndDisabled={forceEndDisabled}
@@ -1670,7 +1818,7 @@ const PlanB: React.FC<PlanProps> = ({
                   >
                     {nextBtnLabel}
                   </Button>
-                  <Divider type="vertical" style={{ margin: '0 12px' }} />
+                  <Divider orientation="vertical" style={{ margin: '0 12px' }} />
                   <Button
                     size="small"
                     icon={<CommentOutlined />}
@@ -1886,15 +2034,27 @@ interface WorkRecordPanelProps {
   useDeemedProgress?: boolean;
   initialTaskNo?: number;
   initialTransitionId?: string;
-  projectInstructions?: string[];
+  /** 作業指示一覧（全件）。WorkRecordPanel 内部で現在のトランジションに応じてフィルタリングする */
+  allWorkerInstructions?: Instruction[];
   /** プロジェクト指示「確認」ボタン押下コールバック */
   onConfirmInstruction?: () => void;
-  /** 「開始」ボタン押下コールバック（準備完了→動作状態） */
-  onStart?: () => void;
-  /** 「終了」ボタン押下コールバック（動作状態→終状態） */
-  onEnd?: () => void;
+  /**
+   * 「開始」ボタン押下コールバック（準備完了→動作状態）
+   * displayKey の taskNo / transitionId を受け取る。
+   */
+  onStart?: (taskNo: number, transitionId: string) => void;
+  /**
+   * 「終了」ボタン押下コールバック（動作状態→終状態）
+   * displayKey の taskNo / transitionId を受け取る。
+   */
+  onEnd?: (taskNo: number, transitionId: string) => void;
   /** 「異常終了」ボタン押下コールバック（任意→異常終了状態） */
   onForceEnd?: () => void;
+  /**
+   * 状態プルダウン変更コールバック（transitionId, TransitionStatus 文字列）
+   * ExperimentWorkerMenu 側で updateTransitionStatus API を呼び出す。
+   */
+  onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
 }
 
 /** API の xsiType 文字列を WorkProperty の xsiType に変換する */
@@ -1995,11 +2155,12 @@ export default function WorkRecordPanel({
   projectStatus,
   initialTaskNo,
   initialTransitionId,
-  projectInstructions,
+  allWorkerInstructions,
   onConfirmInstruction,
   onStart,
   onEnd,
   onForceEnd,
+  onStatusChange,
 }: WorkRecordPanelProps = {}) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
@@ -2214,6 +2375,14 @@ export default function WorkRecordPanel({
       : null
   );
 
+  /** 訂正モード（isReadOnly 時に編集可能にするフラグ） */
+  const [isCorrectionMode, setIsCorrectionMode] = useState(false);
+  const [correctionLoading, setCorrectionLoading] = useState(false);
+
+  // viewingKey が変化したら訂正モードをリセット
+  useEffect(() => {
+    setIsCorrectionMode(false);
+  }, [viewingKey]);
   // 進捗確認タブの「記録」ボタン押下で initialTaskNo/initialTransitionId が変化した際に
   // viewingKey を更新して、押下した行のトランジション情報を実験記録タブで表示する
   useEffect(() => {
@@ -2405,6 +2574,74 @@ export default function WorkRecordPanel({
     return () => { cancelled = true; };
   }, [projectId, methodId]);
 
+  /**
+   * 訂正保存処理
+   * viewingKey のトランジションに対して correctRecord API を呼び出す。
+   * actuals の現在の入力値を rawTemplateItemsRef のプロパティ構造に反映して送信。
+   */
+  const handleSaveCorrection = useCallback(async () => {
+    if (!viewingKey || !projectId || !methodId) return;
+    const { taskNo, transitionId } = viewingKey;
+    const mapKey = `${taskNo}__${transitionId}`;
+    const rawItems = rawTemplateItemsRef.current.get(mapKey) ?? [];
+    if (rawItems.length === 0) {
+      message.warning('訂正対象のデータが見つかりません');
+      return;
+    }
+
+    const task = tasks.find((t) => t.taskNo === taskNo);
+    const taskTransition = task?.transitions.find((tt) => tt.transitionId === transitionId);
+
+    // ── 定性評価の必須バリデーション ──
+    // rawTemplateItemsRef の該当トランジションのプロパティに qualitativeOptions が
+    // 1件でも存在する場合、confidenceValuesRef にエントリが1件もなければエラーにする
+    const hasQualitativeProps = rawItems.some((item) => {
+      const props = (item.data?.properties ?? []) as Array<Record<string, unknown>>;
+      return props.some((p) => {
+        const opts = p.qualitativeOptions as Array<unknown> | null | undefined;
+        return Array.isArray(opts) && opts.length > 0;
+      });
+    });
+    if (hasQualitativeProps && confidenceValuesRef.current.size === 0) {
+      message.error(t('workRecord.correctionQualitativeRequired'));
+      return;
+    }
+
+    setCorrectionLoading(true);
+    try {
+      const records = rawItems.map((item) => {
+        const baseData: Record<string, unknown> = item.data ? JSON.parse(JSON.stringify(item.data)) : {};
+        // actuals の値で対応するプロパティを上書き
+        if (taskTransition?.actuals && Array.isArray(baseData.properties)) {
+          (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+            if (p.isCustomProperty === true) return;
+            const propKey = String(p.key ?? '');
+            if (propKey in taskTransition.actuals) {
+              p.value = taskTransition.actuals[propKey] ?? null;
+            }
+          });
+        }
+        return {
+          placeId: item.placeId,
+          data: {
+            templateId: item.templateId,
+            templateType: item.templateType,
+            properties: Array.isArray(baseData.properties) ? baseData.properties : [],
+          },
+        };
+      });
+      const requestBody = { records };
+      await correctRecord(projectId, methodId, taskNo, requestBody);
+      message.success(t('workRecord.correctionSaved'));
+      setIsCorrectionMode(false);
+    } catch (err) {
+      console.error('[WorkRecordPanel] handleSaveCorrection error:', err);
+      message.error(t('workRecord.correctionError'));
+    } finally {
+      setCorrectionLoading(false);
+    }
+  }, [viewingKey, projectId, methodId, tasks, message, t]);
+
   const handleSave = useCallback(async (taskNo: number, transitionId: string) => {
     try {
       await uploadAllPendingInsertions();
@@ -2495,6 +2732,9 @@ export default function WorkRecordPanel({
       message.error(t('workRecord.saveContent'));
     }
   }, [projectId, methodId, tasks, t, uploadAllPendingInsertions]);
+
+  // ─── スキップ state ────────────────────────────────────────
+  const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
 
   const handleSaveAndNext = useCallback(
     async (taskNo: number, transitionId: string) => {
@@ -2592,27 +2832,20 @@ export default function WorkRecordPanel({
       setPendingEndKey(null);
       setIsDirty(false);
 
-      const task = tasks.find((t) => t.taskNo === taskNo);
-      if (!task) return;
-      // 次のトランジションを task.transitions の順序から探す（モック依存を排除）
-      const currentTtIdx = task.transitions.findIndex((tt) => tt.transitionId === transitionId);
-      const nextTt = currentTtIdx >= 0 ? task.transitions[currentTtIdx + 1] : null;
-      const nextId = nextTt?.transitionId ?? null;
+      // 次のトランジションを findNextAvailableTransition で探す（スキップ済み・前提条件を考慮）
+      const next = findNextAvailableTransition(taskNo, transitionId, skippedTransitionIds, tasks);
 
-      if (nextTt) {
+      if (next) {
         Modal.success({
           title: t('workRecord.transitionComplete'),
-          content: <span>{t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{nextId}</Text></span>,
+          content: <span>{t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{next.transitionId}</Text></span>,
         });
       } else {
         Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
       }
     },
-    [projectId, methodId, tasks, t, uploadAllPendingInsertions, isDirty]
+    [projectId, methodId, tasks, skippedTransitionIds, t, uploadAllPendingInsertions, isDirty]
   );
-
-  // ─── スキップ state ────────────────────────────────────────
-  const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
 
   const handleSkip = useCallback(
     (taskNo: number, transitionId: string) => {
@@ -2912,13 +3145,96 @@ export default function WorkRecordPanel({
       message.error(t('workRecord.commentSaveError'));
     }
   }, [projectId, methodId, t]);
+  // コメントダイアログに渡す displayKey（現在表示中のキー）
+  // progressRows (API データ) から in_progress / started なトランジションを優先使用する。
+  // モック ORDERED_TRANSITION_IDS との不一致により常に null になっていた問題を修正。
+  const activeEntry = useMemo(() => {
+    // progressRows がある場合: API の実トランジションIDを使用
+    if (progressRows && progressRows.length > 0) {
+      // まず ASSIGNED_TASK_NO のタスクで in_progress/ready/preparing を探す
+      const activeRow = progressRows.find(
+        (r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+      ) ?? progressRows.find(
+        // 見つからない場合はタスクNoに関わらず最初の作業中トランジションを使用
+        (r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing'
+      );
+      if (activeRow) {
+        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      }
+      // 全て完了済みの場合は null（「全トランジション完了」Alert を表示）
+      return null;
+    }
+    // progressRows が空の場合: task.transitions の順序でフォールバック
+    const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
+    if (!task) return null;
+    for (const tt of task.transitions) {
+      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tt.transitionId };
+    }
+    return null;
+  }, [progressRows, tasks, ASSIGNED_TASK_NO]);
+
+  // displayKey の優先順位:
+  // 1. viewingKey（別タブから遷移してきた指定トランジション）
+  // 2. pendingEndKey（終了/異常終了ボタン押下後のロック）
+  // 3. activeEntry（通常の作業中トランジション）
+  const displayKey = viewingKey ?? pendingEndKey ?? activeEntry;
+
+  // displayKey に対応する progressRow を取得（isReadOnly・isErrorStatus・ボタン活性制御に使用）
+  const displayKeyRow = progressRows?.find(
+    (r) => displayKey !== null && r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId
+  );
+  const isErrorStatus = displayKeyRow?.status === 'issue';
+
+  // データ入力エリアの読み取り専用フラグ
+  // - isRecorded === true（記録済み）かつ訂正モードでない場合: 読み取り専用
+  // - isRecorded === true かつ status === 'issue'（異常終了）: 訂正モードでも読み取り専用
+  const isReadOnly = displayKeyRow?.isRecorded === true && (isErrorStatus || !isCorrectionMode);
 
   const planProps: PlanProps = {
     tasks,
     activeTaskNo: ASSIGNED_TASK_NO,
     viewingKey,
     skippedTransitionIds,
-    instructions: projectInstructions ?? [],
+    instructions: (() => {
+      if (!allWorkerInstructions || allWorkerInstructions.length === 0) return [];
+
+      // 現在表示中のトランジション情報を特定する
+      // viewingKey（閲覧中）または progressRows から activeEntry を解決する
+      const activeEntry = viewingKey ?? (() => {
+        const activeRow =
+          progressRows?.find((r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')) ??
+          progressRows?.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing');
+        if (!activeRow) return null;
+        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      })();
+
+      // アクティブなトランジションに対応する methodId / taskNo / transitionId を特定
+      const activeMethodId = methodId;
+      const activeTaskNo = activeEntry?.taskNo ?? null;
+      const activeTransitionId = activeEntry?.transitionId ?? null;
+
+      return allWorkerInstructions.filter((inst) => {
+        // 全体指示（methodId も transitionId も未設定）
+        if (!inst.methodId && !inst.transitionId) return true;
+
+        // メソッド指示（methodId 一致・transitionId なし・taskId なし）
+        if (inst.methodId && !inst.transitionId && !inst.taskId && activeMethodId) {
+          return inst.methodId === activeMethodId;
+        }
+
+        // タスク指示（methodId 一致・taskId あり）
+        if (inst.methodId && inst.taskId && activeMethodId && activeTaskNo !== null) {
+          return inst.methodId === activeMethodId && inst.taskId.endsWith(`-${activeTaskNo}`);
+        }
+
+        // トランジション指示（transitionId 一致）
+        if (inst.transitionId && activeTransitionId) {
+          return inst.transitionId === activeTransitionId;
+        }
+
+        return false;
+      });
+    })(),
     onActualChange: handleActualChange,
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,
@@ -2947,13 +3263,12 @@ export default function WorkRecordPanel({
     onStart,
     onEnd,
     onForceEnd,
+    onStatusChange,
     pendingEndKey,
     onSetPendingEndKey: (key) => setPendingEndKey(key),
     onStateRecord: async () => {
-      // 表示中トランジション（viewingKey → pendingEndKey → activeTaskEntry の優先順）のIDを取得
-      // pendingEndKey: 終了/異常終了ボタン押下後にロックされたトランジションID
-      // activeTaskEntry: 通常作業中のトランジションID
-      const targetEntry = viewingKey ?? pendingEndKey ?? activeTaskEntry;
+      // 表示中トランジション（displayKey 優先）のIDを取得
+      const targetEntry = displayKey;
       if (!projectId || !methodId || !targetEntry) {
         setStateRecordDialogOpen(true);
         return;
@@ -2990,30 +3305,6 @@ export default function WorkRecordPanel({
       }
       setStateRecordDialogOpen(true);
     },
-    onInstructionClick: () => {
-      // 現在表示中のトランジションを InstructionConfirmationModal に渡す
-      const targetEntry = viewingKey ?? (() => {
-        if (progressRows && progressRows.length > 0) {
-          const activeRow = progressRows.find(
-            (r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-          ) ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing');
-          if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
-        }
-        return null;
-      })();
-      if (targetEntry) {
-        const tr: Transition = {
-          transitionId: targetEntry.transitionId,
-          transitionName: targetEntry.transitionId,
-          status: 'not_started' as const,
-          templates: [],
-        };
-        setCurrentTransitionForInstruction(tr);
-      } else {
-        setCurrentTransitionForInstruction(null);
-      }
-      setInstructionModalOpen(true);
-    },
     onUncertaintyValuesChange: (placeId: string, entries: UncertaintyValueEntry[]) => {
       // PropertyCard の addedValues が変化するたびに Ref を更新する
       // キーは placeId（template.id）。entries が空の場合はキーを削除
@@ -3034,36 +3325,20 @@ export default function WorkRecordPanel({
       }
     },
     lastJudgeResultMap,
+    projectStatus,
+    isCorrectionMode,
+    onEnterCorrectionMode: () => setIsCorrectionMode(true),
+    onCancelCorrectionMode: () => setIsCorrectionMode(false),
+    correctionLoading,
+    onSaveCorrection: handleSaveCorrection,
+    // 本体で一元計算して渡す（PlanB 内の二重計算を解消）
+    activeEntry,
+    displayKey,
+    isReadOnly,
+    isErrorStatus,
   };
 
-  // コメントダイアログに渡す displayKey（現在表示中のキー）
-  // progressRows (API データ) から in_progress / started なトランジションを優先使用する。
-  // モック ORDERED_TRANSITION_IDS との不一致により常に null になっていた問題を修正。
-  const activeTaskEntry = useMemo(() => {
-    // progressRows がある場合: API の実トランジションIDを使用
-    if (progressRows && progressRows.length > 0) {
-      // まず ASSIGNED_TASK_NO のタスクで in_progress/ready/preparing を探す
-      const activeRow = progressRows.find(
-        (r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-      ) ?? progressRows.find(
-        // 見つからない場合はタスクNoに関わらず最初の作業中トランジションを使用
-        (r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing'
-      );
-      if (activeRow) {
-        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
-      }
-      // 全て完了済みの場合は null（「全トランジション完了」Alert を表示）
-      return null;
-    }
-    // progressRows が空の場合: task.transitions の順序でフォールバック
-    const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
-    if (!task) return null;
-    for (const tt of task.transitions) {
-      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tt.transitionId };
-    }
-    return null;
-  }, [progressRows, tasks, ASSIGNED_TASK_NO]);
-  const commentTarget = viewingKey ?? activeTaskEntry;
+  const commentTarget = viewingKey ?? activeEntry;
 
   return (
     <div style={{ flex: 1, minHeight: 0 }}>
@@ -3302,16 +3577,6 @@ export default function WorkRecordPanel({
           onSave={(comment) => handleSaveComment(comment, commentTarget.taskNo, commentTarget.transitionId)}
         />
       )}
-
-      {/* 作業指示確認モーダル */}
-      <InstructionConfirmationModal
-        open={instructionModalOpen}
-        transition={currentTransitionForInstruction}
-        projectId={projectId}
-        methodId={methodId}
-        projectStatus={projectStatus as ProjectStatus | null}
-        onCancel={() => setInstructionModalOpen(false)}
-      />
 
       {/* ── ペトリネットビューア（ViewRendererDialog / フローティング） ── */}
       {viewerDialogs.map((dialog) => (

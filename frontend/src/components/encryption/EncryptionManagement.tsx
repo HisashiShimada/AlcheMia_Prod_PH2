@@ -275,7 +275,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     try {
       const targetPaths = encryptCandidates.map((n) => n.path);
       await encryptionService.encryptElements(projectName, targetPaths, config);
-      message.success(t('encryption.encryptSuccess', { count: targetPaths.length }));
+      message.success(t('encryption.encryptSuccess', { count: targetPaths.length.toString() }));
       await loadTree();
       setSelectedPath(null);
       setSelectedNode(null);
@@ -367,7 +367,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
         keyId,
         password,
       });
-      message.success(t('encryption.decryptSuccess', { count: targetPaths.length }));
+      message.success(t('encryption.decryptSuccess', { count: targetPaths.length.toString() }));
       await loadTree();
       setSelectedPath(null);
       setSelectedNode(null);

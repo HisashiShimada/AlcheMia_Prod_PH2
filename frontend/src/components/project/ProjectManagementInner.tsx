@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { App, Card, Tabs, Tag, Space, Typography, theme, Tooltip, Button } from 'antd';
+import { App, Card, Modal, Tabs, Tag, Space, Typography, theme, Tooltip, Button } from 'antd';
 import {
   DownloadOutlined, UploadOutlined, EditOutlined, DeleteOutlined,
   FileTextOutlined, ExclamationCircleOutlined,
@@ -12,7 +12,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { usePublishStatusPoller } from '@/hooks/usePublishStatusPoller';
 import { ProjectStatus } from '@/constants/codeMaster';
-import { getProjectFiles, getPublishStatus } from '@/services/projectApiService';
+import { getProjectFiles, getPublishStatus, forceTerminateProject } from '@/services/projectApiService';
 
 import { useProjectList } from '@/hooks/project/useProjectList';
 import { useProjectSelection } from '@/hooks/project/useProjectSelection';
@@ -174,6 +174,29 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
   const handlePublishSuccess = useCallback(async (_jobId: string) => { setIsPolling(true); startPoller(); try { await handleProjectReload(); } catch { /* ignore */ } }, [startPoller, handleProjectReload]);
   const handleUnpublishSuccess = useCallback(async (_jobId: string) => { setIsPolling(true); startPoller(); try { await handleProjectReload(); } catch { /* ignore */ } }, [startPoller, handleProjectReload]);
 
+  // 強制終了ハンドラ
+  const handleForceTerminate = useCallback(() => {
+    if (!selectedProject) return;
+    const projectName = selectedProject.name;
+    const projectId = selectedProject.id;
+    Modal.confirm({
+      title: t('projectManagement.forceTerminate.confirmTitle'),
+      content: t('projectManagement.forceTerminate.confirmContent'),
+      okText: t('projectManagement.forceTerminate.okText'),
+      okButtonProps: { danger: true },
+      cancelText: t('common.cancel'),
+      onOk: async () => {
+        try {
+          await forceTerminateProject(projectId);
+          message.success(t('projectManagement.forceTerminate.successMessage').replace('{name}', projectName));
+          await refetchProjects();
+        } catch {
+          message.error(t('projectManagement.forceTerminate.errorMessage'));
+        }
+      },
+    });
+  }, [selectedProject, t, message, refetchProjects]);
+
   // ViewRenderer ダイアログ管理
   interface OpenDialog { id: string; contentType: 'file' | 'subnet'; file?: ProjectFile; fileContent?: string | null; subnetData?: any; zIndex: number; position: { x: number; y: number }; }
   const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
@@ -273,10 +296,27 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                   <Button danger icon={<DeleteOutlined />} onClick={handleProjectDelete} disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}>{t('projectManagement.deleteButton')}</Button>
                   <Button type="primary" icon={<FileTextOutlined />} onClick={handleToggleCheckout} disabled={selectedProject?.status === ProjectStatus.COMPLETED || selectedProject?.status === ProjectStatus.ERROR || selectedProject?.isEditable === false} style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }} data-testid="checkout-checkin-button">{isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}</Button>
                   <Button type="primary" icon={<ExclamationCircleOutlined />} onClick={handleOpenIssueManagement} style={{ backgroundColor: token.colorWarning, borderColor: token.colorWarning }}>{t('projectManagement.issueCheck')}</Button>
-                  {isPublished ? (<Button type="primary" data-testid="maiml-toolbar-unpublish-button" style={{ backgroundColor: token.colorError, borderColor: token.colorError }} onClick={handleUnpublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.unpublish')}</Button>) : (<Button type="primary" data-testid="maiml-toolbar-publish-button" style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }} onClick={handlePublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || !(selectedProject?.status === ProjectStatus.REVIEW_WAITING || selectedProject?.status === ProjectStatus.COMPLETED) || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.publish')}</Button>)}
                   <Tooltip title={!allTasksCompleted ? t('projectManagement.completionDisabledTooltip') : selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : undefined}>
                     <Button type="primary" disabled={!allTasksCompleted || selectedProject?.isEditable === false} style={allTasksCompleted && selectedProject?.isEditable !== false ? { backgroundColor: '#52c41a', borderColor: '#52c41a' } : undefined} onClick={() => dialogs.setCompletionDialogOpen(true)}>{t('projectManagement.completionButton')}</Button>
                   </Tooltip>
+                  {isPublished ? (<Button type="primary" data-testid="maiml-toolbar-unpublish-button" style={{ backgroundColor: token.colorError, borderColor: token.colorError }} onClick={handleUnpublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.unpublish')}</Button>) : (<Button type="primary" data-testid="maiml-toolbar-publish-button" style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }} onClick={handlePublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || !(selectedProject?.status === ProjectStatus.REVIEW_WAITING || selectedProject?.status === ProjectStatus.COMPLETED) || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.publish')}</Button>)}
+                  <Button
+                    danger
+                    icon={<WarningOutlined />}
+                    onClick={handleForceTerminate}
+                    disabled={
+                      !selectedProject ||
+                      !(
+                        selectedProject.status === ProjectStatus.TASK_PENDING ||
+                        selectedProject.status === ProjectStatus.TASK_IN_PROGRESS ||
+                        selectedProject.status === ProjectStatus.REVIEW_WAITING ||
+                        selectedProject.status === ProjectStatus.REVIEW_REJECTED
+                      ) ||
+                      isProjectCheckedOut
+                    }
+                  >
+                    {t('projectManagement.forceTerminate.buttonLabel')}
+                  </Button>
                   <Button icon={<EditOutlined />} onClick={() => dialogs.setRenameModalOpen(true)} disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}>{t('projectManagement.renameProject')}</Button>
                   <Button icon={<SafetyCertificateOutlined />} onClick={() => dialogs.setValidationDialogOpen(true)} disabled={!selectedProject}>{t('projectManagement.validationConfirmButton')}</Button>
                   {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
@@ -293,10 +333,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                 items={[
                   { key: 'file_management', label: t('projectManagement.tabs.file_management'), children: <FileManagementTabContent selectedProject={selectedProject} currentFolder={currentFolder} expandedFolders={expandedFolders} currentFiles={currentFiles} projectFilesData={projectFilesData} onFolderClick={handleFolderClick} onToggleFolder={handleToggleFolder} onDeleteFile={handleDeleteMaimlFile} onDeleteFolder={handleDeleteFolder} onViewFile={handleViewFile} /> },
                   { key: 'task_registration', label: t('projectManagement.tabs.task_registration'), children: <TaskRegistrationTabContent selectedProject={selectedProject} isActive={currentTab === 'task_registration'} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
-                  { key: 'project_instruction', label: t('projectManagement.tabProjectInstruction'), children: <ProjectInstructionTabContent selectedProject={selectedProject} isActive={currentTab === 'project_instruction'} isProjectCheckedOut={isProjectCheckedOut} /> },
-                  { key: 'task_results', label: t('projectManagement.tabs.task_results'), children: <ExperimentInstructionTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
-                  { key: 'evaluation_registration', label: t('projectManagement.tabEvaluationRegistration'), children: <EvaluationRegistrationTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
-                  { key: 'overall_evaluation', label: t('projectManagement.tabOverallEvaluation'), children: <OverallEvaluationTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
+                  { key: 'project_instruction', label: t('projectManagement.tabProjectInstruction'), children: <ProjectInstructionTabContent selectedProject={selectedProject} isActive={currentTab === 'project_instruction'} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
+                  { key: 'task_results', label: t('projectManagement.tabs.task_results'), children: <ExperimentInstructionTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
+                  { key: 'evaluation_registration', label: t('projectManagement.tabEvaluationRegistration'), children: <EvaluationRegistrationTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
+                  { key: 'overall_evaluation', label: t('projectManagement.tabOverallEvaluation'), children: <OverallEvaluationTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
                 ]}
                 tabBarStyle={{ marginLeft: 8 }}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}

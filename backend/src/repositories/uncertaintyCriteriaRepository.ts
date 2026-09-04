@@ -89,8 +89,6 @@ export interface QualitativeOptionRow {
   selectorValue: string;
   /** 表示色（#RRGGBB） */
   displayColor: string;
-  /** デフォルト選択肢フラグ */
-  isDefault: boolean;
 }
 
 /**
@@ -162,7 +160,6 @@ export interface InsertNewVersionRequest {
     displayOrder: number;
     value: string;
     displayColor: string;
-    isDefault: boolean;
   }[];
   /** 作成者ユーザID */
   createUserId: string;
@@ -184,17 +181,19 @@ export interface InsertNewVersionResponse {
  * 組織に紐づく不確かさ基準一覧を取得
  *
  * @param organizationId - 組織ID
+ * @param nameSpaceId    - 名前空間ID（省略または null の場合は全件取得）
  * @returns 不確かさ基準一覧（フロントエンド用に整形済み）
  */
 export async function findAllByOrganization(
-  organizationId: string
+  organizationId: string,
+  nameSpaceId?: string | null
 ): Promise<UncertaintyCriteriaRow[]> {
   const pgp = getPgp();
 
   // 外部SQLファイルを読み込み（pg-promise + SQLファイル外部管理パターン）
   const sqlQuery = await loadSqlFile('uncertainty_criteria/findAllByOrganization.sql');
 
-  return await pgp.any<UncertaintyCriteriaRow>(sqlQuery, [organizationId]);
+  return await pgp.any<UncertaintyCriteriaRow>(sqlQuery, [organizationId, nameSpaceId ?? null]);
 }
 
 /**
@@ -220,7 +219,6 @@ export async function findByKey(
       displayOrder: number | null;
       selectorValue: string | null;
       displayColor: string | null;
-      isDefault: boolean | null;
     }
   >(sqlQuery, [organizationId, uncertaintyKey, version]);
 
@@ -249,7 +247,6 @@ export async function findByKey(
         displayOrder:  r.displayOrder as number,
         selectorValue: r.selectorValue as string,
         displayColor:  r.displayColor as string,
-        isDefault:     r.isDefault as boolean,
       })),
   };
 
@@ -285,7 +282,6 @@ export async function findForSelector(
     displayOrder:     number | null;
     selectorValue:    string | null;
     displayColor:     string | null;
-    isDefault:        boolean | null;
   }>(sqlQuery, [organizationId]);
 
   if (rows.length === 0) return [];
@@ -319,7 +315,6 @@ export async function findForSelector(
         displayOrder:  row.displayOrder,
         selectorValue: row.selectorValue as string,
         displayColor:  row.displayColor as string,
-        isDefault:     row.isDefault as boolean,
       });
     }
   }
@@ -391,8 +386,7 @@ export async function insertNewVersion(
           opt.displayOrder,     // $5  display_order
           opt.value,            // $6  value
           opt.displayColor,     // $7  display_color
-          opt.isDefault,        // $8  is_default
-          data.createUserId,    // $9  create_user_id
+          data.createUserId,    // $8  create_user_id
         ]);
       }
     }

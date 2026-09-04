@@ -117,7 +117,6 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
           displayOrder: null,
           selectorValue: null,
           displayColor: null,
-          isDefault: null,
         },
       ];
       mockPgp.any.mockResolvedValue(rows);
@@ -146,7 +145,6 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
           displayOrder: 1,
           selectorValue: '良',
           displayColor: '#00FF00',
-          isDefault: true,
         },
         {
           uncertaintyKey: 'key-002',
@@ -163,7 +161,6 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
           displayOrder: 2,
           selectorValue: '否',
           displayColor: '#FF0000',
-          isDefault: false,
         },
       ];
       mockPgp.any.mockResolvedValue(rows);
@@ -203,7 +200,6 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
           displayOrder: null,
           selectorValue: null,
           displayColor: null,
-          isDefault: null,
         },
         {
           uncertaintyKey: 'key-002',
@@ -218,7 +214,6 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
           displayOrder: 1,
           selectorValue: '良',
           displayColor: '#00FF00',
-          isDefault: true,
         },
       ];
       mockPgp.any.mockResolvedValue(rows);
@@ -261,7 +256,10 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
         inheritanceUncertaintyKey: null,
         xsiType: 'double',
         units: 'mm',
+        scaleFactor: null,
         formatString: null,
+        toleranceUpper: null,
+        toleranceLower: null,
         description: null,
         qualitativeOptions: [],
         createUserId: 'user-001',
@@ -290,11 +288,14 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
         inheritanceUncertaintyKey: null,
         xsiType: null,
         units: null,
+        scaleFactor: null,
         formatString: null,
+        toleranceUpper: null,
+        toleranceLower: null,
         description: null,
         qualitativeOptions: [
-          { displayOrder: 1, value: '良', displayColor: '#00FF00', isDefault: true },
-          { displayOrder: 2, value: '否', displayColor: '#FF0000', isDefault: false },
+          { displayOrder: 1, value: '良', displayColor: '#00FF00' },
+          { displayOrder: 2, value: '否', displayColor: '#FF0000' },
         ],
         createUserId: 'user-001',
       });
@@ -322,7 +323,10 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
         inheritanceUncertaintyKey: null,
         xsiType: null,
         units: null,
+        scaleFactor: null,
         formatString: null,
+        toleranceUpper: null,
+        toleranceLower: null,
         description: null,
         qualitativeOptions: [],
         createUserId: 'user-001',

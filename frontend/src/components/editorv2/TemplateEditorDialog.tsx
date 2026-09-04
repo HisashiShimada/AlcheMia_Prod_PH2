@@ -238,6 +238,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         typeMatches: [],
         unitMatches: [],
         qualitativeOptions: [],
+        toleranceUpper: null,
+        toleranceLower: null,
       },
     };
 

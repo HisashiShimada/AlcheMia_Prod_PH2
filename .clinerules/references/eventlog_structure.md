@@ -49,6 +49,7 @@
 | トランジション進捗（WorkerTransition） | `WorkerTransition_update` | `insertTransitionProgressLog` |
 | タスクレビュー（承認/NG） | `Task_review` | `insertTaskReviewLog` |
 | 記録値訂正 | `Record_correction` | `insertRecordCorrectionLog` |
+| **強制終了（ForceTerminate）** | **`ForceTerminate_ate_abort`** | **`insertLifecycleTransitionEventLog`（`lifecycleValue='ate_abort'`, `phaseIdentifier='ForceTerminateEvent'`）** |
 
 > 新たなフェーズが追加される場合はこのテーブルに追記すること。  
 > ownerRefs が複数の assignee を持つ場合は枝番を付ける（例: `_assignee_1`, `_assignee_2`）。
@@ -69,6 +70,7 @@
 | フェーズ | フェーズ識別名 | lifecycle:transition 値 |
 |---|---|---|
 | 指示送信（Preparation） | `PreparationEvent` | `schedule` |
+| **強制終了（ForceTerminate）** | **`ForceTerminateEvent`** | **`ate_abort`** |
 | 品質評価（Quality） | — | —（lifecycle:transition は使用しない） |
 | トランジション進捗（WorkerTransition） | `WorkerTransitionEvent` | 遷移パターン依存（下表参照） |
 | タスクレビュー（承認/NG） | — | —（lifecycle:transition は使用しない） |
@@ -119,6 +121,7 @@
 | フェーズ | 値 |
 |---|---|
 | 指示送信（Preparation） | `schedule` |
+| **強制終了（ForceTerminate）** | **`ate_abort`** |
 | トランジション進捗（WorkerTransition） | 遷移パターン依存（セクション2-2の WorkerTransition フェーズの遷移値一覧を参照） |
 
 > 新たなフェーズが追加される場合はこのテーブルに追記すること。
@@ -278,6 +281,7 @@
 
 | 日付 | 変更内容 | 担当者 |
 |---|---|---|
+| 2026-09-02 | 強制終了フェーズ（`ForceTerminate_ate_abort`）追加、`insertLifecycleTransitionEventLog` 汎用化対応 | Cline |
 | 2026-09-04 | `insertTransitionProgressLog`・`insertLifecycleTransitionEventLog`・`insertTransitionCommentLog` の ownerRef 付与実装に伴い、セクション 2-5 にフェーズ別 ownerRef 構成表・WorkerTransition/コメントログの ID 命名規則を追記 | Cline |
 | 2026-09-03 | WorkerTransition フェーズの lifecycle:transition 遷移値一覧を正確な遷移パターン対応表に更新（旧: ステータスラベル一覧 → 新: fromStatus × toStatus 対応表） | Cline |
 | 2026-09-01 | タスクレビュー（`Task_review`）・記録値訂正（`Record_correction`）フェーズ追加、フェーズ名一覧・フェーズ識別名一覧を更新 | Cline |

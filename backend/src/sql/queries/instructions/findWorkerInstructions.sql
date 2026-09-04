@@ -16,6 +16,7 @@ SELECT
   pi.method_id,
   pi.transition_id,
   pi.task_no,
+  pi.instruction_key,
   pi.instructions as instruction_content,
   pi.create_at,
   pi.create_user_id as created_by,
