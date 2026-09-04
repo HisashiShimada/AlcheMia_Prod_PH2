@@ -683,13 +683,12 @@ export async function getSuggestedUri(
       ? `https://${domainPart}.Alchemia.co.jp/${pathParts.join('/')}`
       : `https://${domainPart}.Alchemia.co.jp`;
   } else {
-    // 個人スコープ: ユーザーの所属グループCDをドメイン部に使用
-    // 未所属の場合は organization_cd にフォールバック
+    // 個人スコープ: organization_cd をドメイン部に使用
+    // userService.ts の registerUserNamespace() と同一ロジックで URI を生成する
+    // （ユーザー作成時に DB 登録される URI と一致させるため）
     const mailAddress = await namespaceTermRepository.findUserMailAddress(organizationId, userId);
     const loginName = mailAddress ? mailAddress.split('@')[0] : userId;
-    const userGroupCd = await namespaceTermRepository.findUserOrgGroupCd(organizationId, userId);
-    const personalDomain = userGroupCd ?? organizationCd;
-    candidateUri = `https://${personalDomain}.Alchemia.co.jp/${loginName}`;
+    candidateUri = `https://${organizationCd}.Alchemia.co.jp/${loginName}`;
   }
 
   // 3. 既存URI一覧を取得して重複解消
