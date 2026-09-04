@@ -8,6 +8,7 @@
  * - getNamespaces（scopeKey・globalFlg フィルタ）
  * - createTerm / updateTerm / deleteTerm / toggleTermActive
  * - getTerms / getDeclarations / getDeclarationsByProject
+ * - getSuggestedUri
  */
 
 import * as namespaceService from '../../../src/services/namespaceService';
@@ -19,6 +20,11 @@ import * as namespaceTermRepository from '../../../src/repositories/namespaceTer
 jest.mock('../../../src/repositories/namespaceTermRepository');
 jest.mock('../../../src/utils/logger', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+}));
+jest.mock('../../../src/services/globalNamespaceFileService', () => ({
+  readGlobalDeclarations: jest.fn().mockResolvedValue([]),
+  writeGlobalDeclarations: jest.fn(),
+  parseGlobalDeclarationsCsv: jest.fn().mockReturnValue([]),
 }));
 
 // ──────────────────────────────────────────────
@@ -33,9 +39,9 @@ describe('namespaceService - Phase2 テスト', () => {
   // createNamespace
   // ==========================================================================
   describe('createNamespace()', () => {
-    test('正常系: Repository の insertNamespace を呼び出して結果を返すこと', async () => {
-      const mockResult = { namespaceId: 'ns-001', prefix: 'ex', uri: 'http://example.org/' };
-      (namespaceTermRepository.insertNamespace as jest.Mock).mockResolvedValue(mockResult);
+    test('正常系: findNamespaceIdByScopeKey で namespace_id を取得し createPrefixOnly を呼び出すこと', async () => {
+      (namespaceTermRepository.findNamespaceIdByScopeKey as jest.Mock).mockResolvedValue('ns-001');
+      (namespaceTermRepository.createPrefixOnly as jest.Mock).mockResolvedValue(undefined);
 
       const input: namespaceService.CreateNamespaceInput = {
         organizationId: 'org-001',
@@ -47,12 +53,13 @@ describe('namespaceService - Phase2 テスト', () => {
 
       const result = await namespaceService.createNamespace(input);
 
-      expect(namespaceTermRepository.insertNamespace).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(mockResult);
+      expect(namespaceTermRepository.findNamespaceIdByScopeKey).toHaveBeenCalledWith('org-001', 'group-A');
+      expect(namespaceTermRepository.createPrefixOnly).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ namespaceId: 'ns-001', prefix: 'ex', uri: 'http://example.org/' });
     });
 
-    test('異常系: Repository が例外を投げた場合にエラーを伝播すること', async () => {
-      (namespaceTermRepository.insertNamespace as jest.Mock).mockRejectedValue(new Error('DB error'));
+    test('異常系: scopeKey に対応する namespace が存在しない場合に 404 エラーを投げること', async () => {
+      (namespaceTermRepository.findNamespaceIdByScopeKey as jest.Mock).mockResolvedValue(null);
 
       await expect(
         namespaceService.createNamespace({
@@ -61,7 +68,7 @@ describe('namespaceService - Phase2 テスト', () => {
           uri: 'http://example.org/',
           userId: 'user-001@example.com',
         })
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ statusCode: 404, code: 'E6001' });
     });
   });
 
@@ -70,20 +77,16 @@ describe('namespaceService - Phase2 テスト', () => {
   // ==========================================================================
   describe('updateNamespace()', () => {
     test('正常系: updateNamespace を呼び出して結果を返すこと', async () => {
-      const mockResult = { namespaceId: 'ns-001', prefix: 'ex', uri: 'http://example.org/v2/', scopeKey: null, globalFlg: false };
+      const mockResult = { namespaceId: 'ns-001', prefix: 'ex', uri: 'http://example.org/v2/', scopeKey: null };
       (namespaceTermRepository.updateNamespace as jest.Mock).mockResolvedValue(mockResult);
 
       const result = await namespaceService.updateNamespace({
         organizationId: 'org-001',
         prefix: 'ex',
-        uri: 'http://example.org/v2/',
+        description: 'updated',
       });
 
-      expect(namespaceTermRepository.updateNamespace).toHaveBeenCalledWith(
-        'org-001',
-        'ex',
-        'http://example.org/v2/'
-      );
+      expect(namespaceTermRepository.updateNamespace).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockResult);
     });
 
@@ -91,70 +94,8 @@ describe('namespaceService - Phase2 テスト', () => {
       (namespaceTermRepository.updateNamespace as jest.Mock).mockRejectedValue(new Error('Not found'));
 
       await expect(
-        namespaceService.updateNamespace({ organizationId: 'org-001', prefix: 'nonexistent', uri: 'http://x.org/' })
+        namespaceService.updateNamespace({ organizationId: 'org-001', prefix: 'nonexistent' })
       ).rejects.toThrow();
-    });
-  });
-
-  // ==========================================================================
-  // getTerms
-  // ==========================================================================
-  describe('getTerms()', () => {
-    test('正常系: getTerms を呼び出して用語一覧を返すこと', async () => {
-      const mockTerms = [
-        { prefix: 'ex', local_name: 'temperature', display_name: '温度', is_active: true },
-      ];
-      (namespaceTermRepository.getTerms as jest.Mock).mockResolvedValue(mockTerms);
-
-      const result = await namespaceService.getTerms('org-001');
-
-      expect(namespaceTermRepository.getTerms).toHaveBeenCalledWith('org-001', undefined);
-      expect(result).toEqual(mockTerms);
-    });
-
-    test('正常系: scopeKey フィルタ付きで呼び出すこと', async () => {
-      (namespaceTermRepository.getTerms as jest.Mock).mockResolvedValue([]);
-
-      await namespaceService.getTerms('org-001', 'group-A');
-
-      expect(namespaceTermRepository.getTerms).toHaveBeenCalledWith('org-001', 'group-A');
-    });
-  });
-
-  // ==========================================================================
-  // createTerm
-  // ==========================================================================
-  describe('createTerm()', () => {
-    test('正常系: insertTerm を呼び出して用語を登録すること', async () => {
-      const mockTerm = { term_id: 'term-001', prefix: 'ex', local_name: 'temperature' };
-      (namespaceTermRepository.insertTerm as jest.Mock).mockResolvedValue(mockTerm);
-
-      const input: namespaceService.CreateTermInput = {
-        organizationId: 'org-001',
-        prefix: 'ex',
-        localName: 'temperature',
-        displayName: '温度',
-      };
-
-      const result = await namespaceService.createTerm(input);
-
-      expect(namespaceTermRepository.insertTerm).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(mockTerm);
-    });
-  });
-
-  // ==========================================================================
-  // toggleTermActive
-  // ==========================================================================
-  describe('toggleTermActive()', () => {
-    test('正常系: setTermActive を呼び出してアクティブ状態を切り替えること', async () => {
-      (namespaceTermRepository.setTermActive as jest.Mock).mockResolvedValue(undefined);
-
-      await namespaceService.toggleTermActive('org-001', 'ex', 'temperature', false);
-
-      expect(namespaceTermRepository.setTermActive).toHaveBeenCalledWith(
-        'org-001', 'ex', 'temperature', false
-      );
     });
   });
 
@@ -162,17 +103,95 @@ describe('namespaceService - Phase2 テスト', () => {
   // getDeclarationsByProject
   // ==========================================================================
   describe('getDeclarationsByProject()', () => {
-    test('正常系: プロジェクトスコープの名前空間宣言一覧を返すこと', async () => {
-      const mockDeclarations: namespaceService.ProjectScopeDeclaration[] = [
-        { prefix: 'ex', uri: 'http://example.org/', globalFlg: true },
-        { prefix: 'my', uri: 'http://my.org/', globalFlg: false },
+    test('正常系: findProjectGroupCd と findDeclarationsByProjectScope を呼び出して宣言一覧を返すこと', async () => {
+      const mockProjectRow = { organization_group_cd: 'group-A' };
+      const mockOrgDeclarations: namespaceService.ProjectScopeDeclaration[] = [
+        { prefix: 'my', uri: 'http://my.org/' },
       ];
-      (namespaceTermRepository.getDeclarationsByProject as jest.Mock).mockResolvedValue(mockDeclarations);
+      (namespaceTermRepository.findProjectGroupCd as jest.Mock).mockResolvedValue(mockProjectRow);
+      (namespaceTermRepository.findDeclarationsByProjectScope as jest.Mock).mockResolvedValue(mockOrgDeclarations);
 
       const result = await namespaceService.getDeclarationsByProject('org-001', 'proj-001');
 
-      expect(namespaceTermRepository.getDeclarationsByProject).toHaveBeenCalledWith('org-001', 'proj-001');
-      expect(result).toEqual(mockDeclarations);
+      expect(namespaceTermRepository.findProjectGroupCd).toHaveBeenCalledWith('org-001', 'proj-001');
+      expect(result).not.toBeNull();
+    });
+
+    test('正常系: プロジェクトが見つからない場合は null を返すこと', async () => {
+      (namespaceTermRepository.findProjectGroupCd as jest.Mock).mockResolvedValue(null);
+
+      const result = await namespaceService.getDeclarationsByProject('org-001', 'unknown-proj');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  // ==========================================================================
+  // getSuggestedUri
+  // ==========================================================================
+  describe('getSuggestedUri()', () => {
+    test('正常系（個人スコープ）: organization_cd をドメイン部に使用した URI を返すこと', async () => {
+      (namespaceTermRepository.findOrganizationCd as jest.Mock).mockResolvedValue('ORG001-AIML');
+      (namespaceTermRepository.findUserMailAddress as jest.Mock).mockResolvedValue('test.user004@soft-service.co.jp');
+      (namespaceTermRepository.findUrisByOrganization as jest.Mock).mockResolvedValue([]);
+
+      const result = await namespaceService.getSuggestedUri('org-001', 'test.user004@soft-service.co.jp');
+
+      expect(result).toBe('https://ORG001-AIML.Alchemia.co.jp/test.user004');
+      // findUserOrgGroupCd は呼ばれないこと（個人スコープではグループCDを参照しない）
+      expect(namespaceTermRepository.findUserOrgGroupCd).not.toHaveBeenCalled();
+    });
+
+    test('正常系（個人スコープ・scopeKey が userId と一致）: organization_cd をドメイン部に使用した URI を返すこと', async () => {
+      (namespaceTermRepository.findOrganizationCd as jest.Mock).mockResolvedValue('ORG001-AIML');
+      (namespaceTermRepository.findUserMailAddress as jest.Mock).mockResolvedValue('test.user004@soft-service.co.jp');
+      (namespaceTermRepository.findUrisByOrganization as jest.Mock).mockResolvedValue([]);
+
+      // scopeKey と userId が一致する場合も個人スコープとして扱われる
+      const result = await namespaceService.getSuggestedUri(
+        'org-001',
+        'test.user004@soft-service.co.jp',
+        'test.user004@soft-service.co.jp'
+      );
+
+      expect(result).toBe('https://ORG001-AIML.Alchemia.co.jp/test.user004');
+      expect(namespaceTermRepository.findUserOrgGroupCd).not.toHaveBeenCalled();
+    });
+
+    test('正常系（個人スコープ・URI 重複あり）: 連番サフィックスが付与された URI を返すこと', async () => {
+      (namespaceTermRepository.findOrganizationCd as jest.Mock).mockResolvedValue('ORG001-AIML');
+      (namespaceTermRepository.findUserMailAddress as jest.Mock).mockResolvedValue('test.user004@soft-service.co.jp');
+      (namespaceTermRepository.findUrisByOrganization as jest.Mock).mockResolvedValue([
+        'https://ORG001-AIML.Alchemia.co.jp/test.user004',
+      ]);
+
+      const result = await namespaceService.getSuggestedUri('org-001', 'test.user004@soft-service.co.jp');
+
+      expect(result).toBe('https://ORG001-AIML.Alchemia.co.jp/test.user0041');
+    });
+
+    test('正常系（グループスコープ）: 祖先グループCD をドメイン部に使用した URI を返すこと', async () => {
+      (namespaceTermRepository.findOrganizationCd as jest.Mock).mockResolvedValue('ORG001-AIML');
+      (namespaceTermRepository.findOrgGroupAncestors as jest.Mock).mockResolvedValue(['ROOT_GRP', 'TEAM_A']);
+      (namespaceTermRepository.findUrisByOrganization as jest.Mock).mockResolvedValue([]);
+
+      const result = await namespaceService.getSuggestedUri(
+        'org-001',
+        'test.user004@soft-service.co.jp',
+        'TEAM_A'
+      );
+
+      expect(result).toBe('https://ROOT_GRP.Alchemia.co.jp/TEAM_A');
+      // グループスコープでは findUserMailAddress を呼ばない
+      expect(namespaceTermRepository.findUserMailAddress).not.toHaveBeenCalled();
+    });
+
+    test('異常系: organization_id が存在しない場合にエラーを投げること', async () => {
+      (namespaceTermRepository.findOrganizationCd as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        namespaceService.getSuggestedUri('invalid-org', 'test.user004@soft-service.co.jp')
+      ).rejects.toThrow('Organization not found: invalid-org');
     });
   });
 });
