@@ -2325,7 +2325,8 @@
       "newPasswordMin8": "パスワードは8文字以上である必要があります",
       "newPasswordPattern": "大文字、小文字、数字を含める必要があります",
       "confirmPasswordLabel": "新しいパスワード（確認）",
-      "confirmPasswordRequired": "パスワードを再入力してください"
+      "confirmPasswordRequired": "パスワードを再入力してください",
+      "samePasswordError": "新しいパスワードは現在のパスワードと異なるものを設定してください"
     }
   },
   "editor": {
@@ -2618,7 +2619,8 @@
     "PROJECT_ALREADY_CHECKED_OUT": "このプロジェクトは既に他のユーザーによってチェックアウトされています",
     "DUPLICATE_CORPORATION_NAME": "この会社名は既に使用されています",
     "USER_ALREADY_EXISTS": "このユーザーIDは既に使用されています",
-    "DUPLICATE_ROLE_CD": "入力されたIDは既に存在しています"
+    "DUPLICATE_ROLE_CD": "入力されたIDは既に存在しています",
+    "AUTH_SAME_PASSWORD": "新しいパスワードは現在のパスワードと異なるものを設定してください"
   },
   "progressStatus": {
     "notStarted": "初期状態",

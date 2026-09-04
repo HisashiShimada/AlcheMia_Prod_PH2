@@ -2323,7 +2323,8 @@
       "newPasswordMin8": "Password must be at least 8 characters",
       "newPasswordPattern": "Must include uppercase, lowercase, and numbers",
       "confirmPasswordLabel": "New Password (Confirm)",
-      "confirmPasswordRequired": "Please re-enter your password"
+      "confirmPasswordRequired": "Please re-enter your password",
+      "samePasswordError": "Please set a password different from your current password"
     }
   },
   "editor": {
@@ -2616,7 +2617,8 @@
     "PROJECT_ALREADY_CHECKED_OUT": "This project is already checked out by another user",
     "DUPLICATE_CORPORATION_NAME": "This corporation name is already in use",
     "USER_ALREADY_EXISTS": "This user ID is already in use",
-    "DUPLICATE_ROLE_CD": "The entered ID already exists"
+    "DUPLICATE_ROLE_CD": "The entered ID already exists",
+    "AUTH_SAME_PASSWORD": "Please set a password different from your current password"
   },
   "progressStatus": {
     "notStarted": "Not Started",
