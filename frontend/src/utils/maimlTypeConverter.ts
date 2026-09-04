@@ -1126,7 +1126,14 @@ export function convertXmlJsProperty(xmlProp: any): Property {
   const rawXsiType = xmlProp._attributes?.['xsi:type'] as string | undefined;
   // xsi:type が未指定の場合は空文字として保持し、stringType に強制変換しない
   // 空文字の場合は末尾の「未指定」ブランチで処理される
-  const xsiType = (rawXsiType || '') as PropertyType;
+  // Namespace管理UIのtype_hint値（integerType等）をMAIML正式xsi:typeに正規化する
+  const LEGACY_XSI_TYPE_MAP: Record<string, string> = {
+    integerType: 'intType',
+  };
+  const normalizedRawXsiType = rawXsiType && LEGACY_XSI_TYPE_MAP[rawXsiType]
+    ? LEGACY_XSI_TYPE_MAP[rawXsiType]
+    : rawXsiType;
+  const xsiType = (normalizedRawXsiType || '') as PropertyType;
   const description = xmlProp.description?._text || undefined;
   
   console.log(`🔄 [convertXmlJsProperty] ${key} (${xsiType})`);

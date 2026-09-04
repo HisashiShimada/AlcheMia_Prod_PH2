@@ -76,6 +76,18 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
+/**
+ * Namespace管理UIのtype_hint値（例: integerType）から
+ * MAIML仕様の正式なxsi:type値（例: intType）へのマッピングテーブル
+ *
+ * Namespace管理UIでは人間が読みやすい型名（integerType等）を使用するが、
+ * MAIML XSD仕様では対応する別名（intType等）が正式な型として定義されている。
+ * 新規プロパティ追加時にこのマッピングを使用して正規化する。
+ */
+const NAMESPACE_TYPE_HINT_TO_XSI_TYPE: Record<string, string> = {
+  integerType: 'intType',
+};
+
 interface TemplateEditorDialogProps {
   open: boolean;
   node: {
@@ -659,13 +671,19 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     // 用語マップから一致する用語を取得して初期値を補完
     const matchedTerm = termMap.get(newPropertyKey.trim());
 
+    // Namespace type_hint を MAIML 正式 xsi:type に変換する
+    // Namespace管理UIの type_hint 値（例: integerType）は MAIML 仕様の xsi:type（例: intType）と異なる場合がある
+    const normalizedXsiType = matchedTerm?.type
+      ? (NAMESPACE_TYPE_HINT_TO_XSI_TYPE[matchedTerm.type] ?? matchedTerm.type)
+      : undefined;
+
     setProperties({
       ...properties,
       [newPropertyKey.trim()]: {
         key: newPropertyKey.trim(),
         tagName: newPropertyTagName,
         attributes: {
-          ...(matchedTerm?.type ? { 'xsi:type': matchedTerm.type } : {}),
+          ...(normalizedXsiType ? { 'xsi:type': normalizedXsiType } : {}),
           ...(matchedTerm?.unitHint ? { units: matchedTerm.unitHint } : {}),
         },
         elements: {
