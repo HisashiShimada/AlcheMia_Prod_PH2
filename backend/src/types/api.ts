@@ -921,12 +921,12 @@ export interface PlanDialogData {
   }>;
   /** テンプレート定義一覧 */
   templates: TemplateDef[];
-  /** Creator 選択肢（document.creators の id） */
-  creatorRefs: string[];
-  /** Instrument 選択肢（document.instruments の id） */
-  instrumentRefs: string[];
-  /** Owner 選択肢（document.owners の id） */
-  ownerRefs: string[];
+  /** Creator 選択肢（value: document.creators の id, label: name || id） */
+  creatorRefs: Array<{ value: string; label: string }>;
+  /** Instrument 選択肢（value: document.instruments の id, label: name || id） */
+  instrumentRefs: Array<{ value: string; label: string }>;
+  /** Owner 選択肢（value: document.owners の id, label: name || id） */
+  ownerRefs: Array<{ value: string; label: string }>;
   /**
    * MAIMLのdata層から抽出したインスタンス一覧。
    * data.results[].materials / conditions / results の各インスタンスを変換したもの。

@@ -15,6 +15,7 @@ import { E6001, E7001 } from '../enums/errorCodes';
 import { getMessage } from '../utils/messages';
 import { getPool, getPgp } from '../database/db';
 import { generateNamespaceUri, resolveUriConflict } from '../utils/namespaceUriGenerator';
+import { getStorageService } from './storageService';
 import type { ITask } from 'pg-promise';
 
 
@@ -276,9 +277,9 @@ export async function createOrganizationGroup(
 
   const pgp = getPgp();
 
-  return pgp.tx(async (t) => {
+  const created = await pgp.tx(async (t) => {
     // 1. グループ本体 INSERT
-    const created = await organizationGroupRepository.create(
+    const insertedGroup = await organizationGroupRepository.create(
       {
         organization_id: organizationId,
         organization_group_cd: data.organization_group_cd,
@@ -309,8 +310,30 @@ export async function createOrganizationGroup(
       userId: userId ?? organizationId,
     });
 
-    return created;
+    return insertedGroup;
   });
+
+  // 4. formats/{group_cd}/ フォルダ作成（ストレージ）
+  // DB トランザクション完了後に実行（S3/Swift 操作はトランザクションに含められないため）
+  // 失敗時はログのみ出力し、グループ作成自体は成功とする（organizationService と同じパターン）
+  try {
+    const storageService = getStorageService();
+    const groupCd = data.organization_group_cd;
+    const groupFolders = [
+      `formats/${groupCd}/`,
+      `formats/${groupCd}/material/`,
+      `formats/${groupCd}/condition/`,
+      `formats/${groupCd}/result/`,
+    ];
+    await storageService.createFolders(organizationId, groupFolders);
+  } catch (storageError) {
+    console.warn(
+      `[organizationGroupService] formatsフォルダ作成失敗（グループ作成は成功）: groupCd=${data.organization_group_cd}`,
+      storageError
+    );
+  }
+
+  return created;
 }
 
 /**

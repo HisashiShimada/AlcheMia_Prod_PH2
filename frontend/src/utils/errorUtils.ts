@@ -262,6 +262,7 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   RESET_REQUEST_FAILED:    'errors.RESET_REQUEST_FAILED',
   RESET_FAILED:            'errors.RESET_FAILED',
   CHANGE_PASSWORD_FAILED:  'errors.CHANGE_PASSWORD_FAILED',
+  AUTH_SAME_PASSWORD:      'errors.AUTH_SAME_PASSWORD',
 
   // ===== プロジェクト操作系（チェックアウト・チェックイン・削除） =====
   CHECKOUT_NO_MAIML_FILE:       'errors.CHECKOUT_NO_MAIML_FILE',

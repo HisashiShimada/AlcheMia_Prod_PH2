@@ -9,6 +9,7 @@
 import type { theme } from 'antd';
 import type { ExperimentPlanTabData, TemplateDef } from './experimentPlan';
 import type { AssignPayload } from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
+import type { NamespaceTermRow } from '@/services/namespaceApiService';
 
 /** 継承の上書きフラグが追跡するフィールド名 */
 export type InheritableField =
@@ -116,10 +117,16 @@ export interface CustomPropValue {
   format?: string;
 }
 
+/** Ref選択肢の型（プルダウン表示名 label と保存用 value(ID) を持つ） */
+export interface RefOption {
+  value: string;
+  label: string;
+}
+
 /** Ref追加エリアコンポーネントのProps（Creator / Instrument / Owner 共通） */
 export interface RefSectionProps {
   title: string;
-  options: string[];
+  options: RefOption[];
   selectedValues: string[];
   onAdd: (value: string) => void;
   onRemove: (value: string) => void;
@@ -167,6 +174,13 @@ export interface TemplateInputPanelProps {
    * 未指定時: アップロードなし（ファイル名・ハッシュのみセット）
    */
   projectId?: string;
+  /**
+   * 用語マップ（qname → NamespaceTermRow）
+   * ExperimentPlanDialog で getTermsForPropertyDialog により取得・フィルタ済みのものを渡す。
+   * 指定時: 用語キー選択モーダルを表示し、選択した用語の type・unitHint を自動設定する。
+   * 未指定または空 Map の場合: モーダルを表示するが「用語が見つかりません」と表示し、直接キー入力でのフォールバックを提供する。
+   */
+  termMap?: Map<string, NamespaceTermRow>;
 }
 
 /** SortableTransitionRow コンポーネントのProps */

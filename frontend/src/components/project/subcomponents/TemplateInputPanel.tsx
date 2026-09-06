@@ -17,8 +17,9 @@ import {
   Table,
   Tag,
   Tooltip,
+  Modal,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, UploadOutlined, CloseOutlined, ExperimentOutlined, CommentOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, UploadOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons';
 import type {
   TemplateInputPanelProps,
   CustomPropValue,
@@ -26,15 +27,15 @@ import type {
   CustomPropContainerType,
 } from '@/types/experimentPlanDialog';
 import type { TemplateDef } from '@/types/experimentPlan';
+import type { NamespaceTermRow } from '@/services/namespaceApiService';
 import FieldValueInput from './FieldValueInput';
-import UncertaintyCriteriaSelectorModal from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
-import type { TargetProperty, AssignPayload } from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
 import { toInsertion, fromInsertion } from '@/utils/insertionAdapter';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 const { useToken } = theme;
+const { Option } = Select;
 
 /** property コンテナ用の型選択肢 */
 const PROPERTY_TYPE_OPTIONS: { label: string; value: CustomPropType }[] = [
@@ -92,35 +93,20 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   disabled = false,
   outputTemplateIds,
   projectId,
+  termMap,
 }) => {
   const { token } = useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
-  // 不確かさ基準選択モーダル用 state（UI 残置・保存処理は削除済み）
-  const assignedUncertainty: Record<string, AssignPayload[]> = {};
-  const onAssignedUncertaintyChange = (_next: Record<string, AssignPayload[]>) => {};
-
-  // 不確かさ基準選択モーダル用 state
-  const [criteriaSelectorOpen, setCriteriaSelectorOpen] = useState(false);
-  const [criteriaSelectorTarget, setCriteriaSelectorTarget] = useState<TargetProperty | null>(null);
-
-  /**
-   * 「不確かさ編集」クリック時に上書きする配列インデックス
-   * null = 新規追加モード（「不確かさ選択」ボタンから開いた場合）
-   */
-  const [criteriaEditIndex, setCriteriaEditIndex] = useState<number | null>(null);
-
-  /**
-   * 「不確かさ編集」クリック時に渡す既存ペイロード
-   * モーダルの初期値として使用する
-   */
-  const [criteriaEditPayload, setCriteriaEditPayload] = useState<AssignPayload | null>(null);
-
-  /**
-   * 現在モーダルを開いているフィールドの valueKey
-   * onAssign 時に保存先を特定するために使用
-   */
-  const [criteriaTargetValueKey, setCriteriaTargetValueKey] = useState<string | null>(null);
+  // --- 用語キー選択モーダル用 state ---
+  /** モーダル表示フラグ */
+  const [showTermSelectModal, setShowTermSelectModal] = useState(false);
+  /** モーダルを開いたボタンのコンテナタイプ（'property' | 'content'） */
+  const [pendingContainerType, setPendingContainerType] = useState<CustomPropContainerType | null>(null);
+  /** 用語 Select で選択した qname */
+  const [selectedTermKey, setSelectedTermKey] = useState<string>('');
+  /** 直接入力フォールバック用キー */
+  const [directKeyInput, setDirectKeyInput] = useState<string>('');
 
   // methodTemplates が変わった（メソッド切り替え等）場合は選択リセット
   useEffect(() => {
@@ -198,6 +184,62 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
     },
     [selectedTemplate, customProps, onCustomPropsChange]
   );
+
+  /**
+   * 「property 追加」「content 追加」ボタンクリック時に用語選択モーダルを開く
+   */
+  const handleOpenTermSelectModal = useCallback(
+    (containerType: CustomPropContainerType) => {
+      if (!selectedTemplate) return;
+      setPendingContainerType(containerType);
+      setSelectedTermKey('');
+      setDirectKeyInput('');
+      setShowTermSelectModal(true);
+    },
+    [selectedTemplate]
+  );
+
+  /**
+   * 用語選択モーダル「追加」ボタン確定処理
+   * 選択した用語（または直接入力キー）から CustomPropValue を生成して追加する
+   */
+  const handleAddCustomPropFromTerm = useCallback(() => {
+    if (!selectedTemplate || !pendingContainerType) return;
+
+    const finalKey = selectedTermKey.trim() || directKeyInput.trim();
+    if (!finalKey) return;
+
+    // 用語マップから一致する用語を取得して type・unitHint を補完
+    const matchedTerm: NamespaceTermRow | undefined = termMap?.get(finalKey);
+
+    // コンテナタイプに応じた型の決定
+    // - property コンテナ: content系の型は stringType にフォールバック
+    // - content コンテナ: non-content系の型は contentStringListType にフォールバック
+    const resolvedType = (() => {
+      const termType = matchedTerm?.type ?? '';
+      if (pendingContainerType === 'content') {
+        return termType.startsWith('content') ? termType : 'contentStringListType';
+      }
+      return termType && !termType.startsWith('content') ? termType : 'stringType';
+    })();
+
+    const newProp: CustomPropValue = {
+      id: `cp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      key: finalKey,
+      containerType: pendingContainerType,
+      type: resolvedType as CustomPropType,
+      value: pendingContainerType === 'content' ? [''] : null,
+      units: matchedTerm?.unitHint ?? '',
+    };
+
+    const existing = customProps[selectedTemplate.id] ?? [];
+    onCustomPropsChange(selectedTemplate.id, [...existing, newProp]);
+
+    setShowTermSelectModal(false);
+    setSelectedTermKey('');
+    setDirectKeyInput('');
+    setPendingContainerType(null);
+  }, [selectedTemplate, pendingContainerType, selectedTermKey, directKeyInput, termMap, customProps, onCustomPropsChange]);
 
   /** カスタムプロパティを削除 */
   const handleRemoveCustomProp = useCallback(
@@ -333,39 +375,11 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
           ? [cp.value as string]
           : [''];
 
-        const cpValueKey = `custom_${cp.id}`;
-        const cpAssigned: AssignPayload[] = assignedUncertainty[cpValueKey] ?? [];
-
         return (
           <div
             key={cp.id}
             style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}
           >
-            {/* 上部: 不確かさ選択ボタン */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-              <Button
-                type="primary"
-                size="small"
-                disabled={effectiveDisabled}
-                onClick={() => {
-                  setCriteriaSelectorTarget({
-                    name: cp.key || 'content',
-                    xpath: cp.key,
-                    tag: 'property',
-                    type: cp.type,
-                    value: '',
-                    unit: cp.units ?? '',
-                    section: (selectedTemplate.category as 'material' | 'condition' | 'result'),
-                  });
-                  setCriteriaTargetValueKey(cpValueKey);
-                  setCriteriaEditIndex(null);
-                  setCriteriaEditPayload(null);
-                  setCriteriaSelectorOpen(true);
-                }}
-              >
-                不確かさ選択
-              </Button>
-            </div>
             {/* 入力コントロール行 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Tag color="cyan" style={{ flexShrink: 0 }}>content</Tag>
@@ -431,88 +445,6 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                 行を追加
               </Button>
             </div>
-            {/* 付与済み不確かさバー */}
-            {cpAssigned.map((payload, ucIdx) => {
-              const isQuant = payload.criteria.evalType === 'quantitative';
-              const qualColor = payload.qualitativeValue
-                ? (payload.criteria.qualitativeOptions?.find(
-                    (o) => o.selectorValue === payload.qualitativeValue
-                  )?.displayColor ?? '#722ed1')
-                : '#722ed1';
-              return (
-                <div
-                  key={ucIdx}
-                  style={{
-                    marginTop: 6,
-                    padding: '6px 10px',
-                    background: '#f9f0ff',
-                    borderLeft: '3px solid #722ed1',
-                    borderRadius: '0 6px 6px 0',
-                    border: '1px solid #d3adf7',
-                    borderLeftWidth: 3,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <ExperimentOutlined style={{ color: '#722ed1', fontSize: 13, flexShrink: 0 }} />
-                    <Text style={{ fontSize: 12, fontWeight: 600, color: '#531dab' }}>{payload.criteria.name}</Text>
-                    <Tag color={isQuant ? 'blue' : 'purple'} style={{ fontSize: 10, margin: 0 }}>{isQuant ? '定量' : '定性'}</Tag>
-                    {isQuant ? (
-                      <Text style={{ fontSize: 12, fontFamily: 'Consolas, Monaco, monospace', color: '#d4380d', fontWeight: 700 }}>
-                        {payload.ucValue} {payload.criteria.unit || ''}
-                      </Text>
-                    ) : payload.qualitativeValue ? (
-                      <Text style={{ fontSize: 12, fontWeight: 700, color: qualColor }}>{payload.qualitativeValue}</Text>
-                    ) : null}
-                    <Button
-                      type="default"
-                      size="small"
-                      style={{ marginLeft: 'auto', flexShrink: 0, color: '#722ed1', borderColor: '#722ed1' }}
-                      disabled={effectiveDisabled}
-                      onClick={() => {
-                        setCriteriaSelectorTarget({
-                          name: cp.key || 'content',
-                          xpath: cp.key,
-                          tag: 'property',
-                          type: cp.type,
-                          value: '',
-                          unit: cp.units ?? '',
-                          section: (selectedTemplate.category as 'material' | 'condition' | 'result'),
-                        });
-                        setCriteriaTargetValueKey(cpValueKey);
-                        setCriteriaEditIndex(ucIdx);
-                        setCriteriaEditPayload(payload);
-                        setCriteriaSelectorOpen(true);
-                      }}
-                    >
-                      不確かさ編集
-                    </Button>
-                    <Button
-                      type="text"
-                      danger
-                      size="small"
-                      icon={<CloseOutlined />}
-                      style={{ flexShrink: 0 }}
-                      onClick={() => {
-                        const arr = assignedUncertainty[cpValueKey] ?? [];
-                        const next = arr.filter((_, i) => i !== ucIdx);
-                        if (next.length === 0) {
-                          const { [cpValueKey]: _removed, ...rest } = assignedUncertainty;
-                          onAssignedUncertaintyChange(rest);
-                        } else {
-                          onAssignedUncertaintyChange({ ...assignedUncertainty, [cpValueKey]: next });
-                        }
-                      }}
-                    />
-                  </div>
-                  {payload.comment && (
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 4 }}>
-                      <CommentOutlined style={{ color: '#888', fontSize: 12, flexShrink: 0, marginTop: 1 }} />
-                      <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5, wordBreak: 'break-all' }}>{payload.comment}</Text>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
           </div>
         );
       }
@@ -600,36 +532,8 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
           );
       }
 
-      const propValueKey = `custom_${cp.id}`;
-      const propAssigned: AssignPayload[] = assignedUncertainty[propValueKey] ?? [];
-
       return (
         <div key={cp.id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
-          {/* 上部: 不確かさ選択ボタン */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-            <Button
-              type="primary"
-              size="small"
-              disabled={effectiveDisabled}
-              onClick={() => {
-                setCriteriaSelectorTarget({
-                  name: cp.key || 'property',
-                  xpath: cp.key,
-                  tag: 'property',
-                  type: cp.type,
-                  value: typeof cp.value === 'string' ? cp.value : '',
-                  unit: cp.units ?? '',
-                  section: (selectedTemplate.category as 'material' | 'condition' | 'result'),
-                });
-                setCriteriaTargetValueKey(propValueKey);
-                setCriteriaEditIndex(null);
-                setCriteriaEditPayload(null);
-                setCriteriaSelectorOpen(true);
-              }}
-            >
-              不確かさ選択
-            </Button>
-          </div>
           {/* 入力コントロール行 */}
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
             <Tag color="geekblue" style={{ flexShrink: 0, alignSelf: 'center' }}>property</Tag>
@@ -652,88 +556,6 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
             {unitsInput}
             {deleteBtn}
           </div>
-          {/* 付与済み不確かさバー */}
-          {propAssigned.map((payload, ucIdx) => {
-            const isQuant = payload.criteria.evalType === 'quantitative';
-            const qualColor = payload.qualitativeValue
-              ? (payload.criteria.qualitativeOptions?.find(
-                  (o) => o.selectorValue === payload.qualitativeValue
-                )?.displayColor ?? '#722ed1')
-              : '#722ed1';
-            return (
-              <div
-                key={ucIdx}
-                style={{
-                  marginTop: 6,
-                  padding: '6px 10px',
-                  background: '#f9f0ff',
-                  borderLeft: '3px solid #722ed1',
-                  borderRadius: '0 6px 6px 0',
-                  border: '1px solid #d3adf7',
-                  borderLeftWidth: 3,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <ExperimentOutlined style={{ color: '#722ed1', fontSize: 13, flexShrink: 0 }} />
-                  <Text style={{ fontSize: 12, fontWeight: 600, color: '#531dab' }}>{payload.criteria.name}</Text>
-                  <Tag color={isQuant ? 'blue' : 'purple'} style={{ fontSize: 10, margin: 0 }}>{isQuant ? '定量' : '定性'}</Tag>
-                  {isQuant ? (
-                    <Text style={{ fontSize: 12, fontFamily: 'Consolas, Monaco, monospace', color: '#d4380d', fontWeight: 700 }}>
-                      {payload.ucValue} {payload.criteria.unit || ''}
-                    </Text>
-                  ) : payload.qualitativeValue ? (
-                    <Text style={{ fontSize: 12, fontWeight: 700, color: qualColor }}>{payload.qualitativeValue}</Text>
-                  ) : null}
-                  <Button
-                    type="default"
-                    size="small"
-                    style={{ marginLeft: 'auto', flexShrink: 0, color: '#722ed1', borderColor: '#722ed1' }}
-                    disabled={effectiveDisabled}
-                    onClick={() => {
-                      setCriteriaSelectorTarget({
-                        name: cp.key || 'property',
-                        xpath: cp.key,
-                        tag: 'property',
-                        type: cp.type,
-                        value: typeof cp.value === 'string' ? cp.value : '',
-                        unit: cp.units ?? '',
-                        section: (selectedTemplate.category as 'material' | 'condition' | 'result'),
-                      });
-                      setCriteriaTargetValueKey(propValueKey);
-                      setCriteriaEditIndex(ucIdx);
-                      setCriteriaEditPayload(payload);
-                      setCriteriaSelectorOpen(true);
-                    }}
-                  >
-                    不確かさ編集
-                  </Button>
-                  <Button
-                    type="text"
-                    danger
-                    size="small"
-                    icon={<CloseOutlined />}
-                    style={{ flexShrink: 0 }}
-                    onClick={() => {
-                      const arr = assignedUncertainty[propValueKey] ?? [];
-                      const next = arr.filter((_, i) => i !== ucIdx);
-                      if (next.length === 0) {
-                        const { [propValueKey]: _removed, ...rest } = assignedUncertainty;
-                        onAssignedUncertaintyChange(rest);
-                      } else {
-                        onAssignedUncertaintyChange({ ...assignedUncertainty, [propValueKey]: next });
-                      }
-                    }}
-                  />
-                </div>
-                {payload.comment && (
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 4 }}>
-                    <CommentOutlined style={{ color: '#888', fontSize: 12, flexShrink: 0, marginTop: 1 }} />
-                    <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5, wordBreak: 'break-all' }}>{payload.comment}</Text>
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
       );
     });
@@ -869,15 +691,8 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                     const valueKey = `${selectedTemplate.id}_${field.key}`;
                     return (
                       <div key={valueKey} style={{ marginBottom: 10 }}>
-                        {/* ラベル行: フィールド名・単位を左、不確かさ選択ボタンを右端 */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: 4,
-                          }}
-                        >
+                        {/* ラベル行: フィールド名・単位 */}
+                        <div style={{ marginBottom: 4 }}>
                           <Space size={4}>
                             <Text style={{ fontSize: 12 }}>
                               {field.label || field.key}
@@ -903,30 +718,6 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                               </Tag>
                             )}
                           </Space>
-                          {/* insertion フィールドには不確かさ選択不要、出力テンプレートは操作不可 */}
-                          {/* 付与済みの場合も「不確かさ選択」は常時表示（複数付与に対応） */}
-                          {field.xsiType !== 'insertion' && !isOutputTemplate && (
-                            <Button
-                              type="primary"
-                              size="small"
-                              disabled={effectiveDisabled}
-                              onClick={() => {
-                                setCriteriaSelectorTarget({
-                                  name: field.label || field.key,
-                                  xpath: field.key,
-                                  tag: 'property',
-                                  type: field.xsiType ?? field.type,
-                                  value: String(templateValues[valueKey] ?? ''),
-                                  unit: field.units ?? '',
-                                  section: selectedTemplate.category as 'material' | 'condition' | 'result',
-                                });
-                                setCriteriaTargetValueKey(valueKey);
-                                setCriteriaSelectorOpen(true);
-                              }}
-                            >
-                              不確かさ選択
-                            </Button>
-                          )}
                         </div>
                         {/* 入力欄 — xsi:type に応じた入力コンポーネント */}
                         <FieldValueInput
@@ -948,112 +739,6 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                             {field.description}
                           </Text>
                         )}
-                        {/* ── 付与済み不確かさ表示バー（複数対応） ── */}
-                        {(assignedUncertainty[valueKey] ?? []).map((payload, ucIdx) => {
-                          const isQuant = payload.criteria.evalType === 'quantitative';
-                          const qualColor = payload.qualitativeValue
-                            ? (assignedUncertainty[valueKey][ucIdx].criteria.qualitativeOptions?.find(
-                                (o) => o.selectorValue === payload.qualitativeValue
-                              )?.displayColor ?? '#722ed1')
-                            : '#722ed1';
-
-                          return (
-                            <div
-                              key={ucIdx}
-                              style={{
-                                marginTop: 6,
-                                padding: '6px 10px',
-                                background: '#f9f0ff',
-                                borderLeft: '3px solid #722ed1',
-                                borderRadius: '0 6px 6px 0',
-                                border: '1px solid #d3adf7',
-                                borderLeftWidth: 3,
-                              }}
-                            >
-                              {/* 1行目：基準名・評価方式・付与値・編集・×削除 */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <ExperimentOutlined style={{ color: '#722ed1', fontSize: 13, flexShrink: 0 }} />
-                                <Text style={{ fontSize: 12, fontWeight: 600, color: '#531dab' }}>
-                                  {payload.criteria.name}
-                                </Text>
-                                <Tag
-                                  color={isQuant ? 'blue' : 'purple'}
-                                  style={{ fontSize: 10, margin: 0 }}
-                                >
-                                  {isQuant ? '定量' : '定性'}
-                                </Tag>
-                                {isQuant ? (
-                                  <Text
-                                    style={{
-                                      fontSize: 12,
-                                      fontFamily: 'Consolas, Monaco, monospace',
-                                      color: '#d4380d',
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    {payload.ucValue} {payload.criteria.unit || ''}
-                                  </Text>
-                                ) : payload.qualitativeValue ? (
-                                  <Text style={{ fontSize: 12, fontWeight: 700, color: qualColor }}>
-                                    {payload.qualitativeValue}
-                                  </Text>
-                                ) : null}
-                                {/* 不確かさ編集ボタン（×の左隣） — このインデックスを上書き */}
-                                <Button
-                                  type="default"
-                                  size="small"
-                                  style={{ marginLeft: 'auto', flexShrink: 0, color: '#722ed1', borderColor: '#722ed1' }}
-                                  disabled={effectiveDisabled}
-                                  onClick={() => {
-                                    setCriteriaSelectorTarget({
-                                      name: field.label || field.key,
-                                      xpath: field.key,
-                                      tag: 'property',
-                                      type: field.xsiType ?? field.type,
-                                      value: String(templateValues[valueKey] ?? ''),
-                                      unit: field.units ?? '',
-                                      section: selectedTemplate.category as 'material' | 'condition' | 'result',
-                                    });
-                                    setCriteriaTargetValueKey(valueKey);
-                                    setCriteriaEditIndex(ucIdx);
-                                    // 既存のペイロードを初期値として渡す
-                                    setCriteriaEditPayload(payload);
-                                    setCriteriaSelectorOpen(true);
-                                  }}
-                                >
-                                  不確かさ編集
-                                </Button>
-                                {/* ×ボタン — この1件だけ削除 */}
-                                <Button
-                                  type="text"
-                                  danger
-                                  size="small"
-                                  icon={<CloseOutlined />}
-                                  style={{ flexShrink: 0 }}
-                                  onClick={() => {
-                                    const arr = assignedUncertainty[valueKey] ?? [];
-                                    const next = arr.filter((_, i) => i !== ucIdx);
-                                    if (next.length === 0) {
-                                      const { [valueKey]: _removed, ...rest } = assignedUncertainty;
-                                      onAssignedUncertaintyChange(rest);
-                                    } else {
-                                      onAssignedUncertaintyChange({ ...assignedUncertainty, [valueKey]: next });
-                                    }
-                                  }}
-                                />
-                              </div>
-                              {/* 2行目：コメント（ある場合のみ） */}
-                              {payload.comment && (
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 4 }}>
-                                  <CommentOutlined style={{ color: '#888', fontSize: 12, flexShrink: 0, marginTop: 1 }} />
-                                  <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5, wordBreak: 'break-all' }}>
-                                    {payload.comment}
-                                  </Text>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
                       </div>
                     );
                   })}
@@ -1074,7 +759,7 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                     <Button
                       size="small"
                       icon={<PlusOutlined />}
-                      onClick={() => handleAddCustomProp('property')}
+                      onClick={() => handleOpenTermSelectModal('property')}
                       disabled={effectiveDisabled}
                     >
                       <Tag color="geekblue" style={{ margin: 0 }}>property</Tag>
@@ -1084,7 +769,7 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                     <Button
                       size="small"
                       icon={<PlusOutlined />}
-                      onClick={() => handleAddCustomProp('content')}
+                      onClick={() => handleOpenTermSelectModal('content')}
                       disabled={effectiveDisabled}
                     >
                       <Tag color="cyan" style={{ margin: 0 }}>content</Tag>
@@ -1116,38 +801,120 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
         </Col>
       </Row>
 
-      {/* 不確かさ基準選択モーダル */}
-      <UncertaintyCriteriaSelectorModal
-        open={criteriaSelectorOpen}
-        onClose={() => {
-          setCriteriaSelectorOpen(false);
-          setCriteriaSelectorTarget(null);
-          setCriteriaEditIndex(null);
-          setCriteriaEditPayload(null);
-          setCriteriaTargetValueKey(null);
+      {/* ── 用語キー選択モーダル（property / content 追加用） ── */}
+      <Modal
+        title={
+          <span>
+            プロパティキーを選択
+            {pendingContainerType && (
+              <Tag
+                color={pendingContainerType === 'content' ? 'cyan' : 'geekblue'}
+                style={{ marginLeft: 8 }}
+              >
+                {pendingContainerType}
+              </Tag>
+            )}
+          </span>
+        }
+        open={showTermSelectModal}
+        onCancel={() => {
+          setShowTermSelectModal(false);
+          setSelectedTermKey('');
+          setDirectKeyInput('');
+          setPendingContainerType(null);
         }}
-        targetProperty={criteriaSelectorTarget}
-        initialPayload={criteriaEditPayload ?? undefined}
-        onAssign={(payload: AssignPayload) => {
-          if (criteriaTargetValueKey) {
-            const existing: AssignPayload[] = assignedUncertainty[criteriaTargetValueKey] ?? [];
-            let next: AssignPayload[];
-            if (criteriaEditIndex !== null) {
-              // 「不確かさ編集」から開いた場合 → 該当インデックスを上書き
-              next = existing.map((item, i) => (i === criteriaEditIndex ? payload : item));
-            } else {
-              // 「不確かさ選択」から開いた場合 → 末尾に追加
-              next = [...existing, payload];
-            }
-            onAssignedUncertaintyChange({ ...assignedUncertainty, [criteriaTargetValueKey]: next });
-          }
-          setCriteriaSelectorOpen(false);
-          setCriteriaSelectorTarget(null);
-          setCriteriaTargetValueKey(null);
-          setCriteriaEditIndex(null);
-          setCriteriaEditPayload(null);
-        }}
-      />
+        onOk={handleAddCustomPropFromTerm}
+        okText="追加"
+        cancelText="キャンセル"
+        okButtonProps={{ disabled: !selectedTermKey.trim() && !directKeyInput.trim() }}
+        width={480}
+        destroyOnHidden
+      >
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+          {/* 登録済み用語から選択 */}
+          <div>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              登録済み用語から選択:
+            </Text>
+            <Select
+              showSearch
+              style={{ width: '100%' }}
+              placeholder="用語キーを検索・選択"
+              value={selectedTermKey || undefined}
+              suffixIcon={<SearchOutlined />}
+              optionLabelProp="value"
+              filterOption={(input, option) => {
+                if (!option) return false;
+                const qname = String(option.value ?? '').toLowerCase();
+                const displayName = String(option['data-display'] ?? '').toLowerCase();
+                const q = input.toLowerCase();
+                return qname.includes(q) || displayName.includes(q);
+              }}
+              onChange={(val: string) => {
+                setSelectedTermKey(val);
+                // 用語選択したら直接入力をクリア（排他制御）
+                setDirectKeyInput('');
+              }}
+              onClear={() => setSelectedTermKey('')}
+              allowClear
+              notFoundContent={
+                !termMap || termMap.size === 0
+                  ? '用語が見つかりません'
+                  : '該当する用語がありません'
+              }
+            >
+              {Array.from((termMap ?? new Map()).entries()).map(([qname, term]) => (
+                <Option
+                  key={qname}
+                  value={qname}
+                  data-display={term.displayName ?? ''}
+                >
+                  <div style={{ lineHeight: 1.4 }}>
+                    {term.displayName && term.displayName.trim() !== '' && (
+                      <div style={{ fontWeight: 600 }}>{term.displayName}</div>
+                    )}
+                    <div style={{ fontSize: 11, color: '#888' }}>
+                      {qname}
+                      {term.type && (
+                        <Tag
+                          color="blue"
+                          style={{ marginLeft: 6, fontSize: 10, padding: '0 4px' }}
+                        >
+                          {term.type}
+                        </Tag>
+                      )}
+                      {term.unitHint && (
+                        <Tag
+                          color="green"
+                          style={{ marginLeft: 2, fontSize: 10, padding: '0 4px' }}
+                        >
+                          {term.unitHint}
+                        </Tag>
+                      )}
+                    </div>
+                  </div>
+                </Option>
+              ))}
+            </Select>
+          </div>
+
+          {/* 直接キー入力フォールバック */}
+          <div>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              または直接キーを入力:
+            </Text>
+            <Input
+              placeholder="例: myPrefix:myKey"
+              value={directKeyInput}
+              onChange={(e) => {
+                setDirectKeyInput(e.target.value);
+                // 直接入力したら用語 Select をクリア（排他制御）
+                if (e.target.value) setSelectedTermKey('');
+              }}
+            />
+          </div>
+        </Space>
+      </Modal>
     </div>
   );
 };
