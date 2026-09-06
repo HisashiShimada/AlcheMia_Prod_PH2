@@ -11,6 +11,7 @@
 import React, { useState, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
+  App,
   Input, 
   Typography, 
   Button, 
@@ -19,7 +20,6 @@ import {
   Select, 
   Checkbox, 
   Space,
-  message,
   Card,
 } from 'antd';
 import { 
@@ -79,6 +79,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   methods,
   activeMethodIndex,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteEdgeConfirmOpen, setDeleteEdgeConfirmOpen] = useState(false);

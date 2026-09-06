@@ -3,11 +3,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
+  App,
   Button,
   Input,
   Select,
   Table,
-  message,
   Modal,
   Typography,
   Spin,
@@ -105,6 +105,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
   globalOnly = false,
   selectedNsKey,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [terms, setTerms] = useState<NamespaceTermRow[]>([]);
   const [prefixOptions, setPrefixOptions] = useState<{ value: string; label: string }[]>([]);

@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import {
+  App,
   Table,
   Button,
   Tooltip,
   Space,
   Empty,
   Dropdown,
-  message,
   theme,
   Modal,
   Form,
@@ -76,6 +76,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
   isCheckoutLocked = false,
 }) => {
   const { token } = theme.useToken();
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 

@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
-import { Button, Input, Table, message, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
+import { App, Button, Input, Table, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
@@ -87,6 +87,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   scopeKey,
   orgGroupCds,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [rows, setRows] = useState<PrefixRow[]>([]);
   const [loading, setLoading] = useState(false);

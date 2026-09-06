@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Modal, message } from 'antd';
+import { App, Modal } from 'antd';
 import { uploadFiles } from '@/services/fileAccessService';
 import type { Insertion } from '@/types/maiml-unified';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -80,6 +80,7 @@ export function useInsertionEditor({
   maxFileSize,
   acceptedFormats,
 }: UseInsertionEditorOptions): UseInsertionEditorReturn {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);

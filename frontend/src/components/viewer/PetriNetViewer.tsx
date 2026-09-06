@@ -15,7 +15,7 @@ import ReactFlow, {
   ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Card, Button, Space, Typography, Alert, Spin, Flex, Switch, Dropdown, message } from 'antd';
+import { App, Card, Button, Space, Typography, Alert, Spin, Flex, Switch, Dropdown } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { MenuProps } from 'antd';
 import { 
@@ -96,6 +96,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   selectedMethodId,  // 🆕 複数メソッド対応
   onOpenSubNetViewer
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);

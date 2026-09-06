@@ -8,11 +8,11 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
+  App,
   Button,
   Table,
   Space,
   Typography,
-  message,
   theme,
   Tooltip,
   Empty,
@@ -73,6 +73,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
 }) => {
   const { token } = useToken();
   const { t } = useLanguage();
+  const { message } = App.useApp();
   const { maimlRoot, isLoading: isMaimlLoading } = useProjectMaiml();
 
   // 状態管理
