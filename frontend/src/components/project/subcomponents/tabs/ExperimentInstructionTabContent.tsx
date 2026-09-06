@@ -28,6 +28,7 @@ const ExperimentInstructionTabContent: React.FC<ExperimentInstructionTabContentP
         isProjectCompleted={isProjectCompleted}
         isCheckoutLocked={isProjectCheckedOut}
         maimlHasErrors={maimlHasErrors}
+        organizationGroupCd={selectedProject.organizationGroup}
       />
     </div>
   );

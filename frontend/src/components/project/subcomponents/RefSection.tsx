@@ -25,8 +25,14 @@ const RefSection: React.FC<RefSectionProps> = ({
 
   // 未選択のオプションのみ表示（既に追加済みのものは除く）
   const availableOptions = useMemo(
-    () => options.filter((o) => !selectedValues.includes(o)),
+    () => options.filter((o) => !selectedValues.includes(o.value)),
     [options, selectedValues]
+  );
+
+  // value → label のマップ（追加済みTagの表示名解決用）
+  const valueLabelMap = useMemo(
+    () => new Map(options.map((o) => [o.value, o.label])),
+    [options]
   );
 
   const handleAdd = () => {
@@ -46,7 +52,7 @@ const RefSection: React.FC<RefSectionProps> = ({
           <Select
             value={selectValue}
             onChange={setSelectValue}
-            options={availableOptions.map((o) => ({ label: o, value: o }))}
+            options={availableOptions.map((o) => ({ label: o.label, value: o.value }))}
             style={{ minWidth: 220 }}
             placeholder={`${title}を選択`}
             disabled={disabled}
@@ -83,7 +89,7 @@ const RefSection: React.FC<RefSectionProps> = ({
                   color="blue"
                   style={{ margin: 2 }}
                 >
-                  {v}
+                  {valueLabelMap.get(v) ?? v}
                 </Tag>
               ))}
             </Space>

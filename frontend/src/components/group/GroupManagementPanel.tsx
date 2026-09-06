@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Divider, Empty, Modal, Spin, Table, Tag, Typography, message } from 'antd';
+import { App, Button, Divider, Empty, Modal, Spin, Table, Tag, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
@@ -17,7 +17,7 @@ const { Text, Title } = Typography;
 
 const GroupManagementPanel: React.FC = () => {
   const { t } = useLanguage();
-
+  const { message } = App.useApp();
   const [groups, setGroups]               = useState<Group[]>([]);
   const [loading, setLoading]             = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);

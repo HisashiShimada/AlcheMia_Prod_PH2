@@ -738,7 +738,21 @@ export default function RoleManagementMock() {
           >
             <Input placeholder={t('roleManagement.form.roleNamePlaceholder')} />
           </Form.Item>
-          <Form.Item name="functionName" label={t('roleManagement.form.functionName')}>
+          <Form.Item
+            name="functionName"
+            label={t('roleManagement.form.functionName')}
+            required
+            rules={[
+              {
+                validator: (_, value) => {
+                  if (!value || value === NO_FUNCTION_SELECTED) {
+                    return Promise.reject(new Error(t('roleManagement.form.functionNameRequired')));
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
             <Input
               readOnly={true}
               placeholder={NO_FUNCTION_SELECTED}
@@ -766,12 +780,16 @@ export default function RoleManagementMock() {
               const functionNameValue = getFieldValue('functionName');
               const isFunctionDisabled = !functionNameValue || functionNameValue === NO_FUNCTION_SELECTED;
               return (
-                <Form.Item name="initialScreenFunctionName" label={t('roleManagement.form.initialScreen')}>
+                <Form.Item
+                  name="initialScreenFunctionName"
+                  label={t('roleManagement.form.initialScreen')}
+                  required
+                  rules={[{ required: true, message: t('roleManagement.form.initialScreenRequired') }]}
+                >
                   <Select
                     placeholder={t('roleManagement.form.initialScreenPlaceholder')}
                     disabled={isFunctionDisabled}
                     options={functionOptions}
-                    allowClear
                   />
                 </Form.Item>
               );

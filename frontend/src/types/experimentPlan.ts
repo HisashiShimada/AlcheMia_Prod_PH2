@@ -3,6 +3,8 @@
  * 実験計画ダイアログの型定義
  */
 
+import type { RefOption } from './experimentPlanDialog';
+
 /**
  * 注意事項のタイプ定義
  */
@@ -227,15 +229,15 @@ export interface ExperimentPlanDialogProps {
    * MAIMLのdocument.creatorsから生成したCreatorRef選択肢
    * TaskRegistrationTab側でmaimlRootを解析してpropsで渡す
    */
-  creatorRefOptions?: string[];
+  creatorRefOptions?: RefOption[];
   /**
    * MAIMLのdocument.instrumentsから生成したInstrumentRef選択肢
    */
-  instrumentRefOptions?: string[];
+  instrumentRefOptions?: RefOption[];
   /**
    * MAIMLのdocument.ownersから生成したOwnerRef選択肢
    */
-  ownerRefOptions?: string[];
+  ownerRefOptions?: RefOption[];
   /**
    * 対象メソッドのテンプレート一覧
    * (materialTemplates / conditionTemplates / resultTemplates を統合済み)
@@ -265,4 +267,11 @@ export interface ExperimentPlanDialogProps {
    * 実験指示タブ側でメソッドID変更時のデータ再取得などに使用する。
    */
   onMethodChange?: (methodId: string) => void;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * TemplateInputPanel の用語キー選択モーダルで使用する用語スコープ絞り込みに使用する。
+   * 指定時: そのグループ＋上位グループスコープ＋個人スコープの用語を表示
+   * 未指定時: 個人スコープのみにフォールバック
+   */
+  organizationGroupCd?: string;
 }

@@ -78,6 +78,11 @@ export interface ExperimentInstructionTabProps {
   isCheckoutLocked?: boolean;
   /** MAIMLバリデーションエラーがある場合 true。true の場合は変更系ボタンを非活性にする */
   maimlHasErrors?: boolean;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * TemplateInputPanel の用語キー選択モーダルで使用する用語スコープ絞り込みに使用する。
+   */
+  organizationGroupCd?: string;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -382,6 +387,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   isProjectCompleted = false,
   isCheckoutLocked = false,
   maimlHasErrors = false,
+  organizationGroupCd,
 }) => {
   const { message } = App.useApp();
   const { t } = useLanguage();
@@ -1405,6 +1411,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             setPlanDialogOpen(false);
             fetchData();
           }}
+          organizationGroupCd={organizationGroupCd}
         />
       )}
 
