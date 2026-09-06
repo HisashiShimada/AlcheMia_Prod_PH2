@@ -115,6 +115,14 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
                 message: t('auth.changePassword.newPasswordPattern'),
               },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('currentPassword') !== value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error(t('auth.changePassword.samePasswordError')));
+                },
+              }),
             ]}
             hasFeedback
           >

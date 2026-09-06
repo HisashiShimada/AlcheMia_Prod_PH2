@@ -92,6 +92,8 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const [loading, setLoading] = useState(false);
   const [newRows, setNewRows] = useState<NewPrefixRow[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  /** 編集中の行の元の prefix 文字列（API 呼び出し用・editingId は複合キーのため別途保持） */
+  const [editingOriginalPrefix, setEditingOriginalPrefix] = useState<string | null>(null);
   const [editingValues, setEditingValues] = useState<PrefixEditValuesWithUri>({
     prefix: '',
     uri: '',
@@ -126,16 +128,21 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       }
       const list = await getNamespaceList(options);
       setRows(
-        list.map((ns) => ({
-          id: ns.prefix,
-          prefix: ns.prefix,
-          uri: ns.uri,
-          description: (ns as any).description ?? '',
-          /** DB由来のスコープ名（organization_group_name または user_name） */
-          scopePath: (ns as any).scopeName ?? '',
-          /** アクティブ状態（SQL の isActive カラム） */
-          isActive: (ns as any).isActive !== false,
-        }))
+        list.map((ns) => {
+          const scopeKey = (ns as any).scopeKey as string | undefined;
+          const prefixRow: PrefixRow = {
+            id: `${ns.prefix}__${scopeKey ?? ''}`,
+            prefix: ns.prefix,
+            uri: ns.uri,
+            description: (ns as any).description ?? '',
+            /** DB由来のスコープ名（organization_group_name または user_name） */
+            scopePath: (ns as any).scopeName ?? '',
+            scopeKey,
+            /** アクティブ状態（SQL の isActive カラム） */
+            isActive: (ns as any).isActive !== false,
+          };
+          return prefixRow;
+        })
       );
     } catch {
       message.error(t('prefixManagement.fetchError'));
@@ -310,7 +317,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       .map((newRow) => {
         const existing = rows.find(
           (r) => r.prefix.toLowerCase() === newRow.prefix.toLowerCase()
-        ) as (PrefixRow & { scopePath?: string }) | undefined;
+        );
         return existing ? { prefix: newRow.prefix, scopeName: existing.scopePath ?? existing.prefix } : null;
       })
       .find((d) => d !== null);
@@ -336,6 +343,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   // ── 既存行の編集開始
   const startEdit = (record: PrefixRow) => {
     setEditingId(record.id);
+    setEditingOriginalPrefix(record.prefix);
     setEditingValues({
       prefix: record.prefix,
       uri: record.uri,
@@ -345,7 +353,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
   // ── 既存行の編集保存（PATCH /api/v1/namespaces/:prefix でDB更新）
   const saveEdit = async () => {
-    if (!editingId) return;
+    if (!editingId || !editingOriginalPrefix) return;
     if (!editingValues.prefix) {
       message.error(t('prefixManagement.prefixRequiredEdit'));
       return;
@@ -356,11 +364,14 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
     }
     try {
       const updateNamespaceRequest: Parameters<typeof updateNamespace>[1] = {
-        newPrefix: editingValues.prefix !== editingId ? editingValues.prefix : undefined,
+        // editingOriginalPrefix（元の prefix 文字列）と比較して変更があれば新 prefix を送信する
+        // （editingId は複合キーのため直接 API には渡せない）
+        newPrefix: editingValues.prefix !== editingOriginalPrefix ? editingValues.prefix : undefined,
         description: editingValues.description,
       };
-      await updateNamespace(editingId, updateNamespaceRequest);
+      await updateNamespace(editingOriginalPrefix, updateNamespaceRequest);
       setEditingId(null);
+      setEditingOriginalPrefix(null);
       message.success(t('prefixManagement.updateSuccess'));
       // reloadNamespaces を使うことで selectedNsKey / orgGroupCds の両方を
       // 考慮した正しいスコープでデータを再取得する
@@ -370,7 +381,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
     }
   };
 
-  const cancelEdit = () => setEditingId(null);
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingOriginalPrefix(null);
+  };
 
   // ── 非アクティブ化（is_active = false に設定）
   const handleDeactivate = (record: PrefixRow) => {
@@ -428,12 +442,17 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
       onOk: async () => {
         const keys = selectedRowKeys as string[];
+        // id は複合キー（"prefix__scopeKey"）のため、rows から id → prefix のマップを作成して
+        // 各行の prefix を取得し API に渡す
+        const idToPrefixMap = new Map(rows.map((r) => [r.id, r.prefix]));
         const failed: string[] = [];
-        for (const prefix of keys) {
+        for (const key of keys) {
+          const prefix = idToPrefixMap.get(key);
+          if (!prefix) continue;
           try {
             await toggleNamespaceActive(prefix, false);
           } catch {
-            failed.push(prefix);
+            failed.push(key);
           }
         }
         setRows((prev) =>
@@ -531,11 +550,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
               description: row.description || undefined,
             };
             const created = await createNamespace(csvCreateRequest);
+            const createdScopeKey = (created as any).scopeKey as string | undefined;
             added.push({
-              id: created.prefix,
+              id: `${created.prefix}__${createdScopeKey ?? ''}`,
               prefix: created.prefix,
               uri: created.uri,
               description: row.description,
+              scopeKey: createdScopeKey,
             });
           } catch {
             failed.push({ prefix: row.prefix, uri: row.uri });
@@ -667,13 +688,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       width: 200,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
-        const sA = (a as PrefixRow & { scopePath?: string }).scopePath ?? '';
-        const sB = (b as PrefixRow & { scopePath?: string }).scopePath ?? '';
+        const sA = (a as PrefixRow).scopePath ?? '';
+        const sB = (b as PrefixRow).scopePath ?? '';
         return sA.localeCompare(sB);
       },
       render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
         if ('_rowId' in record) return <span style={{ color: '#bbb' }}>—</span>;
-        const r = record as PrefixRow & { scopePath?: string };
+        const r = record as PrefixRow;
         const label = r.scopePath || '—';
         return (
           <Tooltip title={label}>

@@ -391,7 +391,18 @@ export class AuthService {
         };
       }
 
-      // 2. ユーザーのrole_cdを取得
+      // 2. 現在のパスワードと新しいパスワードが同一でないことを確認
+      if (currentPassword === newPassword) {
+        return {
+          success: false,
+          error: {
+            code: 'AUTH_SAME_PASSWORD',
+            message: '新しいパスワードは現在のパスワードと異なるものを設定してください',
+          },
+        };
+      }
+
+      // 3. ユーザーのrole_cdを取得
       const userResult = await this.organizationUserRepository.findByUserId(
         this.pool,
         userId,
@@ -945,7 +956,23 @@ export class AuthService {
         };
       }
 
-      // 4. パスワードハッシュ化
+      // 4. 現在のパスワードと新しいパスワードが同一でないことを確認
+      const samePasswordCheck = await this.passwordService.verify(
+        tokenData.user_id,
+        tokenData.organization_id,
+        newPassword
+      );
+      if (samePasswordCheck.success && samePasswordCheck.data === true) {
+        return {
+          success: false,
+          error: {
+            code: 'AUTH_SAME_PASSWORD',
+            message: '新しいパスワードは現在のパスワードと異なるものを設定してください',
+          },
+        };
+      }
+
+      // 5. パスワードハッシュ化
       const hashResult = await this.passwordService.hash(newPassword, tokenData.role_cd as UserRole);
 
       if (!hashResult.success) {
@@ -958,7 +985,7 @@ export class AuthService {
         };
       }
 
-      // 5. パスワード更新
+      // 6. パスワード更新
       const updateResult = await this.passwordService.update(
         tokenData.user_id,
         tokenData.organization_id,
@@ -975,7 +1002,7 @@ export class AuthService {
         };
       }
 
-      // 6. リセットトークン削除
+      // 7. リセットトークン削除
       await passwordResetTokenRepository.deleteByToken(this.pool, resetToken);
 
       console.log(`[INFO] パスワードリセット成功: user_id=${tokenData.user_id}`);

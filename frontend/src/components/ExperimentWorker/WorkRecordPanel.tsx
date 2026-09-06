@@ -44,6 +44,7 @@ import ContentGridEditor from '@/components/common/ContentGridEditor';
 import dayjs from 'dayjs';
 import { getProjectMaiml, saveTransitionComment, getTransitionStateRecords } from '@/services/projectApiService';
 import { getPlanDialogData, getExperimentPlans } from '@/services/experimentPlanApiService';
+import type { RefOption } from '@/types/experimentPlanDialog';
 import { getTemplateData, saveBatchExperimentData } from '@/services/experimentDataApiService';
 import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
 import type { Insertion } from '@/types/maiml-unified';
@@ -1497,9 +1498,9 @@ interface PlanProps {
    */
   apiTransitions?: WorkTransition[];
   /** Creator プルダウンの選択肢（MAIMLのdocument.creatorsから取得） */
-  creatorRefOptions: string[];
+  creatorRefOptions: RefOption[];
   /** Instrument プルダウンの選択肢（MAIMLのdocument.instrumentsから取得） */
-  instrumentRefOptions: string[];
+  instrumentRefOptions: RefOption[];
   /** Creator の選択値 */
   selectedCreatorRef: string | null;
   /** Instrument の選択値 */
@@ -1756,7 +1757,7 @@ const PlanB: React.FC<PlanProps> = ({
                   size="small"
                   placeholder={t('workRecord.creatorPlaceholder')}
                   value={selectedCreatorRef ?? undefined}
-                  options={creatorRefOptions.map((v) => ({ label: v, value: v }))}
+                  options={creatorRefOptions}
                   onChange={(v: string | undefined) => onCreatorRefChange(v ?? null)}
                   allowClear
                   disabled={isReadOnly}
@@ -1771,7 +1772,7 @@ const PlanB: React.FC<PlanProps> = ({
                   size="small"
                   placeholder={t('workRecord.instrumentPlaceholder')}
                   value={selectedInstrumentRef ?? undefined}
-                  options={instrumentRefOptions.map((v) => ({ label: v, value: v }))}
+                  options={instrumentRefOptions}
                   onChange={(v: string | undefined) => onInstrumentRefChange(v ?? null)}
                   allowClear
                   disabled={isReadOnly}
@@ -2432,8 +2433,8 @@ export default function WorkRecordPanel({
   }, []);
 
   // ── Creator / Instrument 選択肢・選択値 ──
-  const [creatorRefOptions, setCreatorRefOptions] = useState<string[]>([]);
-  const [instrumentRefOptions, setInstrumentRefOptions] = useState<string[]>([]);
+  const [creatorRefOptions, setCreatorRefOptions] = useState<RefOption[]>([]);
+  const [instrumentRefOptions, setInstrumentRefOptions] = useState<RefOption[]>([]);
   const [selectedCreatorRef, setSelectedCreatorRef] = useState<string | null>(null);
   const [selectedInstrumentRef, setSelectedInstrumentRef] = useState<string | null>(null);
 

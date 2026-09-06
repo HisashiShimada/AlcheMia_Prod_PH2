@@ -772,10 +772,16 @@ export async function getPlanDialogDataFromMaiml(
     mergeTemplates(seenTemplateIds, templates, prog.resultTemplates ?? [], 'result');
   }
 
-  // 7. Ref 選択肢を抽出（document の id を使用）
-  const creatorRefs = (document.creators ?? []).map((c) => c.id).filter(Boolean);
-  const instrumentRefs = (document.instruments ?? []).map((i) => i.id).filter(Boolean);
-  const ownerRefs = (document.owners ?? []).map((o) => o.id).filter(Boolean);
+  // 7. Ref 選択肢を抽出（value: id, label: name || id）
+  const creatorRefs = (document.creators ?? [])
+    .filter((c) => Boolean(c.id))
+    .map((c) => ({ value: c.id, label: c.name || c.id }));
+  const instrumentRefs = (document.instruments ?? [])
+    .filter((i) => Boolean(i.id))
+    .map((i) => ({ value: i.id, label: i.name || i.id }));
+  const ownerRefs = (document.owners ?? [])
+    .filter((o) => Boolean(o.id))
+    .map((o) => ({ value: o.id, label: o.name || o.id }));
 
   // 8. Conditionテンプレートから基本情報の初期値を抽出
   // 注意事項キー（Alchemia:SupervisorDirectiveXxx）が存在する場合に設定する

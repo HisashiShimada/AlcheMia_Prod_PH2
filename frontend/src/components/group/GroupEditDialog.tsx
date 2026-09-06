@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
+import { App, Button, Input, Modal, Select, Tag, Typography, Space, Divider } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
@@ -26,7 +26,7 @@ const GroupEditDialog: React.FC<GroupEditDialogProps> = ({
   onSaved,
 }) => {
   const { t } = useLanguage();
-
+  const { message } = App.useApp();
   const [groupName, setGroupName]         = useState('');
   const [isActive, setIsActive]           = useState<boolean>(true);
   const [members, setMembers]             = useState<OrgUser[]>([]);

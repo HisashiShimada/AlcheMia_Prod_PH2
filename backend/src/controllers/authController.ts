@@ -317,6 +317,7 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
         errorCode === 'E5009' ? 400 :
         errorCode === 'E5010' ? 400 :
         errorCode === 'E5011' ? 400 :
+        errorCode === 'AUTH_SAME_PASSWORD' ? 400 :
         500;
       
       res.status(statusCode).json({
@@ -454,6 +455,7 @@ export async function changePassword(req: Request, res: Response): Promise<void>
 
     if (!result.success) {
       const statusCode = result.error?.code === 'AUTH_INVALID_CURRENT_PASSWORD' ? 401 
+        : result.error?.code === 'AUTH_SAME_PASSWORD' ? 400
         : result.error?.code === 'E6001' ? 404 
         : 500;
       
