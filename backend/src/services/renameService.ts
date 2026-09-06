@@ -94,9 +94,16 @@ export async function renameProject(params: RenameProjectParams): Promise<Rename
     console.log(`✅ [RenameService] S3ファイル一覧取得: ${files.length}件`);
 
     // 6. 各ファイルを新パスへコピー → 削除
+    // listFiles が返す file.key は S3 のフルキー（"{organizationId}/projects/..."）のため、
+    // organizationId プレフィックスを除去して相対パスに変換してから処理する
+    // （storageService.deleteFolderRecursive と同一パターン）
     const renamedFiles: Array<{ oldKey: string; newKey: string }> = [];
     for (const file of files) {
-      const oldKey = file.key; // organizationId なしの相対パス
+      // organizationId プレフィックスを除去して相対パスに変換
+      let oldKey = file.key;
+      if (oldKey.startsWith(`${organizationId}/`)) {
+        oldKey = oldKey.substring(organizationId.length + 1);
+      }
       const newKey = oldKey.replace(
         new RegExp(`^projects/${escapeRegExp(oldProjectName)}/`),
         `projects/${newProjectName}/`
