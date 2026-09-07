@@ -406,6 +406,8 @@ export interface PrefixRowLocal {
   description?: string;
   /** アクティブ状態（true: アクティブ、false: 非アクティブ） */
   isActive?: boolean;
+  /** DB 由来のスコープ名（organization_group_name または user_name） */
+  scopePath?: string;
   /**
    * この Prefix が属する名前空間のスコープキー（organization_group_cd またはユーザーID）
    * 上位層（祖先グループ）行の判定に使用する
