@@ -792,6 +792,23 @@ export async function uploadCreatorsCsv(
       errors.push({ row: rowNumber, field: 'creator_name', message: 'creator_nameは必須です' });
       continue;
     }
+
+    // 文字数チェック
+    if (creatorId.length > 50) {
+      errors.push({ row: rowNumber, field: 'creator_id', message: `${rowNumber}行目: creator_idは50文字以内で入力してください` });
+      continue;
+    }
+
+    if (creatorName.length > 50) {
+      errors.push({ row: rowNumber, field: 'creator_name', message: `${rowNumber}行目: creator_nameは50文字以内で入力してください` });
+      continue;
+    }
+
+    // 文字種チェック（半角英数字・ハイフン・アンダースコアのみ許可）
+    if (!/^[a-zA-Z0-9_-]+$/.test(creatorId)) {
+      errors.push({ row: rowNumber, field: 'creator_id', message: `${rowNumber}行目: creator_idは半角英数字・ハイフン・アンダースコアのみ使用できます` });
+      continue;
+    }
     
     // is_activeの型チェック
     const isActiveStr = row['is_active']?.trim().toLowerCase();
@@ -939,6 +956,23 @@ export async function uploadInstrumentsCsv(
       errors.push({ row: rowNumber, field: 'instrument_name', message: 'instrument_nameは必須です' });
       continue;
     }
+
+    // 文字数チェック
+    if (instrumentId.length > 50) {
+      errors.push({ row: rowNumber, field: 'instrument_id', message: `${rowNumber}行目: instrument_idは50文字以内で入力してください` });
+      continue;
+    }
+
+    if (instrumentName.length > 50) {
+      errors.push({ row: rowNumber, field: 'instrument_name', message: `${rowNumber}行目: instrument_nameは50文字以内で入力してください` });
+      continue;
+    }
+
+    // 文字種チェック（半角英数字・ハイフン・アンダースコアのみ許可）
+    if (!/^[a-zA-Z0-9_-]+$/.test(instrumentId)) {
+      errors.push({ row: rowNumber, field: 'instrument_id', message: `${rowNumber}行目: instrument_idは半角英数字・ハイフン・アンダースコアのみ使用できます` });
+      continue;
+    }
     
     // is_activeの型チェック
     const isActiveStr = row['is_active']?.trim().toLowerCase();
@@ -1082,6 +1116,23 @@ export async function uploadVendorsCsv(
     
     if (!vendorName) {
       errors.push({ row: rowNumber, field: 'vendor_name', message: 'vendor_nameは必須です' });
+      continue;
+    }
+
+    // 文字数チェック
+    if (vendorId.length > 50) {
+      errors.push({ row: rowNumber, field: 'vendor_id', message: `${rowNumber}行目: vendor_idは50文字以内で入力してください` });
+      continue;
+    }
+
+    if (vendorName.length > 50) {
+      errors.push({ row: rowNumber, field: 'vendor_name', message: `${rowNumber}行目: vendor_nameは50文字以内で入力してください` });
+      continue;
+    }
+
+    // 文字種チェック（半角英数字・ハイフン・アンダースコアのみ許可）
+    if (!/^[a-zA-Z0-9_-]+$/.test(vendorId)) {
+      errors.push({ row: rowNumber, field: 'vendor_id', message: `${rowNumber}行目: vendor_idは半角英数字・ハイフン・アンダースコアのみ使用できます` });
       continue;
     }
     
