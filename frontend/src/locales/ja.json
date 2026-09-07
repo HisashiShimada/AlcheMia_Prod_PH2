@@ -5096,6 +5096,8 @@
     "groupAddParentLabelDefault": "選択中グループ",
     "saveTermSuccess": "{count}件の用語を保存しました",
     "createDirectiveTermSuccess": "（指示用語も同時登録しました）",
+    "noDirectiveTermWarningTitle": "指示用語が登録されません",
+    "noDirectiveTermWarningContent": "以下の用語は指示用語チェックがOFFのため、指示用語（SupervisorDirective{用語名}）が登録されません。このまま登録しますか？\n{terms}",
     "nsRegisterSuccess": "名前空間「{prefix}」を登録しました",
     "groupCreated": "グループ「{groupName}」を作成しました",
     "memberUpdated": "「{name}」のメンバー({count}名)を更新しました",

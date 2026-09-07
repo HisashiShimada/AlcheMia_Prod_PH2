@@ -1163,23 +1163,22 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       if (!isValidNCName(row.localName)) { message.error(t('namespaceMain.localNameNcnameInvalid')); return; }
     }
 
-    // 研究開発部（dept-rd）選択時は必ずエラーダイアログを表示して保存をブロック
-    if (effectiveNsKey === 'dept-rd') {
-      Modal.error({
-        title: t('namespaceMain.duplicateErrorTitle'),
-        content: t('namespaceMain.duplicateErrorContent'),
+    // createDirectiveTerm が false の行がある場合、確認警告を表示
+    const uncheckedRows = newTerms.filter((r) => !r.createDirectiveTerm);
+    if (uncheckedRows.length > 0) {
+      const termsList = uncheckedRows.map((r) => `${r.prefix}:${r.localName}`).join(', ');
+      const confirmed = await new Promise<boolean>((resolve) => {
+        const modalConfig = {
+          title: t('namespaceMain.noDirectiveTermWarningTitle'),
+          content: t('namespaceMain.noDirectiveTermWarningContent', { terms: termsList }),
+          okText: t('namespaceMain.warnRegister'),
+          cancelText: t('namespaceMain.warnCancel'),
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        };
+        Modal.confirm(modalConfig);
       });
-      return;
-    }
-
-    // 木村涼子（user-010）選択時は同用語名・別Prefix重複の警告を表示（保存は続行）
-    if (effectiveNsKey === 'user-010') {
-      Modal.confirm({
-        title: t('namespaceMain.warnDuplicateTitle'),
-        content: t('namespaceMain.warnDuplicateContent'),
-        okText: t('namespaceMain.warnRegister'),
-        cancelText: t('namespaceMain.warnCancel'),
-      });
+      if (!confirmed) return;
     }
 
     // Personal ノードの場合は 'personal-' プレフィックスを除去して userId のみ scopeKey として渡す

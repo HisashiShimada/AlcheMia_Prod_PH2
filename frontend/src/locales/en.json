@@ -5094,6 +5094,8 @@
     "groupAddParentLabelDefault": "Selected Group",
     "saveTermSuccess": "{count} term(s) saved",
     "createDirectiveTermSuccess": "(Directive term also registered)",
+    "noDirectiveTermWarningTitle": "Directive Term Will Not Be Registered",
+    "noDirectiveTermWarningContent": "The following terms have the directive term checkbox unchecked. The directive term (SupervisorDirective{term name}) will not be registered. Do you want to proceed?\n{terms}",
     "nsRegisterSuccess": "Namespace \"{prefix}\" registered",
     "groupCreated": "Group \"{groupName}\" created",
     "memberUpdated": "Members ({count}) of \"{name}\" updated",
