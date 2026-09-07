@@ -1276,13 +1276,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         typeHint:      editingValues.type,
         unitHint:      editingValues.unitHint,
       };
-      const updated = await updateTerm(
+      await updateTerm(
         editingValues.prefix,
         editingValues.localName,
         updateTermRequest
       );
-      setTerms((prev) => prev.map((t) => `${t.prefix}:${t.localName}` === editingTermId ? (updated as Term) : t));
       setEditingTermId(null);
+      fetchTermsForCurrentNsKey(effectiveNsKey);
       message.success(t('namespaceMain.updateSuccess'));
     } catch (err: unknown) {
       const errDetail =
