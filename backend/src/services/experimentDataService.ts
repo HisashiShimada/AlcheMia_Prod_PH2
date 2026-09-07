@@ -658,6 +658,9 @@ function convertPropertyForFallback(
     qualitativeOptions,
     qualitativeEval,
     qualitativeNote,
+    // uncertainty[] 配列をそのまま保持する（フロントエンドの保存ロジックが
+    // 定性評価選択値・理由を uncertainty[].value / description に書き込むために参照する）
+    uncertainty: p.uncertainty ?? [],
     // ネスト構造を再帰的に変換（深さ制限で無限ループ防止）
     properties: depth < MAX_DEPTH
       ? (p.properties || []).map(child => convertPropertyForFallback(child, depth + 1, uncertaintyDetailMap))
