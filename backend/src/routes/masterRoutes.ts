@@ -457,6 +457,7 @@ router.get(
   [
     query('search').optional().isString().withMessage('search must be a string'),
     query('is_active').optional().isBoolean().withMessage('is_active must be a boolean'),
+    query('attribute_name').optional().isString().withMessage('attribute_name must be a string'),
   ],
   handleValidationErrors,
   masterController.getAttributes

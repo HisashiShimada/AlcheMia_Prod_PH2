@@ -1062,10 +1062,11 @@ export async function getAttributes(req: Request, res: Response, next: NextFunct
   try {
     const organizationId = req.user?.organizationId;
 
-    const { search, is_active, apply_organization_group_filter } = req.query;
+    const { search, is_active, apply_organization_group_filter, attribute_name } = req.query;
     const filters: any = {};
     if (search) filters.search = String(search);
     if (is_active !== undefined) filters.isActive = is_active === 'true' || is_active === '1';
+    if (attribute_name) filters.attributeName = String(attribute_name);
 
     // apply_organization_group_filter=true の場合のみ組織グループフィルタを適用
     // ログインユーザーの組織グループコード（複数対応）でフィルタリング（マスタ管理画面では使用しない）

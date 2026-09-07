@@ -877,9 +877,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     getAttributeMaster()
       .then((items) => {
-        const units = items
-          .filter((a) => a.isActive)
-          .map((a) => a.attributeValue);
+        const units = items.map((a) => a.attributeValue);
         // データが0件の場合はフォールバックデータを使用
         if (units.length > 0) {
           setUnitAttributes(units);
@@ -2355,7 +2353,25 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                 />
               ),
               onChange: (keys: React.Key[]) => setSelectedTermIds(keys as string[]),
-              getCheckboxProps: (record: Term | NewTermRow) => ({ disabled: '_rowId' in record }),
+              getCheckboxProps: (record: Term | NewTermRow) => {
+                if ('_rowId' in record) return { disabled: true };
+                const term = record as Term;
+                const isSystemNs = term.prefix === SYSTEM_NAMESPACE_PREFIX;
+                const currentScopeKey = effectiveNsKey
+                  ? effectiveNsKey.replace(/^personal-/, '')
+                  : null;
+                const isAncestorTerm =
+                  isCompanyNodeSelected &&
+                  currentScopeKey != null &&
+                  term.scopeKey != null &&
+                  term.scopeKey !== currentScopeKey;
+                const isReadonly =
+                  isSystemNs ||
+                  isAncestorTerm ||
+                  (!isCompanyNodeSelected && isReadonlyPrefix(term.prefix)) ||
+                  effectiveViewOnly;
+                return { disabled: isReadonly };
+              },
             };
             return (
               <Table<Term | NewTermRow>

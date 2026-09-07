@@ -147,16 +147,16 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       if (seq !== fetchSeqRef.current) return;
       setRows(
         list.map((ns) => ({
-          id: ns.prefix,
+          id: `${ns.prefix}__${ns.scopeKey ?? ''}`,
           prefix: ns.prefix,
           uri: ns.uri,
-          description: (ns as any).description ?? '',
+          description: ns.description ?? '',
           /** DB由来のスコープ名（organization_group_name または user_name） */
-          scopePath: (ns as any).scopeName ?? '',
+          scopePath: ns.scopeName ?? '',
           /** アクティブ状態（SQL の isActive カラム） */
-          isActive: (ns as any).isActive !== false,
+          isActive: ns.isActive !== false,
           /** この Prefix が属するスコープキー（上位層判定に使用） */
-          scopeKey: (ns as any).scopeKey ?? null,
+          scopeKey: ns.scopeKey ?? null,
         }))
       );
     } catch {
@@ -196,13 +196,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
       setRows(
         merged.map((ns) => ({
-          id: ns.prefix,
+          id: `${ns.prefix}__${ns.scopeKey ?? ''}`,
           prefix: ns.prefix,
           uri: ns.uri,
-          description: (ns as any).description ?? '',
-          scopePath: (ns as any).scopeName ?? '',
-          isActive: (ns as any).isActive !== false,
-          scopeKey: (ns as any).scopeKey ?? null,
+          description: ns.description ?? '',
+          scopePath: ns.scopeName ?? '',
+          isActive: ns.isActive !== false,
+          scopeKey: ns.scopeKey ?? null,
         }))
       );
     } catch {
@@ -1040,9 +1040,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
                   orgGroupCds && orgGroupCds.length > 0 ? orgGroupCds : currentScopeKey ? [currentScopeKey] : []
                 );
                 const isAncestorRow = currentScopeKey != null && !editableScopeKeys.has(r.scopeKey);
-                // 現在ノード由来の行（既に現在ノードに存在するため引き上げ不要）はチェック不可
-                const isCurrentNodeRow = currentScopeKey != null && r.scopeKey === currentScopeKey;
-                return { disabled: isAncestorRow || isCurrentNodeRow };
+                return { disabled: isAncestorRow };
               },
             }}
             onRow={(record) => {
