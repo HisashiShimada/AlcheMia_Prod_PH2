@@ -2763,15 +2763,22 @@ export default function WorkRecordPanel({
             });
           }
         }
-        // 定性評価理由を対応する uncertainty[].description に書き込む
+        // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
         if (Array.isArray(baseData.properties)) {
           (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
             if (p.isCustomProperty === true) return;
             const propKey = String(p.key ?? '');
-            const reasonEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
-            if (reasonEntry?.description && Array.isArray(p.uncertainty)) {
+            const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+            if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
               (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
-                unc.description = reasonEntry.description;
+                // 定性評価選択値を書き込む
+                if (confidenceEntry?.value) {
+                  unc.value = confidenceEntry.value;
+                }
+                // 定性評価理由を書き込む
+                if (confidenceEntry?.description) {
+                  unc.description = confidenceEntry.description;
+                }
               });
             }
           });
@@ -2875,15 +2882,22 @@ export default function WorkRecordPanel({
                   });
                 }
               }
-              // 定性評価理由を対応する uncertainty[].description に書き込む
+              // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
               if (Array.isArray(baseData.properties)) {
                 (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
                   if (p.isCustomProperty === true) return;
                   const propKey = String(p.key ?? '');
-                  const reasonEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
-                  if (reasonEntry?.description && Array.isArray(p.uncertainty)) {
+                  const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+                  if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
                     (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
-                      unc.description = reasonEntry.description;
+                      // 定性評価選択値を書き込む
+                      if (confidenceEntry?.value) {
+                        unc.value = confidenceEntry.value;
+                      }
+                      // 定性評価理由を書き込む
+                      if (confidenceEntry?.description) {
+                        unc.description = confidenceEntry.description;
+                      }
                     });
                   }
                 });
