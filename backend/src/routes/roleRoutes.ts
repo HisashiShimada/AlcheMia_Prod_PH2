@@ -84,7 +84,8 @@ router.post(
       .isString()
       .withMessage('ロール名は文字列である必要があります'),
     body('initialScreenFunctionName')
-      .optional({ nullable: true })
+      .notEmpty()
+      .withMessage('初期画面機能名は必須です')
       .isString()
       .withMessage('初期画面機能名は文字列である必要があります'),
     body('isActive')
@@ -126,7 +127,9 @@ router.put(
       .isString()
       .withMessage('ロール名は文字列である必要があります'),
     body('initialScreenFunctionName')
-      .optional({ nullable: true })
+      .optional()
+      .notEmpty()
+      .withMessage('初期画面機能名は必須です')
       .isString()
       .withMessage('初期画面機能名は文字列である必要があります'),
     body('isActive')

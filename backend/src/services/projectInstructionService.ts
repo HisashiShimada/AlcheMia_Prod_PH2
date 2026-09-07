@@ -52,18 +52,31 @@ export async function getInstructions(
     organizationId,
     projectId
   );
+
+  // MAIMLをパースして method_id → method_name のマップを構築
+  // パース失敗時は空マップで継続（メソッドIDをそのまま表示するフォールバック）
+  const methodNameMap = await buildMethodNameMap(
+    organizationId,
+    projectId,
+    project.project_name!
+  );
   
   // DB型から画面型に変換
-  const instructionData: InstructionData[] = instructions.map(inst => ({
-    id: inst.experiment_instruction_id || '',
-    content: inst.instructions || '',
-    methodId: inst.method_id || '',
-    transitionId: inst.transition_id || '',
-    taskNumber: inst.task_no ?? undefined,
-    isSent: inst.instruction_status === InstructionStatusEnum.SENT,
-    instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT,
-    instructionKey: inst.instruction_key || 'Alchemia:SupervisorDirectiveContent',
-  }));
+  const instructionData: InstructionData[] = instructions.map(inst => {
+    const methodId = inst.method_id || '';
+    const methodName = methodId ? (methodNameMap[methodId] ?? methodId) : undefined;
+    return {
+      id: inst.experiment_instruction_id || '',
+      content: inst.instructions || '',
+      methodId,
+      methodName,
+      transitionId: inst.transition_id || '',
+      taskNumber: inst.task_no ?? undefined,
+      isSent: inst.instruction_status === InstructionStatusEnum.SENT,
+      instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT,
+      instructionKey: inst.instruction_key || 'Alchemia:SupervisorDirectiveContent',
+    };
+  });
   
   logger.info('指示一覧を取得しました', {
     organizationId,
@@ -521,6 +534,109 @@ async function insertLifecycleTransitionEventsForNoPrerequisite(
       organizationId,
       projectId,
     });
+  }
+}
+
+/**
+ * MAIMLファイルをパースして method_id → method_name のマップを構築する
+ *
+ * file_metadata テーブルから project_uuid でMAIMLファイルの file_key を取得し、
+ * ストレージからダウンロードしてパースする。
+ * project_uuid が未設定の場合は projectName によるパスフォールバックを使用する。
+ *
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param projectName プロジェクト名（フォールバック用）
+ * @returns method_id をキー、method_name を値とするマップ
+ *          パース失敗時は空のマップを返す（フォールバックとしてmethod_idが表示される）
+ */
+async function buildMethodNameMap(
+  organizationId: string,
+  projectId: string,
+  projectName: string
+): Promise<Record<string, string>> {
+  try {
+    const storageService = getStorageService();
+
+    // project_uuid を取得し、file_metadata からMAIMLファイルの file_key を解決する
+    const nameRow = await projectRepository.findNameAndUuidById(organizationId, projectId);
+    const projectUuid = nameRow?.project_uuid ?? null;
+
+    let filePath: string;
+    if (projectUuid) {
+      const fileMetadataRepo = new FileMetadataRepository();
+      const meta = await fileMetadataRepo.findMaimlByProjectUuid(projectUuid);
+      if (meta) {
+        // file_key は "{organizationId}/..." 形式のフルキー
+        // storageService.downloadFile は組織プレフィックスを除いた相対パスを受け取る
+        filePath = meta.file_key.startsWith(`${organizationId}/`)
+          ? meta.file_key.slice(`${organizationId}/`.length)
+          : meta.file_key;
+        logger.info('[projectInstructionService] buildMethodNameMap: file_metadata からMAIMLパスを解決', {
+          projectId,
+          projectUuid,
+          filePath,
+        });
+      } else {
+        // file_metadata に未登録の場合は project_name でフォールバック
+        filePath = `projects/${projectName}/${projectName}.maiml`;
+        logger.warn('[projectInstructionService] buildMethodNameMap: file_metadata にMAIMLが未登録、project_name でフォールバック', {
+          projectId,
+          projectUuid,
+          filePath,
+        });
+      }
+    } else {
+      // project_uuid 未設定の場合は project_name でフォールバック
+      filePath = `projects/${projectName}/${projectName}.maiml`;
+      logger.warn('[projectInstructionService] buildMethodNameMap: project_uuid 未設定、project_name でフォールバック', {
+        projectId,
+        filePath,
+      });
+    }
+
+    const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+    const maimlContent = fileBuffer.toString('utf-8');
+
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_',
+    });
+    const parsed = parser.parse(maimlContent);
+
+    // protocol.method は単一要素の場合もあるため配列に統一
+    const methods = parsed?.maiml?.protocol?.method;
+    const methodsArray = Array.isArray(methods)
+      ? methods
+      : methods
+      ? [methods]
+      : [];
+
+    // method_id → method_name のマップを構築
+    // method の name 属性がない場合は id をそのまま使用する
+    const map: Record<string, string> = {};
+    for (const m of methodsArray) {
+      const methodId: string | undefined = m['@_id'];
+      const methodName: string | undefined = m['@_name'] || m['@_id'];
+      if (methodId && methodName) {
+        map[methodId] = methodName;
+      }
+    }
+
+    logger.info('[projectInstructionService] buildMethodNameMap: メソッド名マップ構築完了', {
+      projectId,
+      methodCount: Object.keys(map).length,
+    });
+
+    return map;
+  } catch (error) {
+    // MAIMLファイル取得・パース失敗時は空マップで継続（ログのみ）
+    logError('buildMethodNameMap: MAIMLファイルのパースに失敗しました（空マップで継続）', error as Error, {
+      organizationId,
+      projectId,
+      projectName,
+    });
+    return {};
   }
 }
 

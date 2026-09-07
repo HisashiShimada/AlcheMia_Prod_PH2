@@ -199,13 +199,19 @@ const getRootKey = (nsKey: string, nodes: NamespaceNode[]): string | null => {
 
 interface UncertaintyManagementProps {
   user?: User;
+  /** タブ4（名前空間管理）がアクティブになった時刻（ms）
+   * ExperimentAdminMenu からタブ切り替え時に更新される。
+   * この値の変化をトリガーとして組織ツリーを再取得する。
+   * undefined の場合はスキップ（初回マウント時は user?.id の useEffect に任せる）。
+   */
+  tabActivatedAt?: number;
 }
 
 /**
  * 不確かさ基準管理メイン画面コンポーネント
  * 左ペイン（名前空間ツリー固定）＋右ペイン（タブ：用語管理 / 不確かさ基準管理）
  */
-export default function UncertaintyManagement({ user }: UncertaintyManagementProps = {}) {
+export default function UncertaintyManagement({ user, tabActivatedAt }: UncertaintyManagementProps = {}) {
   const { t } = useLanguage();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -385,6 +391,78 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
       });
 
   }, [user?.id]);
+
+  // ── タブ4（名前空間管理）がアクティブになるたびに組織ツリーを再取得する
+  // tabActivatedAt は ExperimentAdminMenu でタブ4への切り替え時に Date.now() で更新される。
+  // undefined の場合はスキップ（初回マウント時は上の useEffect([user?.id]) に任せる）。
+  // selectedNsKey（現在の選択ノード）はリセットせず、orgGroups のみ更新する。
+  useEffect(() => {
+    if (tabActivatedAt === undefined) return;
+
+    const isAdminUser = (() => {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        if (!raw) return false;
+        const info = JSON.parse(raw) as { permissions?: Array<{ functionId: string }> };
+        return (info.permissions ?? []).some((p) => p.functionId === '020000');
+      } catch { return false; }
+    })();
+
+    if (isAdminUser) {
+      Promise.all([
+        getOrganizationGroups(undefined, { all: true }),
+        getOrgUsersForGroups(),
+      ])
+        .then(([allGroups, orgUsers]) => {
+          const safeGroups = Array.isArray(allGroups) ? allGroups : [];
+          setChiefGroupCds(new Set(safeGroups.map((g) => g.organization_group_cd)));
+          setOrgGroups(safeGroups);
+          setAllOrgUsers(orgUsers);
+          // selectedNsKey はリセットしない
+        })
+        .catch(() => {
+          // 取得失敗時は現在のツリーを維持
+        });
+      return;
+    }
+
+    Promise.all([
+      getOrganizationGroups(),
+      getOrganizationGroups(undefined, { memberOf: true }),
+    ])
+      .then(([chiefGroups, memberGroups]) => {
+        const chiefCds = new Set(chiefGroups.map((g) => g.organization_group_cd));
+        setChiefGroupCds(chiefCds);
+
+        const mergedMap = new Map<string, OrganizationGroupRow>();
+        [...chiefGroups, ...memberGroups].forEach((g) =>
+          mergedMap.set(g.organization_group_cd, g)
+        );
+        const mergedGroups = Array.from(mergedMap.values());
+        const safeGroups = Array.isArray(mergedGroups) ? mergedGroups : [];
+
+        setOrgGroups(safeGroups);
+        // selectedNsKey はリセットしない
+
+        if (chiefCds.size > 0) {
+          Promise.all([...chiefCds].map((cd) => getGroupMembers(cd)))
+            .then((memberLists) => {
+              const allMembers = memberLists.flat();
+              const unique = Array.from(
+                new Map(allMembers.map((u) => [u.userId, u])).values()
+              );
+              setAllOrgUsers(unique);
+            })
+            .catch(() => {
+              // 取得失敗時は既存の allOrgUsers を維持
+            });
+        }
+      })
+      .catch(() => {
+        // 取得失敗時は現在のツリーを維持
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabActivatedAt]);
 
   // ── mousedown でコンテキストメニューを閉じる
   // visible が既に false の場合は同じ参照を返して不要な再レンダーを防ぐ

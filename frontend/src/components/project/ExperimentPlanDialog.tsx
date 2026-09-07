@@ -76,6 +76,7 @@ import type {
   TransitionOrderItem,
   InheritableField,
   CustomPropValue,
+  RefOption,
 } from '@/types/experimentPlanDialog';
 import {
   TAB_KEY_ALL,
@@ -94,6 +95,8 @@ import {
   getPlanDialogData,
 } from '@/services/experimentPlanApiService';
 import type { PlanDialogData } from '@/services/experimentPlanApiService';
+import { getTermsForPropertyDialog } from '@/services/namespaceApiService';
+import type { NamespaceTermRow } from '@/services/namespaceApiService';
 import RefSection from './subcomponents/RefSection';
 import SortableTransitionRow from './subcomponents/SortableTransitionRow';
 import TemplateInputPanel from './subcomponents/TemplateInputPanel';
@@ -121,6 +124,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   allowMethodSelection = false,
   methodOptions = [],
   onMethodChange,
+  organizationGroupCd,
 }) => {
   const { token } = useToken();
   const { message } = App.useApp();
@@ -161,9 +165,11 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   const [isSaving, setIsSaving] = useState(false);
 
   // Ref選択肢はAPIデータ優先、なければpropsから取得
-  const creatorRefOptions = dialogData?.creatorRefs ?? creatorRefOptionsProp;
-  const instrumentRefOptions = dialogData?.instrumentRefs ?? instrumentRefOptionsProp;
-  const ownerRefOptions = dialogData?.ownerRefs ?? ownerRefOptionsProp;
+  // dialogData.creatorRefs は { value, label }[] 形式（APIレスポンス）
+  // creatorRefOptionsProp は RefOption[] 形式（TaskRegistrationTab からのprops）
+  const creatorRefOptions: RefOption[] = dialogData?.creatorRefs ?? creatorRefOptionsProp;
+  const instrumentRefOptions: RefOption[] = dialogData?.instrumentRefs ?? instrumentRefOptionsProp;
+  const ownerRefOptions: RefOption[] = dialogData?.ownerRefs ?? ownerRefOptionsProp;
 
   /** 案3用: 基本情報 / テンプレート入力の内部タブ */
   const [innerTab, setInnerTab] = useState<'basic' | 'template'>('basic');
@@ -495,6 +501,25 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     setCustomProps((prev) => ({ ...prev, [templateId]: props }));
   }, []);
 
+  // --- 用語マップ State（open 時に取得し TemplateInputPanel に渡す） ---
+  const [termMap, setTermMap] = useState<Map<string, NamespaceTermRow>>(new Map());
+
+  // --- open 時に用語マップを取得（TemplateInputPanel の用語キー選択モーダル用） ---
+  useEffect(() => {
+    if (!open) return;
+    setTermMap(new Map());
+    getTermsForPropertyDialog(organizationGroupCd)
+      .then((map) => {
+        // hasDirectiveTerm === true のエントリのみに絞り込み（指示用語のみ表示）
+        const filteredEntries = Array.from(map.entries()).filter(
+          ([, term]) => term.hasDirectiveTerm === true
+        );
+        const filteredMap = new Map(filteredEntries);
+        setTermMap(filteredMap);
+      })
+      .catch((err) => console.warn('⚠️ [ExperimentPlanDialog] 用語マップ取得失敗:', err));
+  }, [open, organizationGroupCd]);
+
   // --- Ref操作ハンドラ ---
 
   const handleAddRef = useCallback(
@@ -784,7 +809,9 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                * dialogDataLoading がUIに接続されていなかったため、データ取得中に「トランジションがありません」
                * が表示されていた問題を修正。 */
               <div style={{ padding: 24, textAlign: 'center' }}>
-                <Spin tip={t('common.loading')} />
+                <Spin>
+                  <div style={{ padding: 24, color: 'transparent' }}>{t('common.loading')}</div>
+                </Spin>
               </div>
             ) : transitions.length === 0 ? (
               <div style={{ padding: 16 }}>
@@ -963,6 +990,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                           disabled={disabled}
                           outputTemplateIds={outputTemplateIds}
                           projectId={projectId}
+                          termMap={termMap}
                         />
                       ),
                     },

@@ -64,6 +64,7 @@
     "taskStatus": "Task status",
     "allTransitionsCompleted": "All assigned transitions are completed.",
     "completedTransitionReadonly": "This transition is completed. Viewing in read-only mode.",
+    "errorTransitionReadonly": "This transition has ended with an error. View only.",
     "backToWork": "Back to work",
     "correctionModeAlert": "This transition has been rejected. Please review and correct if needed.",
     "startCorrectionButton": "Correct",
@@ -1745,8 +1746,10 @@
       "roleNameRequired": "Please enter a role name",
       "roleNamePlaceholder": "Enter role name",
       "functionName": "Function Name",
+      "functionNameRequired": "Please select a function name",
       "initialScreen": "Initial Screen Function",
       "initialScreenPlaceholder": "Select",
+      "initialScreenRequired": "Please select an initial screen function",
       "status": "Status"
     },
     "messages": {
@@ -2322,7 +2325,8 @@
       "newPasswordMin8": "Password must be at least 8 characters",
       "newPasswordPattern": "Must include uppercase, lowercase, and numbers",
       "confirmPasswordLabel": "New Password (Confirm)",
-      "confirmPasswordRequired": "Please re-enter your password"
+      "confirmPasswordRequired": "Please re-enter your password",
+      "samePasswordError": "Please set a password different from your current password"
     }
   },
   "editor": {
@@ -2615,7 +2619,8 @@
     "PROJECT_ALREADY_CHECKED_OUT": "This project is already checked out by another user",
     "DUPLICATE_CORPORATION_NAME": "This corporation name is already in use",
     "USER_ALREADY_EXISTS": "This user ID is already in use",
-    "DUPLICATE_ROLE_CD": "The entered ID already exists"
+    "DUPLICATE_ROLE_CD": "The entered ID already exists",
+    "AUTH_SAME_PASSWORD": "Please set a password different from your current password"
   },
   "progressStatus": {
     "notStarted": "Not Started",
@@ -4761,6 +4766,8 @@
   },
   "experimentWorker": {
     "startFailed": "Failed to start",
+    "startNoTarget": "No target transition found to start",
+    "endNoTarget": "No target transition found to end",
     "switchFailed": "Failed to switch",
     "ngReason": {
       "button": "NG Reason",

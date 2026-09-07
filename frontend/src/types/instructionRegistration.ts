@@ -95,6 +95,8 @@ export interface InstructionData {
   content: string;
   targetType: number; // code_master.instruction_target の code_value
   methodId: string;
+  /** メソッド名（APIから返されるMAIMLのmethod@name属性。未設定時はmethodId） */
+  methodName?: string;
   transitionId: string;
   taskNumber?: number;
   instruction_status?: number; // 0: 未送信, 1: 送信済

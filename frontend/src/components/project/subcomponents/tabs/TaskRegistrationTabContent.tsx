@@ -30,6 +30,7 @@ const TaskRegistrationTabContent: React.FC<TaskRegistrationTabContentProps> = ({
       maimlHasErrors={maimlHasErrors}
       isProjectCompleted={isProjectCompleted}
       isEditable={selectedProject.isEditable !== false}
+      organizationGroupCd={selectedProject.organizationGroup}
     />
   );
 };

@@ -49,6 +49,7 @@ import type {
   InstructionSaveItem,
 } from '@/types/taskRegistration';
 import type { TemplateDef, TemplateField } from '@/types/experimentPlan';
+import type { RefOption } from '@/types/experimentPlanDialog';
 import type {
   InstructionData,
   TransitionInfo,
@@ -81,6 +82,11 @@ interface TaskRegistrationTabProps {
   /** 編集権限フラグ。false の場合は変更系ボタンを非活性にする */
   isEditable?: boolean;
   onTasksChange?: (tasks: TaskDetail[]) => void;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * TemplateInputPanel の用語キー選択モーダルで使用する用語スコープ絞り込みに使用する。
+   */
+  organizationGroupCd?: string;
 }
 
 /**
@@ -102,6 +108,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   isProjectCompleted,
   isEditable = true,
   onTasksChange,
+  organizationGroupCd,
 }) => {
   const { token } = useToken();
   const { message } = App.useApp();
@@ -584,31 +591,31 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
    * MAIMLのdocument情報からCreatorRef選択肢を生成
    * document.creators[].name or id を選択肢として使用
    */
-  const creatorRefOptions = useMemo((): string[] => {
+  const creatorRefOptions = useMemo((): RefOption[] => {
     if (!maimlRoot?.document?.creators) return [];
     return maimlRoot.document.creators
-      .map((c) => c.name || c.id)
-      .filter(Boolean) as string[];
+      .filter((c) => Boolean(c.id))
+      .map((c) => ({ value: c.id, label: c.name || c.id }));
   }, [maimlRoot]);
 
   /**
    * MAIMLのdocument情報からInstrumentRef選択肢を生成
    */
-  const instrumentRefOptions = useMemo((): string[] => {
+  const instrumentRefOptions = useMemo((): RefOption[] => {
     if (!maimlRoot?.document?.instruments) return [];
     return maimlRoot.document.instruments
-      .map((c) => c.name || c.id)
-      .filter(Boolean) as string[];
+      .filter((i) => Boolean(i.id))
+      .map((i) => ({ value: i.id, label: i.name || i.id }));
   }, [maimlRoot]);
 
   /**
    * MAIMLのdocument情報からOwnerRef選択肢を生成
    */
-  const ownerRefOptions = useMemo((): string[] => {
+  const ownerRefOptions = useMemo((): RefOption[] => {
     if (!maimlRoot?.document?.owners) return [];
     return maimlRoot.document.owners
-      .map((c) => c.name || c.id)
-      .filter(Boolean) as string[];
+      .filter((o) => Boolean(o.id))
+      .map((o) => ({ value: o.id, label: o.name || o.id }));
   }, [maimlRoot]);
 
   /**
@@ -997,6 +1004,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           message.success(t('taskRegistration.saveMockSuccess'));
         }}
         disabled={isCheckoutLocked || !!maimlHasErrors || !!isProjectCompleted}
+        organizationGroupCd={organizationGroupCd}
       />
     </div>
   );

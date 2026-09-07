@@ -450,6 +450,7 @@ export default function ExperimentWorkerMenu({
               transitionName: tr.transitionName || tr.transitionId,
               status: toProgressRowStatus(tr.progressStatus),
               hasRecord: tr.progressPercentage > 0,
+              progressRate: tr.progressPercentage,
               materialRecorded: tr.materialActualCount ?? 0,
               materialTotal: tr.materialCount ?? 0,
               conditionRecorded: tr.conditionActualCount ?? 0,
@@ -543,6 +544,7 @@ export default function ExperimentWorkerMenu({
             transitionName: tr.transitionName || tr.transitionId,
             status: toProgressRowStatus(tr.progressStatus),
             hasRecord: tr.progressPercentage > 0,
+            progressRate: tr.progressPercentage,
             materialRecorded: tr.materialActualCount ?? 0,
             materialTotal: tr.materialCount ?? 0,
             conditionRecorded: tr.conditionActualCount ?? 0,
@@ -668,20 +670,14 @@ export default function ExperimentWorkerMenu({
             onConfirmInstruction={handleConfirmInstruction}
             initialTaskNo={viewingWorkTaskNo ?? undefined}
             initialTransitionId={viewingWorkTransitionId ?? undefined}
-            onStart={async () => {
+            onStart={async (taskNo, transitionId) => {
               if (!selectedProject) return;
-              // 準備完了(ready)状態 → 動作状態(IN_PROGRESS=3)に遷移
-              // 優先度: ready > preparing > not_started > in_progress
-              const targetRow =
-                progressRows.find((r) => r.status === 'ready') ??
-                progressRows.find((r) => r.status === 'preparing') ??
-                progressRows.find((r) => r.status === 'not_started') ??
-                progressRows.find((r) => r.status === 'in_progress');
-              if (!targetRow) { message.warning('開始対象のトランジションがありません'); return; }
+              const targetRow = progressRows.find((r) => r.taskNo === taskNo && r.transitionId === transitionId);
+              if (!targetRow) { message.warning(t('experimentWorker.startNoTarget')); return; }
               try {
                 await updateTransitionStatus(selectedProject, targetRow.methodId, targetRow.transitionId, {
                   taskNo: targetRow.taskNo,
-                  status: TransitionStatusCode.IN_PROGRESS, // 動作状態
+                  status: TransitionStatusCode.IN_PROGRESS,
                   progressRate: 0,
                 });
                 await reloadProgressRows(selectedProject);
@@ -690,20 +686,46 @@ export default function ExperimentWorkerMenu({
                 message.error(t('experimentWorker.startFailed'));
               }
             }}
-            onEnd={async () => {
+            onEnd={async (taskNo, transitionId) => {
               if (!selectedProject) return;
-              // 動作状態(in_progress)のトランジションを「終状態(COMPLETED=6)」に遷移
-              const targetRow = progressRows.find((r) => r.status === 'in_progress');
-              if (!targetRow) { message.warning('終了対象のトランジションがありません'); return; }
+              const targetRow = progressRows.find((r) => r.taskNo === taskNo && r.transitionId === transitionId);
+              if (!targetRow) { message.warning(t('experimentWorker.endNoTarget')); return; }
               try {
                 await updateTransitionStatus(selectedProject, targetRow.methodId, targetRow.transitionId, {
                   taskNo: targetRow.taskNo,
-                  status: TransitionStatusCode.COMPLETED, // 終状態
+                  status: TransitionStatusCode.COMPLETED,
                   progressRate: 100,
                 });
                 await reloadProgressRows(selectedProject);
               } catch (err) {
                 console.error('[WorkRecordPanel onEnd] ステータス更新エラー:', err);
+                message.error(t('experimentWorker.startFailed'));
+              }
+            }}
+            onStatusChange={async (transitionId, status) => {
+              if (!selectedProject) return;
+              const targetRow = progressRows.find((r) => r.transitionId === transitionId);
+              if (!targetRow) return;
+              const statusCodeMap: Record<string, number> = {
+                not_started: TransitionStatusCode.INITIAL,
+                preparing:   TransitionStatusCode.PREPARING,
+                ready:       TransitionStatusCode.READY,
+                running:     TransitionStatusCode.IN_PROGRESS,
+                paused:      TransitionStatusCode.PAUSED,
+                completed:   TransitionStatusCode.COMPLETED,
+                error:       TransitionStatusCode.ERROR,
+              };
+              const statusCode = statusCodeMap[status];
+              if (statusCode === undefined) return;
+              try {
+                await updateTransitionStatus(selectedProject, targetRow.methodId, targetRow.transitionId, {
+                  taskNo: targetRow.taskNo,
+                  status: statusCode,
+                  progressRate: statusCode === TransitionStatusCode.COMPLETED ? 100 : undefined,
+                });
+                await reloadProgressRows(selectedProject);
+              } catch (err) {
+                console.error('[WorkRecordPanel onStatusChange] ステータス更新エラー:', err);
                 message.error(t('experimentWorker.startFailed'));
               }
             }}

@@ -80,19 +80,37 @@ type Messages = {
     duplicateInstrumentId: string;
     duplicateVendorId: string;
     duplicateAttributeName: string;
+    creatorIdTooLong: string;
+    creatorNameTooLong: string;
+    vendorIdTooLong: string;
+    vendorNameTooLong: string;
+    instrumentIdTooLong: string;
+    instrumentNameTooLong: string;
+    creatorIdInvalidFormat: string;
+    vendorIdInvalidFormat: string;
+    instrumentIdInvalidFormat: string;
     csv: {
       creatorIdRequired: string;
       creatorNameRequired: string;
       creatorIsActiveInvalid: string;
       creatorAlreadyExists: string;
+      creatorIdTooLong: string;
+      creatorNameTooLong: string;
+      creatorIdInvalidFormat: string;
       instrumentIdRequired: string;
       instrumentNameRequired: string;
       instrumentIsActiveInvalid: string;
       instrumentAlreadyExists: string;
+      instrumentIdTooLong: string;
+      instrumentNameTooLong: string;
+      instrumentIdInvalidFormat: string;
       vendorIdRequired: string;
       vendorNameRequired: string;
       vendorIsActiveInvalid: string;
       vendorAlreadyExists: string;
+      vendorIdTooLong: string;
+      vendorNameTooLong: string;
+      vendorIdInvalidFormat: string;
     };
   };
   namespace: {
@@ -183,19 +201,37 @@ const ja: Messages = {
     duplicateInstrumentId: '入力されたIDは既に存在しています',
     duplicateVendorId: '入力されたIDは既に存在しています',
     duplicateAttributeName: 'このAttribute名・属性値の組み合わせは既に使用されています',
+    creatorIdTooLong: 'creator_idは50文字以内で入力してください',
+    creatorNameTooLong: 'creator_nameは50文字以内で入力してください',
+    vendorIdTooLong: 'vendor_idは50文字以内で入力してください',
+    vendorNameTooLong: 'vendor_nameは50文字以内で入力してください',
+    instrumentIdTooLong: 'instrument_idは50文字以内で入力してください',
+    instrumentNameTooLong: 'instrument_nameは50文字以内で入力してください',
+    creatorIdInvalidFormat: 'IDは半角英数字・ハイフン・アンダースコアのみ使用できます',
+    vendorIdInvalidFormat: 'IDは半角英数字・ハイフン・アンダースコアのみ使用できます',
+    instrumentIdInvalidFormat: 'IDは半角英数字・ハイフン・アンダースコアのみ使用できます',
     csv: {
       creatorIdRequired: 'creator_idは必須です',
       creatorNameRequired: 'creator_nameは必須です',
       creatorIsActiveInvalid: 'is_activeの値が不正です。true、false、1、0のいずれかを指定してください（実際の値: {value}）',
       creatorAlreadyExists: 'creator_id: {id} は既に存在します。既存レコードの編集は一覧から行ってください。',
+      creatorIdTooLong: '{row}行目: creator_idは50文字以内で入力してください',
+      creatorNameTooLong: '{row}行目: creator_nameは50文字以内で入力してください',
+      creatorIdInvalidFormat: '{row}行目: creator_idは半角英数字・ハイフン・アンダースコアのみ使用できます',
       instrumentIdRequired: 'instrument_idは必須です',
       instrumentNameRequired: 'instrument_nameは必須です',
       instrumentIsActiveInvalid: 'is_activeの値が不正です。true、false、1、0のいずれかを指定してください（実際の値: {value}）',
       instrumentAlreadyExists: 'instrument_id: {id} は既に存在します。既存レコードの編集は一覧から行ってください。',
+      instrumentIdTooLong: '{row}行目: instrument_idは50文字以内で入力してください',
+      instrumentNameTooLong: '{row}行目: instrument_nameは50文字以内で入力してください',
+      instrumentIdInvalidFormat: '{row}行目: instrument_idは半角英数字・ハイフン・アンダースコアのみ使用できます',
       vendorIdRequired: 'vendor_idは必須です',
       vendorNameRequired: 'vendor_nameは必須です',
       vendorIsActiveInvalid: 'is_activeの値が不正です。true、false、1、0のいずれかを指定してください（実際の値: {value}）',
       vendorAlreadyExists: 'vendor_id: {id} は既に存在します。既存レコードの編集は一覧から行ってください。',
+      vendorIdTooLong: '{row}行目: vendor_idは50文字以内で入力してください',
+      vendorNameTooLong: '{row}行目: vendor_nameは50文字以内で入力してください',
+      vendorIdInvalidFormat: '{row}行目: vendor_idは半角英数字・ハイフン・アンダースコアのみ使用できます',
     },
   },
   namespace: {
@@ -286,19 +322,37 @@ const en: Messages = {
     duplicateInstrumentId: 'The entered ID already exists',
     duplicateVendorId: 'The entered ID already exists',
     duplicateAttributeName: 'This combination of Attribute name and value is already in use',
+    creatorIdTooLong: 'creator_id must be 50 characters or less',
+    creatorNameTooLong: 'creator_name must be 50 characters or less',
+    vendorIdTooLong: 'vendor_id must be 50 characters or less',
+    vendorNameTooLong: 'vendor_name must be 50 characters or less',
+    instrumentIdTooLong: 'instrument_id must be 50 characters or less',
+    instrumentNameTooLong: 'instrument_name must be 50 characters or less',
+    creatorIdInvalidFormat: 'ID must contain only half-width alphanumeric characters, hyphens, or underscores',
+    vendorIdInvalidFormat: 'ID must contain only half-width alphanumeric characters, hyphens, or underscores',
+    instrumentIdInvalidFormat: 'ID must contain only half-width alphanumeric characters, hyphens, or underscores',
     csv: {
       creatorIdRequired: 'creator_id is required',
       creatorNameRequired: 'creator_name is required',
       creatorIsActiveInvalid: 'Invalid value for is_active. Specify one of true, false, 1, or 0 (actual value: {value})',
       creatorAlreadyExists: 'creator_id: {id} already exists. Please edit existing records from the list.',
+      creatorIdTooLong: 'Row {row}: creator_id must be 50 characters or less',
+      creatorNameTooLong: 'Row {row}: creator_name must be 50 characters or less',
+      creatorIdInvalidFormat: 'Row {row}: creator_id must contain only half-width alphanumeric characters, hyphens, or underscores',
       instrumentIdRequired: 'instrument_id is required',
       instrumentNameRequired: 'instrument_name is required',
       instrumentIsActiveInvalid: 'Invalid value for is_active. Specify one of true, false, 1, or 0 (actual value: {value})',
       instrumentAlreadyExists: 'instrument_id: {id} already exists. Please edit existing records from the list.',
+      instrumentIdTooLong: 'Row {row}: instrument_id must be 50 characters or less',
+      instrumentNameTooLong: 'Row {row}: instrument_name must be 50 characters or less',
+      instrumentIdInvalidFormat: 'Row {row}: instrument_id must contain only half-width alphanumeric characters, hyphens, or underscores',
       vendorIdRequired: 'vendor_id is required',
       vendorNameRequired: 'vendor_name is required',
       vendorIsActiveInvalid: 'Invalid value for is_active. Specify one of true, false, 1, or 0 (actual value: {value})',
       vendorAlreadyExists: 'vendor_id: {id} already exists. Please edit existing records from the list.',
+      vendorIdTooLong: 'Row {row}: vendor_id must be 50 characters or less',
+      vendorNameTooLong: 'Row {row}: vendor_name must be 50 characters or less',
+      vendorIdInvalidFormat: 'Row {row}: vendor_id must contain only half-width alphanumeric characters, hyphens, or underscores',
     },
   },
   namespace: {

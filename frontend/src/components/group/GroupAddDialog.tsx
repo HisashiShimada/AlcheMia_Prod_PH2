@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
+import { App, Button, Input, Modal, Select, Tag, Typography, Space, Divider } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
@@ -17,6 +17,7 @@ const { Text } = Typography;
 
 const GroupAddDialog: React.FC<GroupAddDialogProps> = ({ open, onClose, onCreated }) => {
   const { t } = useLanguage();
+  const { message } = App.useApp();
 
   const userInfo: User | null = (() => {
     if (typeof window === 'undefined') return null;

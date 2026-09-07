@@ -64,6 +64,7 @@
     "taskStatus": "タスクステータス",
     "allTransitionsCompleted": "担当タスクの全トランジションが完了しています。",
     "completedTransitionReadonly": "このトランジションは完了済みです。閲覧モードで表示しています。",
+    "errorTransitionReadonly": "このトランジションは異常終了しています。閲覧のみ可能です。",
     "backToWork": "作業に戻る",
     "correctionModeAlert": "差し戻し済みのトランジションです。内容を確認し、必要に応じて訂正してください。",
     "startCorrectionButton": "訂正",
@@ -1747,8 +1748,10 @@
       "roleNameRequired": "ロール名を入力してください",
       "roleNamePlaceholder": "ロール名を入力してください",
       "functionName": "機能名",
+      "functionNameRequired": "機能名を選択してください",
       "initialScreen": "初期画面機能名",
       "initialScreenPlaceholder": "選択してください",
+      "initialScreenRequired": "初期画面機能名を選択してください",
       "status": "状態"
     },
     "messages": {
@@ -2324,7 +2327,8 @@
       "newPasswordMin8": "パスワードは8文字以上である必要があります",
       "newPasswordPattern": "大文字、小文字、数字を含める必要があります",
       "confirmPasswordLabel": "新しいパスワード（確認）",
-      "confirmPasswordRequired": "パスワードを再入力してください"
+      "confirmPasswordRequired": "パスワードを再入力してください",
+      "samePasswordError": "新しいパスワードは現在のパスワードと異なるものを設定してください"
     }
   },
   "editor": {
@@ -2617,7 +2621,8 @@
     "PROJECT_ALREADY_CHECKED_OUT": "このプロジェクトは既に他のユーザーによってチェックアウトされています",
     "DUPLICATE_CORPORATION_NAME": "この会社名は既に使用されています",
     "USER_ALREADY_EXISTS": "このユーザーIDは既に使用されています",
-    "DUPLICATE_ROLE_CD": "入力されたIDは既に存在しています"
+    "DUPLICATE_ROLE_CD": "入力されたIDは既に存在しています",
+    "AUTH_SAME_PASSWORD": "新しいパスワードは現在のパスワードと異なるものを設定してください"
   },
   "progressStatus": {
     "notStarted": "初期状態",
@@ -4763,6 +4768,8 @@
   },
   "experimentWorker": {
     "startFailed": "開始に失敗しました",
+    "startNoTarget": "開始対象のトランジションが見つかりません",
+    "endNoTarget": "終了対象のトランジションが見つかりません",
     "switchFailed": "切り替えに失敗しました",
     "ngReason": {
       "button": "NG理由",

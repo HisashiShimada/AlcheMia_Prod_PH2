@@ -15,11 +15,12 @@ interface FileManagementTabContentProps {
   onToggleFolder: (folderId: string) => void;
   onDeleteFile: (file: ProjectFile) => void;
   onDeleteFolder: (folder: ProjectFile) => void;
+  onViewFile?: (file: ProjectFile) => void;
 }
 
 const FileManagementTabContent: React.FC<FileManagementTabContentProps> = ({
   selectedProject, currentFolder, currentFiles,
-  onFolderClick, onDeleteFile, onDeleteFolder,
+  onFolderClick, onDeleteFile, onDeleteFolder, onViewFile,
 }) => (
   <div style={{ height: '100%', overflow: 'hidden' }}>
     <FileListTable
@@ -31,6 +32,7 @@ const FileManagementTabContent: React.FC<FileManagementTabContentProps> = ({
       onDeleteFile={onDeleteFile}
       onDeleteFolder={onDeleteFolder}
       onFolderClick={onFolderClick}
+      onViewFile={onViewFile}
     />
   </div>
 );

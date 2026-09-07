@@ -399,7 +399,7 @@ export interface PrefixEditValuesWithUri {
  * PrefixManagement.tsx の内部テーブル表示用に uri フィールドを持つ行型
  */
 export interface PrefixRowLocal {
-  /** prefix を id として使用 */
+  /** "prefix__scopeKey" 形式の複合 ID（rowKey 用・同一 prefix が複数スコープに存在する場合でも一意） */
   id: string;
   prefix: string;
   uri: string;

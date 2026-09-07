@@ -143,7 +143,7 @@ export const useProjectList = (user?: User) => {
       }
 
       let matchesGroup = true;
-      if (groupFilter !== 'all') matchesGroup = (project as any).organizationGroupCd === groupFilter;
+      if (groupFilter !== 'all') matchesGroup = project.organizationGroup === groupFilter;
 
       return matchesSearch && matchesOwner && matchesCheckout && matchesProjectStatus && matchesGroup;
     });
