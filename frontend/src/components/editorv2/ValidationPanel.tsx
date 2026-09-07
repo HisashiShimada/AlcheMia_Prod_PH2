@@ -11,6 +11,7 @@
 
 import React, { useState } from 'react';
 import { 
+  App,
   Modal,
   Card,
   Typography,
@@ -23,7 +24,6 @@ import {
   Tooltip,
   Checkbox,
   Spin,
-  message,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -76,6 +76,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   isValidating = false,
   isCorrecting = false,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
 
   console.log('🎨 [ValidationPanel V2] Rendering with props:', {

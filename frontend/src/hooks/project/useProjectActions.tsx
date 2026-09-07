@@ -73,12 +73,12 @@ export const useProjectActions = ({
       if (isProjectCheckedOut) {
         await checkinProject(selectedProject.id);
         await refetchProjects();
-        message.success(t('project.checkinSuccess').replace('{name}', selectedProject.name));
+        message.success(t('project.checkinSuccess', { name: selectedProject.name }));
       } else {
         await sendInstructions(selectedProject.id, {});
         await checkoutProject(selectedProject.id);
         await refetchProjects();
-        message.success(t('project.checkoutSuccess').replace('{name}', selectedProject.name));
+        message.success(t('project.checkoutSuccess', { name: selectedProject.name }));
       }
     } catch (error) {
       if (error instanceof AxiosError && error.response?.data) {
@@ -89,9 +89,9 @@ export const useProjectActions = ({
         switch (errorCode) {
           case 'TASK_IN_PROGRESS': message.error(t('project.checkinErrorTaskInProgress')); break;
           case 'CHECKOUT_NO_MAIML_FILE': message.error(t('project.checkoutErrorNoMaiml')); break;
-          case 'CHECKOUT_INVALID_STATUS': message.error(t('project.checkoutErrorInvalidStatus').replace('{status}', errorDetails?.currentStatusName || t('common.unknown'))); break;
+          case 'CHECKOUT_INVALID_STATUS': message.error(t('project.checkoutErrorInvalidStatus', { status: errorDetails?.currentStatusName || t('common.unknown') })); break;
           case 'CHECKOUT_NO_TASKS': message.error(t('project.checkoutErrorNoTasks')); break;
-          case 'PROJECT_ALREADY_CHECKED_OUT': message.warning(t('project.checkoutWarningAlreadyCheckedOut').replace('{user}', errorDetails?.checkedOutBy || t('common.otherUser'))); break;
+          case 'PROJECT_ALREADY_CHECKED_OUT': message.warning(t('project.checkoutWarningAlreadyCheckedOut', { user: errorDetails?.checkedOutBy || t('common.otherUser') })); break;
           case 'RESOURCE_NOT_FOUND': message.error(t('project.notFound')); break;
           default: message.error(errorMessage);
         }
@@ -144,7 +144,7 @@ export const useProjectActions = ({
   const handleProjectDelete = useCallback(async () => {
     if (!selectedProject) { message.warning(t('project.selectProjectWarning')); return; }
     Modal.confirm({
-      title: t('projectManagement.deleteProjectTitle').replace('{{name}}', selectedProject.name),
+      title: t('projectManagement.deleteProjectTitle', { name: selectedProject.name }),
       content: (
         <div>
           <p>{t('projectManagement.deleteProjectContent')}</p>
@@ -157,7 +157,7 @@ export const useProjectActions = ({
       onOk: async () => {
         try {
           const result = await deleteProjectApi(selectedProject.id);
-          message.success(t('projectManagement.deleteSuccess').replace('{{name}}', selectedProject.name).replace('{{count}}', String(result.deletedCount)));
+          message.success(t('projectManagement.deleteSuccess', { name: selectedProject.name, count: String(result.deletedCount) }));
           await refetchProjects();
           setSelectedProjectId(null);
         } catch (error) {

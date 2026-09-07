@@ -16,11 +16,13 @@ interface FileManagementTabContentProps {
   onDeleteFile: (file: ProjectFile) => void;
   onDeleteFolder: (folder: ProjectFile) => void;
   onViewFile?: (file: ProjectFile) => void;
+  /** ファイル名変更後のコールバック（ファイル一覧再取得用） */
+  onRenameFile?: () => void;
 }
 
 const FileManagementTabContent: React.FC<FileManagementTabContentProps> = ({
   selectedProject, currentFolder, currentFiles,
-  onFolderClick, onDeleteFile, onDeleteFolder, onViewFile,
+  onFolderClick, onDeleteFile, onDeleteFolder, onViewFile, onRenameFile,
 }) => (
   <div style={{ height: '100%', overflow: 'hidden' }}>
     <FileListTable
@@ -33,6 +35,7 @@ const FileManagementTabContent: React.FC<FileManagementTabContentProps> = ({
       onDeleteFolder={onDeleteFolder}
       onFolderClick={onFolderClick}
       onViewFile={onViewFile}
+      onRenameFile={onRenameFile}
     />
   </div>
 );

@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 import {
+  App,
   Modal,
   Table,
   Button,
@@ -15,7 +16,6 @@ import {
   Card,
   List,
   Divider,
-  message,
   Row,
   Col,
   Spin,
@@ -83,6 +83,7 @@ export default function IssueManagementModal({
   filterTaskId,
   projectStatus,
 }: IssueManagementModalProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [form] = Form.useForm();
 

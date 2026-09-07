@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import {
+  App,
   Card,
   Input,
   Button,
@@ -11,7 +12,6 @@ import {
   Tag,
   Typography,
   theme,
-  message,
   Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -38,6 +38,7 @@ const { Text } = Typography;
  * 進捗管理画面コンポーネント
  */
 export default function ProgressMonitoring() {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [searchText, setSearchText] = useState('');

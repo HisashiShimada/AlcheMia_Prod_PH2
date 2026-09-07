@@ -9,7 +9,7 @@
  */
 
 import React, { useState } from 'react';
-import { Modal, Form, Input, Typography, Alert, Descriptions, message } from 'antd';
+import { App, Modal, Form, Input, Typography, Alert, Descriptions } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import type { EncryptionKey } from '@/types/encryption';
 import * as encryptionService from '@/services/encryptionService';
@@ -26,6 +26,7 @@ interface KeyExportModalProps {
 }
 
 const KeyExportModal: React.FC<KeyExportModalProps> = ({ open, targetKey, onClose }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);

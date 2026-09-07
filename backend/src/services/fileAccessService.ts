@@ -234,20 +234,38 @@ export class FileAccessService {
    * - getFileContentAsText エンドポイント（編集画面起動・ダウンロード）から使用する
    * - archive/ 配下は除外しない
    * - MAIML以外 / projects/ 以外のファイルはそのままテキストを返す
+   * - ファイルが存在しない場合は空文字を返す（NotFoundError をスローしない）
+   *   → MAIMLファイル未登録プロジェクトで呼ばれた際に 404 が発生するのを防ぐ防衛的実装
    *
    * @param organizationId 組織ID
    * @param fileKey        ファイルキー（organizationIdプレフィックス付き可）
-   * @returns テキストコンテンツ（<parent> タグ挿入済みMAIML、またはそのままのテキスト）
+   * @returns テキストコンテンツ（<parent> タグ挿入済みMAIML、またはそのままのテキスト）。ファイル未存在時は空文字。
    */
   async getFileTextWithParentInjection(
     organizationId: string,
     fileKey: string
   ): Promise<string> {
-    const result = await this.streamFileByKey(organizationId, fileKey);
+    // セキュリティバリデーション（streamFileByKey を経由しない早期リターンパスでも担保する）
+    if (!fileKey || fileKey.trim().length === 0) {
+      throw new ValidationError('ファイルキーは必須です');
+    }
+    if (fileKey.includes('..') || fileKey.includes('//')) {
+      throw new ValidationError('不正なファイルパスが検出されました');
+    }
 
+    // organizationId プレフィックスを除いた相対パスを算出
     const relativeFileKey = fileKey.startsWith(`${organizationId}/`)
       ? fileKey.slice(organizationId.length + 1)
       : fileKey;
+
+    // A案：ファイル未存在時は空文字を返す（MAIMLファイル未登録プロジェクト対応）
+    const existsInStorage = await this.storageService.fileExists(organizationId, relativeFileKey);
+    if (!existsInStorage) {
+      console.log(`ℹ️ [FileAccessService] ファイル未存在のため空文字を返します: ${relativeFileKey}`);
+      return '';
+    }
+
+    const result = await this.streamFileByKey(organizationId, fileKey);
 
     const isMaiml = relativeFileKey.endsWith('.maiml');
     const isProject = relativeFileKey.startsWith('projects/');

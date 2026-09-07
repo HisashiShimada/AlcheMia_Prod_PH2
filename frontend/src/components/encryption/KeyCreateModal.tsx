@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { Modal, Form, Input, Select, DatePicker, message } from 'antd';
+import { App, Modal, Form, Input, Select, DatePicker } from 'antd';
 import type { EncryptionKey } from '@/types/encryption';
 import { EncryptionAlgorithmLabel } from '@/types/encryption';
 import * as encryptionService from '@/services/encryptionService';
@@ -24,6 +24,7 @@ const ALGORITHM_OPTIONS = Object.entries(EncryptionAlgorithmLabel).map(([value, 
 }));
 
 const KeyCreateModal: React.FC<KeyCreateModalProps> = ({ open, onClose, onCreated }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);

@@ -9,7 +9,7 @@
  */
 
 import React, { useState } from 'react';
-import { Modal, Typography, Alert, Descriptions, message } from 'antd';
+import { App, Modal, Typography, Alert, Descriptions } from 'antd';
 import { SyncOutlined } from '@ant-design/icons';
 import type { EncryptionKey } from '@/types/encryption';
 import * as encryptionService from '@/services/encryptionService';
@@ -32,6 +32,7 @@ const KeyRotateModal: React.FC<KeyRotateModalProps> = ({
   onClose,
   onRotated,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
 
