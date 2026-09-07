@@ -23,14 +23,32 @@ import {
   saveUncertaintyCriteriaNewVersion,
   type UncertaintyCriteriaDetailApiRow,
 } from '@/services/uncertaintyCriteriaApiService';
+import {
+  NUMERIC_PROPERTY_TYPES,
+  isUnitAllowed,
+} from '@/utils/xsiTypeAttributes';
 
 const { TextArea } = Input;
 
-/** xsi:type の選択肢（数量系のみ） */
-const XSI_TYPE_OPTIONS = [
-  { value: 'doubleType',  label: 'doubleType'  },
-  { value: 'decimalType', label: 'decimalType' },
-  { value: 'intType',     label: 'intType'     },
+/**
+ * xsi:type セレクト選択肢（グループ表示対応）
+ * 数値型のみ（units が使用できる型）に限定する
+ */
+const XSI_TYPE_SELECT_OPTIONS = [
+  {
+    label: 'Simple Types',
+    options: NUMERIC_PROPERTY_TYPES.filter((t) => t.category === 'Simple').map((t) => ({
+      value: t.value,
+      label: t.label,
+    })),
+  },
+  {
+    label: 'List Types',
+    options: NUMERIC_PROPERTY_TYPES.filter((t) => t.category === 'List').map((t) => ({
+      value: t.value,
+      label: t.label,
+    })),
+  },
 ];
 
 /** Props型定義 */
@@ -634,14 +652,32 @@ export default function UncertaintyDetailModal({
                   label={<span>xsi:type <span style={{ color: '#ff4d4f' }}>*</span></span>}
                   style={{ marginBottom: 0 }}
                 >
-                  <Select options={XSI_TYPE_OPTIONS} />
+                  <Select
+                    options={XSI_TYPE_SELECT_OPTIONS}
+                    onChange={(v) => {
+                      // 単位不可の型に切り替えた場合は units をクリア
+                      if (!isUnitAllowed(v)) {
+                        form.setFieldValue('units', '');
+                      }
+                    }}
+                  />
                 </Form.Item>
-                <Form.Item
-                  name="units"
-                  label={<span>units <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  style={{ marginBottom: 0 }}
-                >
-                  <Input />
+                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.xsiType !== cur.xsiType}>
+                  {({ getFieldValue }) => {
+                    const unitEnabled = isUnitAllowed(getFieldValue('xsiType') as string | undefined);
+                    return (
+                      <Form.Item
+                        name="units"
+                        label={<span>units <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Input
+                          placeholder={unitEnabled ? undefined : '—'}
+                          disabled={!unitEnabled}
+                        />
+                      </Form.Item>
+                    );
+                  }}
                 </Form.Item>
                 <Form.Item name="formatString" label="formatString" style={{ marginBottom: 0 }}>
                   <Input />

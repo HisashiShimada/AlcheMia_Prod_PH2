@@ -4580,6 +4580,7 @@
     "displayNamePlaceholder": "表示名",
     "descriptionPlaceholder": "説明",
     "unitHintPlaceholder": "単位",
+    "unitNotApplicable": "- (このタイプは単位なし)",
     "searchPlaceholder": "キーワード検索",
     "filterPrefixPlaceholder": "Prefixで絞り込み",
     "filterTypePlaceholder": "型で絞り込み",

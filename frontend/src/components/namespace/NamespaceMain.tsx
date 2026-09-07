@@ -18,6 +18,10 @@ import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
+import {
+  MAIML_PROPERTY_TYPES,
+  isUnitAllowed,
+} from '@/utils/xsiTypeAttributes';
 import { getTerms, createTerm, updateTerm, toggleTermActive, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import { getOrgUsersForGroups, getGroupMembers } from '@/services/organizationGroupApiService';
 import DetailModal from './DetailModal';
@@ -1136,6 +1140,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setNewTerms((prev) => prev.map((r) => {
       if (r._rowId !== rowId) return r;
       const updated = { ...r, [field]: value };
+      // type 変更時: 単位不可の型に切り替えた場合は unitHint をクリア
+      if (field === 'type' && !isUnitAllowed(value as string)) {
+        updated.unitHint = '';
+      }
       if (isDeptRd) {
         const p = field === 'prefix'    ? (value as string) : updated.prefix;
         const l = field === 'localName' ? (value as string) : updated.localName;
@@ -1682,12 +1690,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // データ型フィルター選択肢
   const typeFilterOptions = useMemo(() => [
     { value: '', label: t('namespaceMain.typeFilterAll') },
-    { value: 'stringType',   label: 'stringType' },
-    { value: 'intType',      label: 'intType' },
-    { value: 'floatType',    label: 'floatType' },
-    { value: 'booleanType',  label: 'booleanType' },
-    { value: 'dateTimeType', label: 'dateTimeType' },
-    { value: 'uriType',      label: 'uriType' },
+    ...MAIML_PROPERTY_TYPES.map((tp) => ({ value: tp.value, label: tp.value })),
   ], [t]);
 
   // 単位フィルター選択肢（属性テーブルから取得）
@@ -1943,13 +1946,24 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     );
   };
 
-  const typeOptions = [
-    { value: 'stringType',   label: 'stringType' },
-    { value: 'intType',      label: 'intType' },
-    { value: 'floatType',    label: 'floatType' },
-    { value: 'booleanType',  label: 'booleanType' },
-    { value: 'dateTimeType', label: 'dateTimeType' },
-    { value: 'uriType',      label: 'uriType' },
+  /**
+   * 型セレクト選択肢（グループ表示対応・全型）
+   */
+  const typeSelectOptions = [
+    {
+      label: 'Simple Types',
+      options: MAIML_PROPERTY_TYPES.filter((tp) => tp.category === 'Simple').map((tp) => ({
+        value: tp.value,
+        label: tp.label,
+      })),
+    },
+    {
+      label: 'List Types',
+      options: MAIML_PROPERTY_TYPES.filter((tp) => tp.category === 'List').map((tp) => ({
+        value: tp.value,
+        label: tp.label,
+      })),
+    },
   ];
 
   const columns: TableColumnsType<Term | NewTermRow> = [
@@ -2093,12 +2107,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         if ('_rowId' in record) {
           return (
             <Select size="small" style={{ width: '100%' }} value={record.type || undefined} placeholder={t('namespaceMain.typeSelectPlaceholder')}
-              onChange={(val) => updateNewTerm(record._rowId, 'type', val)} options={typeOptions} />
+              onChange={(val) => updateNewTerm(record._rowId, 'type', val)} options={typeSelectOptions} />
           );
         }
         const term = record as Term;
         return term.id === editingTermId
-          ? <Select size="small" style={{ width: '100%' }} value={editingValues.type || undefined} onChange={(val) => setEditingValues((p) => ({ ...p, type: val }))} options={typeOptions} />
+          ? <Select size="small" style={{ width: '100%' }} value={editingValues.type || undefined} onChange={(val) => setEditingValues((p) => ({ ...p, type: val, unitHint: isUnitAllowed(val) ? p.unitHint : '' }))} options={typeSelectOptions} />
           : <Tag style={{ fontSize: 11, color: '#555', background: '#f5f5f5', borderColor: '#e8e8e8' }}>{term.type}</Tag>;
       },
     },
@@ -2110,9 +2124,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
+          const unitEnabled = isUnitAllowed(record.type);
           return (
             <Select size="small" style={{ width: '100%' }} allowClear
-              value={record.unitHint || undefined} placeholder={t('namespaceMain.unitSelectPlaceholder')}
+              value={record.unitHint || undefined}
+              placeholder={unitEnabled ? t('namespaceMain.unitSelectPlaceholder') : '—'}
+              disabled={!unitEnabled}
               options={unitAttributes.map((u) => ({ value: u, label: u }))}
               onChange={(val) => updateNewTerm(record._rowId, 'unitHint', val ?? '')} />
           );
@@ -2122,6 +2139,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           ? (
             <Select size="small" style={{ width: '100%' }} allowClear
               value={editingValues.unitHint || undefined}
+              disabled={!isUnitAllowed(editingValues.type)}
+              placeholder={isUnitAllowed(editingValues.type) ? undefined : '—'}
               options={unitAttributes.map((u) => ({ value: u, label: u }))}
               onChange={(val) => setEditingValues((p) => ({ ...p, unitHint: val ?? '' }))} />
           )

@@ -4578,6 +4578,7 @@
     "displayNamePlaceholder": "Enter display name",
     "descriptionPlaceholder": "Enter description",
     "unitHintPlaceholder": "Enter unit",
+    "unitNotApplicable": "- (no unit for this type)",
     "searchPlaceholder": "Search terms...",
     "filterPrefixPlaceholder": "Filter by Prefix",
     "filterTypePlaceholder": "Filter by type",
