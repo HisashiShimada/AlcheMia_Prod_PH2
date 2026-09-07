@@ -364,6 +364,11 @@ export interface PrefixManagementProps {
    * NamespaceMain から渡される（用語管理タブと同じ挙動を実現するために必要）
    */
   orgGroupCds?: string[];
+  /**
+   * 共有ダイアログに表示する共有先スコープ名（例: "研究開発部"）
+   * ShareScopeModal の確認メッセージに使用する
+   */
+  targetScopeName?: string;
 }
 
 /**
@@ -401,10 +406,12 @@ export interface PrefixRowLocal {
   description?: string;
   /** アクティブ状態（true: アクティブ、false: 非アクティブ） */
   isActive?: boolean;
-  /** DB 由来のスコープ名（organization_group_name または user_name） */
-  scopePath?: string;
-  /** DB 由来の scope_key（organization_group_cd または user_id） */
-  scopeKey?: string;
+  /**
+   * この Prefix が属する名前空間のスコープキー（organization_group_cd またはユーザーID）
+   * 上位層（祖先グループ）行の判定に使用する
+   * グローバル名前空間の場合は null
+   */
+  scopeKey?: string | null;
 }
 
 /**
@@ -439,21 +446,6 @@ export interface DetailModalProps {
   onNamespaceSaved: (updated: NamespaceSaved) => void;
 }
 
-/**
- * ShareScopeModal の Props
- */
-export interface ShareScopeModalProps {
-  open: boolean;
-  /** 共有する用語の件数（省略時はタイトルに件数を表示しない） */
-  termCount?: number;
-  /** ログインユーザーのロール（共有先の範囲を制限するため） */
-  sourceRole: ShareSourceRole;
-  /** 共有先ツリーデータ（NamespaceMain から渡す） */
-  scopeNodes: ScopeNode[];
-  onClose: () => void;
-  /** 共有先が確定されたときのコールバック */
-  onShare: (target: ShareTarget) => void;
-}
 
 // GroupAddDialogProps / GroupEditDialogProps は group.ts に移行済み
 export type { GroupAddDialogProps, GroupEditDialogProps } from '@/types/group';
@@ -668,6 +660,69 @@ export interface GlobalNamespaceEntry {
   prefix: string;
   /** 名前空間 URI（例: "http://www.maiml.org/schemas"） */
   uri: string;
+}
+
+// ──────────────────────────────────────────────
+// ShareScopeModal（共有ダイアログ共通部品）
+// ──────────────────────────────────────────────
+
+/**
+ * 共有先スコープ選択ツリーの1ノード
+ */
+export interface ScopeNode {
+  key: string;
+  label: string;
+  prefix?: string;
+  /** false のとき選択不可（グレー表示） */
+  selectable?: boolean;
+  children?: ScopeNode[];
+}
+
+/**
+ * 共有先として選択されたノードの情報
+ */
+export interface ShareTarget {
+  key: string;
+  label: string;
+  prefix: string;
+}
+
+/**
+ * 共有ダイアログで一覧表示される共有対象アイテム（Prefix / 用語など）
+ */
+export interface ShareItem {
+  /** 一意識別子（prefix または term.id など） */
+  id: string;
+  /** メイン値（prefix 文字列やローカル名など） */
+  label: string;
+  /** サブ値（説明や表示名など） */
+  sublabel?: string;
+  /** メイン値の項目名ラベル（例: "Prefix", "ローカル名"） */
+  labelKey?: string;
+  /** サブ値の項目名ラベル（例: "説明", "表示名"） */
+  sublabelKey?: string;
+}
+
+/**
+ * ShareScopeModal コンポーネントの Props
+ */
+export interface ShareScopeModalProps {
+  open: boolean;
+  onClose: () => void;
+  /**
+   * 共有ボタン押下時コールバック
+   * @param selectedItemIds 共有対象アイテムの id 一覧
+   */
+  onShare: (selectedItemIds: string[]) => void;
+  /**
+   * 共有対象アイテム一覧（ダイアログ内にリスト表示される）
+   */
+  shareItems: ShareItem[];
+  /**
+   * 共有先のスコープ名（例: "研究開発部"）
+   * 確認メッセージ「{targetScopeName} に共有します。よろしいですか？」に使用する
+   */
+  targetScopeName?: string;
 }
 
 /**

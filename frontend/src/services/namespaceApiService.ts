@@ -96,6 +96,8 @@ export interface UpdateNamespaceRequest {
   uri?: string;
   newPrefix?: string;
   description?: string;
+  /** Prefix を別スコープ（organization_group_cd など）に移動する際に指定 */
+  scopeKey?: string;
 }
 
 /**
@@ -1026,7 +1028,7 @@ export const sharePrefixes = async (
   console.log('🔗 [namespaceApiService] Prefix 共有:', prefixKeys, '->', targetScopeKey);
 
   const requestBody = {
-    prefixKeys,
+    prefixes: prefixKeys,
     targetScopeKey,
   };
   const response = await client.post<SharePrefixesResponse>('/namespaces/prefixes/share', requestBody);
