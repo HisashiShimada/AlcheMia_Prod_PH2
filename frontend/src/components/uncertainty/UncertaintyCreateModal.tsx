@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   Button,
@@ -23,6 +23,7 @@ import {
   NUMERIC_PROPERTY_TYPES,
   isUnitAllowed,
 } from '@/utils/xsiTypeAttributes';
+import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 
 const { TextArea } = Input;
 
@@ -79,6 +80,12 @@ export default function UncertaintyCreateModal({
   const [termDescription, setTermDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
+
+  // ─── Attributeマスタ取得（units / formatString / scaleFactor の選択肢用） ───
+  const { getAttributeValues } = useAttributeMasters();
+  const unitsOptions       = useMemo(() => getAttributeValues('units'),        [getAttributeValues]);
+  const formatStrOptions   = useMemo(() => getAttributeValues('formatString'), [getAttributeValues]);
+  const scaleFactorOptions = useMemo(() => getAttributeValues('scaleFactor'),  [getAttributeValues]);
 
   // ─── namespace_term から取得した用語一覧（Key属性設定プルダウンに使用） ───
   const [termRows, setTermRows] = useState<NamespaceTermRow[]>([]);
@@ -429,9 +436,11 @@ export default function UncertaintyCreateModal({
                       label="units"
                       style={{ marginBottom: 0 }}
                     >
-                      <Input
-                        placeholder={unitEnabled ? 'GPa' : '—'}
-                        disabled={!unitEnabled}
+                      <Select
+                        options={unitsOptions}
+                        disabled={!unitEnabled || unitsOptions.length === 0}
+                        allowClear
+                        placeholder={unitEnabled ? undefined : '—'}
                       />
                     </Form.Item>
                   );
@@ -443,7 +452,11 @@ export default function UncertaintyCreateModal({
                 label="formatString"
                 style={{ marginBottom: 0 }}
               >
-                <Input placeholder="#,###E0" />
+                <Select
+                  options={formatStrOptions}
+                  disabled={formatStrOptions.length === 0}
+                  allowClear
+                />
               </Form.Item>
               {/* scale_factor → uncertainty_criteria.scale_factor */}
               <Form.Item
@@ -451,7 +464,11 @@ export default function UncertaintyCreateModal({
                 label="scaleFactor"
                 style={{ marginBottom: 0 }}
               >
-                <Input placeholder="1" />
+                <Select
+                  options={scaleFactorOptions}
+                  disabled={scaleFactorOptions.length === 0}
+                  allowClear
+                />
               </Form.Item>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>

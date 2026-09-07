@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   Button,
@@ -27,6 +27,7 @@ import {
   NUMERIC_PROPERTY_TYPES,
   isUnitAllowed,
 } from '@/utils/xsiTypeAttributes';
+import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 
 const { TextArea } = Input;
 
@@ -325,6 +326,12 @@ export default function UncertaintyDetailModal({
   const [diffData, setDiffData] = useState<DiffData | null>(null);
   const [statusState, setStatusState] = useState<'active' | 'deprecated'>('active');
   const [form] = Form.useForm();
+
+  // ─── Attributeマスタ取得（units / formatString / scaleFactor の選択肢用） ───
+  const { getAttributeValues } = useAttributeMasters();
+  const unitsOptions       = useMemo(() => getAttributeValues('units'),        [getAttributeValues]);
+  const formatStrOptions   = useMemo(() => getAttributeValues('formatString'), [getAttributeValues]);
+  const scaleFactorOptions = useMemo(() => getAttributeValues('scaleFactor'),  [getAttributeValues]);
 
   /** buildDiffData に渡す翻訳ラベルを生成 */
   const buildDiffLabels = (): DiffLabels => ({
@@ -671,19 +678,29 @@ export default function UncertaintyDetailModal({
                         label={<span>units <span style={{ color: '#ff4d4f' }}>*</span></span>}
                         style={{ marginBottom: 0 }}
                       >
-                        <Input
+                        <Select
+                          options={unitsOptions}
+                          disabled={!unitEnabled || unitsOptions.length === 0}
+                          allowClear
                           placeholder={unitEnabled ? undefined : '—'}
-                          disabled={!unitEnabled}
                         />
                       </Form.Item>
                     );
                   }}
                 </Form.Item>
                 <Form.Item name="formatString" label="formatString" style={{ marginBottom: 0 }}>
-                  <Input />
+                  <Select
+                    options={formatStrOptions}
+                    disabled={formatStrOptions.length === 0}
+                    allowClear
+                  />
                 </Form.Item>
                 <Form.Item name="scaleFactor" label="scaleFactor" style={{ marginBottom: 0 }}>
-                  <Input placeholder="1" />
+                  <Select
+                    options={scaleFactorOptions}
+                    disabled={scaleFactorOptions.length === 0}
+                    allowClear
+                  />
                 </Form.Item>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
