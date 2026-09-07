@@ -446,16 +446,30 @@ const FileListTable: React.FC<FileListTableProps> = ({
               { max: 255, message: t('file.renameMaxLength') },
             ]}
           >
-            <Input
-              autoFocus
-              placeholder={t('file.renameInputPlaceholder')}
-              onPressEnter={handleRenameConfirm}
-              addonAfter={
-                renamingFile && renamingFile.name.lastIndexOf('.') > 0
-                  ? renamingFile.name.substring(renamingFile.name.lastIndexOf('.'))
-                  : undefined
-              }
-            />
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                autoFocus
+                placeholder={t('file.renameInputPlaceholder')}
+                onPressEnter={handleRenameConfirm}
+              />
+              {renamingFile && renamingFile.name.lastIndexOf('.') > 0 && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0 11px',
+                    background: 'rgba(0,0,0,0.02)',
+                    border: '1px solid #d9d9d9',
+                    borderLeft: 'none',
+                    borderRadius: '0 6px 6px 0',
+                    whiteSpace: 'nowrap',
+                    lineHeight: '30px',
+                  }}
+                >
+                  {renamingFile.name.substring(renamingFile.name.lastIndexOf('.'))}
+                </span>
+              )}
+            </Space.Compact>
           </Form.Item>
         </Form>
       </Modal>

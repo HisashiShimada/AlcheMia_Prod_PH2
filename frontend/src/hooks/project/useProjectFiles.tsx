@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { App, Modal } from 'antd';
+import { App } from 'antd';
 import { getProjectFiles } from '@/services/projectApiService';
 import { downloadFolderAsZip, deleteFileByKey, deleteFolderByPath } from '@/services/fileAccessService';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -26,7 +26,7 @@ export const useProjectFiles = ({
   reloadMaiml,
   setUploadDialogOpen,
 }: UseProjectFilesParams) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
 
   const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
@@ -129,7 +129,7 @@ export const useProjectFiles = ({
   const handleDeleteMaimlFile = useCallback(async (file: ProjectFile) => {
     if (!selectedProject) { message.warning(t('project.selectProjectWarning')); return; }
     const isMaimlFile = file.type === 'maiml';
-    Modal.confirm({
+    modal.confirm({
       title: isMaimlFile ? t('project.maimlFileDeleteConfirmTitle', { name: file.name }) : t('project.fileDeleteConfirmTitle', { name: file.name }),
       content: isMaimlFile ? (<div><p>{t('project.fileDeleteCannotUndo')}</p><p style={{ fontSize: '0.9em', marginTop: '8px' }}>{t('project.maimlFileDeleteNote')}</p></div>) : (<div><p>{t('project.fileDeleteCannotUndo')}</p></div>),
       okText: t('common.delete'), cancelText: t('common.cancel'),
@@ -159,7 +159,7 @@ export const useProjectFiles = ({
   const handleDeleteFolder = useCallback(async (folder: ProjectFile) => {
     if (!selectedProject) { message.warning(t('project.selectProjectWarning')); return; }
     if (folder.id === 'back') return;
-    Modal.confirm({
+    modal.confirm({
       title: t('project.folderDeleteConfirmTitle', { name: folder.name }),
       content: <div><p>{t('project.folderDeleteWarning')}</p></div>,
       okText: t('common.delete'), cancelText: t('common.cancel'),

@@ -219,6 +219,23 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
     setNextZIndex((prev) => prev + 1);
   }, [openDialogs, nextZIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** ファイル名変更後にファイル一覧・プロジェクト一覧・MAIMLコンテキストを再取得するコールバック */
+  const handleRenameFile = useCallback(async () => {
+    if (!selectedProject) return;
+    try {
+      // ファイル一覧を再取得
+      const fr = await getProjectFiles(selectedProject.id, true);
+      setProjectFilesData((prev) => ({ ...prev, [selectedProject.id]: { root: fr.files || [], subFolderFiles: fr.subFolderFiles || {} } }));
+      // selectedProject.maimlFileKey を最新化（file_metadata.file_key が更新済みのため再取得が必要）
+      await refetchProjects();
+    } catch (error) {
+      console.error('❌ [ProjectManagement] ファイル名変更後のリロード失敗:', error);
+      message.error(t('project.dataFetchFailed'));
+    }
+    // maimlContent コンテキストを新ファイルキー経由で取得し直す（失敗しても上記処理の成否に影響しない）
+    try { await reloadMaiml(); } catch { /* ignore */ }
+  }, [selectedProject, setProjectFilesData, refetchProjects, reloadMaiml]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // バリデーションアイコン表示ヘルパー
   const parseField = (v: unknown): unknown[] => {
     if (Array.isArray(v)) return v;
@@ -331,7 +348,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                 activeKey={currentTab}
                 onChange={handleTabChange}
                 items={[
-                  { key: 'file_management', label: t('projectManagement.tabs.file_management'), children: <FileManagementTabContent selectedProject={selectedProject} currentFolder={currentFolder} expandedFolders={expandedFolders} currentFiles={currentFiles} projectFilesData={projectFilesData} onFolderClick={handleFolderClick} onToggleFolder={handleToggleFolder} onDeleteFile={handleDeleteMaimlFile} onDeleteFolder={handleDeleteFolder} onViewFile={handleViewFile} /> },
+                  { key: 'file_management', label: t('projectManagement.tabs.file_management'), children: <FileManagementTabContent selectedProject={selectedProject} currentFolder={currentFolder} expandedFolders={expandedFolders} currentFiles={currentFiles} projectFilesData={projectFilesData} onFolderClick={handleFolderClick} onToggleFolder={handleToggleFolder} onDeleteFile={handleDeleteMaimlFile} onDeleteFolder={handleDeleteFolder} onViewFile={handleViewFile} onRenameFile={handleRenameFile} /> },
                   { key: 'task_registration', label: t('projectManagement.tabs.task_registration'), children: <TaskRegistrationTabContent selectedProject={selectedProject} isActive={currentTab === 'task_registration'} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
                   { key: 'project_instruction', label: t('projectManagement.tabProjectInstruction'), children: <ProjectInstructionTabContent selectedProject={selectedProject} isActive={currentTab === 'project_instruction'} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
                   { key: 'task_results', label: t('projectManagement.tabs.task_results'), children: <ExperimentInstructionTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
