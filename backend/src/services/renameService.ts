@@ -94,9 +94,16 @@ export async function renameProject(params: RenameProjectParams): Promise<Rename
     console.log(`✅ [RenameService] S3ファイル一覧取得: ${files.length}件`);
 
     // 6. 各ファイルを新パスへコピー → 削除
+    // listFiles が返す file.key は S3 のフルキー（"{organizationId}/projects/..."）のため、
+    // organizationId プレフィックスを除去して相対パスに変換してから処理する
+    // （storageService.deleteFolderRecursive と同一パターン）
     const renamedFiles: Array<{ oldKey: string; newKey: string }> = [];
     for (const file of files) {
-      const oldKey = file.key; // organizationId なしの相対パス
+      // organizationId プレフィックスを除去して相対パスに変換
+      let oldKey = file.key;
+      if (oldKey.startsWith(`${organizationId}/`)) {
+        oldKey = oldKey.substring(organizationId.length + 1);
+      }
       const newKey = oldKey.replace(
         new RegExp(`^projects/${escapeRegExp(oldProjectName)}/`),
         `projects/${newProjectName}/`
@@ -321,15 +328,19 @@ export async function renameFile(params: RenameFileParams): Promise<RenameFileRe
     console.log(`✅ [RenameService] S3リネーム完了: ${fileKey} → ${newFileKey}`);
 
     // 8. file_metadata テーブルの更新（存在する場合のみ）
+    // file_metadata.file_key は "{organizationId}/projects/..." 形式のフルキーで保存されているため、
+    // WHERE句の検索キーおよび UPDATE値もフルキー形式に変換する（他サービスと同一パターン）
     try {
       const repository = new FileMetadataRepository();
-      await repository.updateFileMetadata(fileKey, {
-        file_key: newFileKey,
+      const fullOldKey = `${organizationId}/${fileKey}`;
+      const fullNewKey = `${organizationId}/${newFileKey}`;
+      await repository.updateFileMetadata(fullOldKey, {
+        file_key: fullNewKey,
         original_filename: newFileName,
         update_user_id: userId,
         updated_at: new Date(),
       });
-      console.log(`✅ [RenameService] file_metadata更新完了: ${fileKey} → ${newFileKey}`);
+      console.log(`✅ [RenameService] file_metadata更新完了: ${fullOldKey} → ${fullNewKey}`);
     } catch (dbError) {
       // file_metadata の更新失敗は警告のみ（S3の変更は完了しているため処理続行）
       console.warn(`⚠️ [RenameService] file_metadata更新失敗（処理続行）:`, dbError);

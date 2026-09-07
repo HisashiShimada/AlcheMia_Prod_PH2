@@ -101,7 +101,7 @@ const MaimlPublishDialog: React.FC<MaimlPublishDialogProps> = ({
     >
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Text>
-          {t('maimlPublish.confirmText').replace('{{projectName}}', projectName)}
+          {t('maimlPublish.confirmText', { projectName: projectName })}
         </Text>
 
         {errorMessage && (

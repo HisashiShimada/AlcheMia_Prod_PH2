@@ -3,11 +3,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
+  App,
   Button,
   Input,
   Select,
   Table,
-  message,
   Modal,
   Typography,
   Spin,
@@ -105,6 +105,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
   globalOnly = false,
   selectedNsKey,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [terms, setTerms] = useState<NamespaceTermRow[]>([]);
   const [prefixOptions, setPrefixOptions] = useState<{ value: string; label: string }[]>([]);
@@ -174,13 +175,14 @@ const TermManagement: React.FC<TermManagementProps> = ({
   const fetchAll = async () => {
     setLoading(true);
     try {
+      // 組織グループノード選択時は祖先グループの Prefix・用語も取得する（上位層も表示・閲覧のみ）
       const nsOptions = selectedNsKey
-        ? { scopeKeys: [selectedNsKey] }
+        ? { scopeKey: selectedNsKey, withAncestors: true }
         : undefined;
 
       const [namespaces, termList] = await Promise.all([
         getNamespaceList(nsOptions),
-        selectedNsKey ? getTerms({ scopeKey: selectedNsKey }) : getTerms(),
+        selectedNsKey ? getTerms({ scopeKey: selectedNsKey, withAncestors: true }) : getTerms(),
       ]);
       setPrefixOptions(
         namespaces
@@ -847,21 +849,26 @@ const TermManagement: React.FC<TermManagementProps> = ({
             </span>
           );
         }
+        // 現在の選択スコープキーを算出（personal-{userId} → userId に変換）
+        const currentScopeKey = (selectedNsKey ?? '').replace(/^personal-/, '') || null;
+        // 上位層（祖先グループ）の行かどうかを判定
+        // currentScopeKey が null（全件表示モード）の場合は判定しない
+        const isAncestorRow = currentScopeKey != null && r.scopeKey !== currentScopeKey;
         return (
           <span style={{ display: 'flex', gap: 4 }}>
             <Button
               size="small"
               icon={<EditOutlined />}
-              disabled={viewOnly}
-              onClick={() => !viewOnly && startEdit(r)}
+              disabled={viewOnly || isAncestorRow}
+              onClick={() => !viewOnly && !isAncestorRow && startEdit(r)}
             >
               {t('termManagement.btnEdit')}
             </Button>
             <Button
               size="small"
-              danger={!viewOnly && isActive}
-              disabled={viewOnly}
-              onClick={() => !viewOnly && handleToggleActive(r)}
+              danger={!viewOnly && isActive && !isAncestorRow}
+              disabled={viewOnly || isAncestorRow}
+              onClick={() => !viewOnly && !isAncestorRow && handleToggleActive(r)}
               style={{ minWidth: 88 }}
             >
               {isActive ? t('termManagement.deactivate') : t('termManagement.activate')}

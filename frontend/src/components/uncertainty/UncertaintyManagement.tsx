@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Button, Input, Select, Space, Tree, message } from 'antd';
+import { App, Button, Input, Select, Space, Tree } from 'antd';
 import { ImportOutlined, ExportOutlined, PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import UncertaintyListTable from './UncertaintyListTable';
@@ -212,6 +212,7 @@ interface UncertaintyManagementProps {
  * 左ペイン（名前空間ツリー固定）＋右ペイン（タブ：用語管理 / 不確かさ基準管理）
  */
 export default function UncertaintyManagement({ user, tabActivatedAt }: UncertaintyManagementProps = {}) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -1075,21 +1076,20 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
         onClose={() => setExportModalOpen(false)}
       />
 
-      {/* ── Prefix 共有モーダル（ツリー表示） ── */}
+      {/* ── Prefix 共有モーダル ── */}
       <ShareScopeModal
         open={shareScopeOpen}
-        termCount={selectedPrefixKeys.length}
-        sourceRole={{ kind: 'sys_admin' }}
-        scopeNodes={shareScopeNodes}
+        shareItems={selectedPrefixKeys.map((k) => ({ id: k, label: k }))}
         onClose={() => setShareScopeOpen(false)}
-        onShare={async (target: ShareTarget) => {
+        onShare={async (selectedItemIds: string[]) => {
+          const targetScopeKey = (selectedNsKey ?? '').replace(/^personal-/, '') || '';
           setShareLoading(true);
           try {
-            const result = await sharePrefixes(selectedPrefixKeys, target.key);
+            const result = await sharePrefixes(selectedItemIds, targetScopeKey);
             message.success(
               t('prefixShare.toastSuccess', {
-                count: String(result.copiedCount),
-                target: target.label,
+                count: String(result.copiedCount ?? selectedItemIds.length),
+                target: targetScopeKey,
               })
             );
             setShareScopeOpen(false);

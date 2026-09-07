@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography, Checkbox } from 'antd';
+import { App, Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, Typography, Checkbox } from 'antd';
 import {
   SearchOutlined,
   PlusOutlined,
@@ -18,15 +18,15 @@ import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
-
-import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster, toggleTermActive } from '@/services/namespaceApiService';
+import { getTerms, createTerm, updateTerm, toggleTermActive, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import { getOrgUsersForGroups, getGroupMembers } from '@/services/organizationGroupApiService';
 import DetailModal from './DetailModal';
+import ShareScopeModal from './ShareScopeModal';
+import type { ScopeNode } from './ShareScopeModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import GroupManagementPanel from '../group/GroupManagementPanel';
 import GroupAddDialog from '../group/GroupAddDialog';
 import GroupEditDialog from '../group/GroupEditDialog';
-import ShareScopeModal from './ShareScopeModal';
 import type {
   NamespaceNode,
   Term,
@@ -43,8 +43,6 @@ import type {
   TermEditValues,
   TermCsvParsedRow,
   OrganizationGroupRow,
-  ShareTarget,
-  ShareSourceRole,
 } from '@/types/namespace';
 
 // GlobalNamespaceView: グローバルノード選択時に右ペインへ表示（SSR無効）
@@ -626,6 +624,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   onNsKeyChange,
   viewOnly = false,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
 
   // ── ログインユーザー情報を localStorage から導出（useMemo でメモ化して依存配列に安定して渡せるようにする）
@@ -655,9 +654,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ── ログインユーザーが代表者（chief_user_id）であるグループCDの集合
   const [chiefGroupCds, setChiefGroupCds] = useState<Set<string>>(new Set());
-
-  // ── 個人スコープ選択時の共有先候補グループ（selectedNsKey が personal-{userId} のときに取得）
-  const [targetUserGroups, setTargetUserGroups] = useState<NamespaceNode[]>([]);
 
   // ── Personal ノードの children（クライアント mount 後に localStorage から取得）
   // SSR では localStorage にアクセスできないため useState + useEffect で分離する
@@ -700,9 +696,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const [groupAddOpen,        setGroupAddOpen]        = useState(false);
   const [groupAddParentLabel, setGroupAddParentLabel] = useState('');
 
-  // 共有先選択モーダル
-  const [shareScopeOpen, setShareScopeOpen] = useState(false);
-
   // グループ編集ダイアログ（メンバー追加）
   const [groupEditOpen,    setGroupEditOpen]    = useState(false);
   const [groupEditLabel,   setGroupEditLabel]   = useState('');
@@ -710,6 +703,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const [groupEditMembers, setGroupEditMembers] = useState<string[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  // ──── 用語共有用 ShareScopeModal の開閉状態
+  const [shareScopeModalOpen, setShareScopeModalOpen] = useState(false);
 
   // ──── コンテキストメニュー状態（方針B: Tree.onRightClick 方式）
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, node: null, parentLabel: '' });
@@ -1132,24 +1128,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [fetchTermsForCurrentNsKey, fetchPrefixesForCurrentNsKey, selectedNsKey, externalSelectedNsKey]);
 
-  // ──── 個人スコープ（personal-{userId}）選択時: そのユーザーの所属グループ＋祖先を取得
-  // 共有ダイアログに表示する共有先候補として使用する
-  useEffect(() => {
-    const effectiveKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
-    if (!effectiveKey?.startsWith('personal-')) {
-      setTargetUserGroups([]);
-      return;
-    }
-    const targetUserId = effectiveKey.replace(/^personal-/, '');
-    getOrganizationGroups(undefined, { memberOfUser: targetUserId })
-      .then((groups) => {
-        const orgTree = buildOrgTree(Array.isArray(groups) ? groups : []);
-        setTargetUserGroups(orgTree);
-      })
-      .catch(() => setTargetUserGroups([]));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNsKey, externalSelectedNsKey]);
-
   // ──── 「用語を追加」ボタン：常に活性、押すたびに空行を追加
   const handleAddRow = () => {
     setNewTerms((prev) => [...prev, makeEmptyRow()]);
@@ -1445,131 +1423,79 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     return findPrefix(currentUserNsKey, namespaceTree);
   }, [currentUserNsKey, namespaceTree]);
 
-  // 共有先が確定されたときに用語をコピーする
-  const handleShareToTarget = async (target: ShareTarget) => {
-    setShareScopeOpen(false);
-    const targetTerms = terms.filter((t) => selectedTermIds.includes(t.id));
+  // 選択用語を共有する（ShareScopeModal で共有先を選択）
+  const handleShareTermsToCurrentNode = () => {
+    if (selectedTermIds.length === 0) return;
+    setShareScopeModalOpen(true);
+  };
+
+  // ShareScopeModal の onShare コールバック（選択アイテムを現在ノードに共有）
+  const handleShareTermsOnShare = async (selectedItemIds: string[]) => {
+    const selectedTerms = terms.filter((tt) => selectedItemIds.includes(tt.id));
+    const targetScopeKey = (effectiveNsKey ?? '').replace(/^personal-/, '');
+
     const added: Term[] = [];
+    const skipped: string[] = [];
     const failed: string[] = [];
 
-    for (const term of targetTerms) {
+    for (const term of selectedTerms) {
       try {
         const shareCreateTermRequest: Parameters<typeof createTerm>[0] = {
-          prefix:        target.prefix,
+          prefix:        term.prefix,
           localName:     term.localName,
           displayNameJa: term.displayName,
           description:   term.description,
           typeHint:      term.type,
           unitHint:      term.unitHint,
+          scopeKey:      targetScopeKey,
         };
         const saved = await createTerm(shareCreateTermRequest);
         added.push(saved as Term);
-      } catch {
-        failed.push(term.localName);
+      } catch (err: any) {
+        if (err?.response?.status === 409) {
+          skipped.push(term.localName);
+        } else {
+          failed.push(term.localName);
+        }
       }
     }
 
-    if (added.length > 0) {
-      setTerms((prev) => [...added, ...prev]);
-    }
+    setShareScopeModalOpen(false);
     if (failed.length > 0) {
       message.warning(t('namespaceMain.sharePartialFailure', { saved: String(added.length), failCount: String(failed.length) }));
     } else {
-      message.success(t('namespaceMain.shareSuccess', { count: String(added.length), target: target.label }));
+      message.success(t('namespaceMain.shareSuccess', { copied: String(added.length), skipped: String(skipped.length) }));
     }
     setSelectedTermIds([]);
+    fetchTermsForCurrentNsKey(effectiveNsKey);
   };
 
-  // ShareScopeModal 用：選択中ノードの祖先（上位階層）をツリー構造で返す。
-  // ロールに応じて表示・活性状態を制御する：
-  //   system_admin: 組織ノード含む全祖先を表示・活性
-  //   それ以外: 組織ノードは非表示、代表者グループは活性、非代表者グループは非活性（グレー）
-  // personal-{userId} 選択時: そのユーザーの所属グループ＋祖先をツリー表示する
-  const shareScopeNodes = useMemo(() => {
-    const effectiveKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
-    const isSysAdminUser = currentUserRole.kind === 'sys_admin';
+  // 選択用語 → ShareItem[] 変換（ShareScopeModal ステップ1に渡すアイテム一覧）
+  const shareItemsForModal = useMemo(() => {
+    const localNameLabel = t('namespaceMain.colLocalName');
+    const displayNameLabel = t('namespaceMain.colDisplayName');
+    return terms
+      .filter((term) => selectedTermIds.includes(term.id))
+      .map((term) => ({
+        id: term.id,
+        label: term.localName,
+        labelKey: localNameLabel,
+        sublabel: term.displayName ?? '',
+        sublabelKey: displayNameLabel,
+      }));
+  }, [terms, selectedTermIds, t]);
 
-    // 選択ノードなし・組織ルートは共有先なし
-    if (!effectiveKey || effectiveKey === 'company' || effectiveKey === 'personal') {
-      return [];
-    }
-
-    // personal-{userId} ノード選択時: そのユーザーの所属グループ＋祖先をツリー表示
-    if (effectiveKey.startsWith('personal-')) {
-      if (targetUserGroups.length === 0) return [];
-      const toScopeNode = (n: NamespaceNode): any => ({
-        key: n.key,
-        label: n.label,
-        selectable: isSysAdminUser ? true : chiefGroupCds.has(n.key),
-        children: n.children ? n.children.map(toScopeNode) : undefined,
-      });
-      // system_admin は組織ノードも表示
-      if (isSysAdminUser) {
-        return [{
-          key: 'company',
-          label: t('namespaceTree.company'),
-          selectable: true,
-          children: targetUserGroups.map(toScopeNode),
-        }];
-      }
-      return targetUserGroups.map(toScopeNode);
-    }
-
-    const companyNode = namespaceTree.find((n) => n.key === 'company');
-    if (!companyNode) return [];
-
-    // effectiveKey の祖先キーを取得（company 直下から検索し、company 自身を先頭に付加）
-    const ancestorKeysUnderCompany = getAncestorKeys(
-      effectiveKey,
-      companyNode.children ?? [],
-      []
-    );
-
-    // effectiveKey が namespaceTree 上に見つからない場合
-    if (ancestorKeysUnderCompany === null) return [];
-
-    // company 自身を含めた祖先キー配列を構築
-    // 例: グループ1-1 → ['company', 'group-1']
-    const allAncestorKeys = ['company', ...ancestorKeysUnderCompany];
-
-    // 祖先キー配列をたどり、ネストした ScopeNode ツリーを再帰的に構築
-    const buildAncestorTree = (depth: number): any | null => {
-      const key = allAncestorKeys[depth];
-      if (!key) return null;
-
-      const node = findNode(key, namespaceTree);
-      if (!node) return null;
-
-      const child = buildAncestorTree(depth + 1);
-
-      // company ノード: system_admin のみ表示（それ以外はスキップして子を直接返す）
-      if (key === 'company') {
-        if (!isSysAdminUser) {
-          // company 自体は非表示、子（直下グループ）をそのまま返す
-          return child;
-        }
-        // system_admin: 組織ノードを活性で表示
-        return {
-          key: node.key,
-          label: t('namespaceTree.company'),
-          selectable: true,
-          children: child ? [child] : undefined,
-        };
-      }
-
-      // グループノード: system_admin は全活性、それ以外は代表者グループのみ活性
-      const isSelectable = isSysAdminUser || chiefGroupCds.has(key);
-      return {
-        key: node.key,
-        label: node.label,
-        selectable: isSelectable,
-        children: child ? [child] : undefined,
-      };
-    };
-
-    const root = buildAncestorTree(0);
-    return root ? [root] : [];
-  }, [namespaceTree, selectedNsKey, externalSelectedNsKey, currentUserRole, chiefGroupCds, t, targetUserGroups]);
+  // namespaceTree → ScopeNode[] 変換（ShareScopeModal に渡す共有先候補ツリー）
+  const shareScopeNodes: ScopeNode[] = useMemo(() => {
+    const toScopeNode = (node: NamespaceNode): ScopeNode => ({
+      key: node.key,
+      label: node.label,
+      prefix: (node as any).prefix,
+      selectable: !['global', 'ns-maiml', 'ns-xsi', 'company', 'personal'].includes(node.key),
+      children: node.children ? node.children.map(toScopeNode) : undefined,
+    });
+    return namespaceTree.map(toScopeNode);
+  }, [namespaceTree]);
 
   // ──── ツリーノードのタイトル（件数は terms から動的計算）
   // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
@@ -1965,17 +1891,29 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const actionCell = (record: Term) => {
     // システム名前空間（Alchemia）の行は操作不可
     const isSystemNs = record.prefix === SYSTEM_NAMESPACE_PREFIX;
-    // 編集ボタン用: 非アクティブ時・読み取り専用時・システムNS時は編集不可
+    // 現在選択スコープキー（personal-プレフィックス除去）
+    const currentScopeKey = effectiveNsKey
+      ? effectiveNsKey.replace(/^personal-/, '')
+      : null;
+    // 上位層用語フラグ: 選択スコープと異なる scopeKey を持つ用語は上位層の用語
+    // findAllByScopeKeyWithAncestors.sql が scopeKey を返すため、これで正確に判定できる
+    // scopeKey が null（findAllByScopeKey.sql 使用時など）の場合は上位層ではないとみなす
+    const isAncestorTerm =
+      isCompanyNodeSelected &&
+      currentScopeKey != null &&
+      record.scopeKey != null &&
+      record.scopeKey !== currentScopeKey;
+    // 編集ボタン用: 非アクティブ時・読み取り専用時・システムNS時・上位層用語時は編集不可
     const readonlyEdit =
       isSystemNs ||
       record.isActive === false ||
-      (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
+      isAncestorTerm ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
       effectiveViewOnly;
-    // アクティブ切り替えボタン用: 読み取り専用時・システムNS時は操作不可（非アクティブ行のアクティブ化は許可）
+    // アクティブ切り替えボタン用: 読み取り専用時・システムNS時・上位層用語時は操作不可（非アクティブ行のアクティブ化は許可）
     const readonlyToggle =
       isSystemNs ||
-      (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
+      isAncestorTerm ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
       effectiveViewOnly;
     if (`${record.prefix}:${record.localName}` === editingTermId) {
@@ -2327,7 +2265,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               padding: '6px 0',
             }}>
               <Button
-                onClick={() => setShareScopeOpen(true)}
+                onClick={() => handleShareTermsToCurrentNode()}
                 style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
               >
                 {t('namespaceMain.shareBtnLabel', { count: String(selectedTermIds.length) })}
@@ -2510,24 +2448,20 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       />
 
 
-      {/* ── 共有先選択モーダル ── */}
-      <ShareScopeModal
-        open={shareScopeOpen}
-        termCount={selectedTermIds.length}
-        sourceRole={{ kind: 'sys_admin' }}
-        scopeNodes={shareScopeNodes}
-        onClose={() => setShareScopeOpen(false)}
-        onShare={(target) => {
-          handleShareToTarget(target);
-        }}
-      />
-
       {/* ── 統合詳細モーダル ── */}
       <DetailModal
         open={modalOpen} target={modalTarget}
         onClose={() => setModalOpen(false)}
         onTermSaved={handleTermSaved}
         onNamespaceSaved={handleNamespaceSaved}
+      />
+
+      {/* ── 用語共有ダイアログ ── */}
+      <ShareScopeModal
+        open={shareScopeModalOpen}
+        shareItems={shareItemsForModal}
+        onClose={() => setShareScopeModalOpen(false)}
+        onShare={handleShareTermsOnShare}
       />
 
       <style>{`

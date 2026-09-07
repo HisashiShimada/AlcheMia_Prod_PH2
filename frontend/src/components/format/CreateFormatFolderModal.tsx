@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Space, Typography, theme, message } from 'antd';
+import { App, Modal, Form, Input, Space, Typography, theme } from 'antd';
 import { FolderAddOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { CreateFormatFolderData } from '@/types/format';
@@ -31,6 +31,7 @@ const CreateFormatFolderModal: React.FC<CreateFormatFolderModalProps> = ({
   formatName,
   currentPath = [],
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [form] = Form.useForm();

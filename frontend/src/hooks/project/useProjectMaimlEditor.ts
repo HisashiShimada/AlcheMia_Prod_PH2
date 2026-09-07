@@ -83,6 +83,9 @@ export const useProjectMaimlEditor = ({
         documentId: project.id,
         description: project.description || undefined,
         organizationGroupCd: project.organizationGroup || undefined,
+        // B案：maimlFileKey が存在する場合のみ S3 登録済みと判断
+        // false の場合は PetriNetEditorScreen が API 呼び出しをスキップして新規作成モードで起動する
+        maimlFileRegistered: !!project.maimlFileKey,
         ...(openDraftManagerOnStart ? { openDraftManagerOnStart: true } : {}),
       };
     },

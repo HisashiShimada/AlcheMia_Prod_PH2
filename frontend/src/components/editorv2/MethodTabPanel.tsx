@@ -8,7 +8,7 @@
  */
 
 import React, { useState } from 'react';
-import { Tabs, Tag, Button, Tooltip, Modal, Input, Space, Flex, message } from 'antd';
+import { App, Tabs, Tag, Button, Tooltip, Modal, Input, Space, Flex } from 'antd';
 import { PlusOutlined, EditOutlined, CloseOutlined } from '@ant-design/icons';
 import type { Node } from 'reactflow';
 import type { MethodData } from '../../types/editor';
@@ -52,6 +52,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
   onEditMethodId,
   onDeleteMethod,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMethodIndex, setEditingMethodIndex] = useState<number | null>(null);

@@ -11,6 +11,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
+  App,
   Modal,
   Button,
   Input,
@@ -22,7 +23,6 @@ import {
   TreeSelect,
   Divider,
   Tag,
-  message,
   Collapse,
   Tabs,
 } from 'antd';
@@ -121,6 +121,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   sourceS3Key,
   organizationGroupCd,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [hasChanges, setHasChanges] = useState(false);
 

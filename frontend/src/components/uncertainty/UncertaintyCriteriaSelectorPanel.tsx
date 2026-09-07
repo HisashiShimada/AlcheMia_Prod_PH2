@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import {
+  App,
   Button,
   Table,
   Select,
@@ -13,7 +14,6 @@ import {
   Typography,
   Modal,
   Spin,
-  message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
@@ -108,6 +108,7 @@ export default function UncertaintyCriteriaSelectorPanel({
   targetProperty,
   onAssign,
 }: UncertaintyCriteriaSelectorPanelProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
 
   // ----- 不確かさ基準作成モーダル -----

@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
-import { Button, Input, Table, message, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
+import { App, Button, Input, Table, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
@@ -25,13 +25,20 @@ import {
   toggleNamespaceActive,
   fetchSuggestedUri,
   getGlobalDeclarations,
+  getOrganizationGroups,
+  sharePrefixes,
 } from '@/services/namespaceApiService';
 import type {
   PrefixManagementProps,
   PrefixRowLocal as PrefixRow,
   NewPrefixRowLocal as NewPrefixRow,
   PrefixEditValuesWithUri,
+  ScopeNode,
+  ShareItem,
+  ShareTarget,
+  OrganizationGroupRow,
 } from '@/types/namespace';
+import ShareScopeModal from './ShareScopeModal';
 
 const { Text } = Typography;
 
@@ -86,7 +93,9 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   selectedNsKey,
   scopeKey,
   orgGroupCds,
+  targetScopeName,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [rows, setRows] = useState<PrefixRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -103,7 +112,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const [pageSize, setPageSize] = useState(20);
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  // ── ShareScopeModal 用 state
+  const [shareScopeModalOpen, setShareScopeModalOpen] = useState(false);
+  const [shareItemsForModal, setShareItemsForModal] = useState<ShareItem[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  // stale fetch 対策: フェッチごとにシーケンス番号を払い出し、
+  // 古いフェッチ結果（スコープ切替後に遅延完了したもの）を破棄する
+  const fetchSeqRef = useRef(0);
 
   // ── Prefix一覧取得: selectedNsKey が変化するたびに再フェッチ
   // scopeKeys（複数）を渡した場合は複数スコープの Prefix をまとめて取得する（company ノード選択時）
@@ -113,6 +128,8 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
     withAncestors?: boolean,
     scopeKeys?: string[]
   ) => {
+    // スコープ切替後に遅延完了した古いフェッチ結果を破棄するためシーケンス番号を払い出す
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
     try {
       let options: Parameters<typeof getNamespaceList>[0];
@@ -127,27 +144,73 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         options = undefined;
       }
       const list = await getNamespaceList(options);
+      // このフェッチ開始後に新たなフェッチが始まっていたら結果を破棄（stale fetch 対策）
+      if (seq !== fetchSeqRef.current) return;
       setRows(
-        list.map((ns) => {
-          const scopeKey = (ns as any).scopeKey as string | undefined;
-          const prefixRow: PrefixRow = {
-            id: `${ns.prefix}__${scopeKey ?? ''}`,
-            prefix: ns.prefix,
-            uri: ns.uri,
-            description: (ns as any).description ?? '',
-            /** DB由来のスコープ名（organization_group_name または user_name） */
-            scopePath: (ns as any).scopeName ?? '',
-            scopeKey,
-            /** アクティブ状態（SQL の isActive カラム） */
-            isActive: (ns as any).isActive !== false,
-          };
-          return prefixRow;
-        })
+        list.map((ns) => ({
+          id: ns.prefix,
+          prefix: ns.prefix,
+          uri: ns.uri,
+          description: (ns as any).description ?? '',
+          /** DB由来のスコープ名（organization_group_name または user_name） */
+          scopePath: (ns as any).scopeName ?? '',
+          /** アクティブ状態（SQL の isActive カラム） */
+          isActive: (ns as any).isActive !== false,
+          /** この Prefix が属するスコープキー（上位層判定に使用） */
+          scopeKey: (ns as any).scopeKey ?? null,
+        }))
       );
     } catch {
+      if (seq !== fetchSeqRef.current) return;
       message.error(t('prefixManagement.fetchError'));
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) setLoading(false);
+    }
+  };
+
+  /**
+   * 組織グループノード選択時専用フェッチ:
+   * 選択ノード＋祖先グループ（withAncestors=true）と子孫グループ（orgGroupCds）を
+   * 並列取得してマージする。重複は prefix をキーに先勝ち（祖先側のデータを優先）。
+   */
+  const fetchNamespacesWithAncestorsAndDescendants = async (
+    singleScopeKey: string,
+    descendantScopeKeys: string[]
+  ) => {
+    const seq = ++fetchSeqRef.current;
+    setLoading(true);
+    try {
+      // 祖先（＋自ノード）と子孫を並列取得
+      const [ancestorList, descendantList] = await Promise.all([
+        getNamespaceList({ scopeKey: singleScopeKey, withAncestors: true }),
+        getNamespaceList({ scopeKeys: descendantScopeKeys }),
+      ]);
+      if (seq !== fetchSeqRef.current) return;
+
+      // prefix をキーに重複除去（祖先リスト優先）
+      const seen = new Set<string>();
+      const merged = [...ancestorList, ...descendantList].filter((ns) => {
+        if (seen.has(ns.prefix)) return false;
+        seen.add(ns.prefix);
+        return true;
+      });
+
+      setRows(
+        merged.map((ns) => ({
+          id: ns.prefix,
+          prefix: ns.prefix,
+          uri: ns.uri,
+          description: (ns as any).description ?? '',
+          scopePath: (ns as any).scopeName ?? '',
+          isActive: (ns as any).isActive !== false,
+          scopeKey: (ns as any).scopeKey ?? null,
+        }))
+      );
+    } catch {
+      if (seq !== fetchSeqRef.current) return;
+      message.error(t('prefixManagement.fetchError'));
+    } finally {
+      if (seq === fetchSeqRef.current) setLoading(false);
     }
   };
 
@@ -172,11 +235,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       const isOrgGroup = !STATIC_KEYS.has(key);
       if (isOrgGroup) {
         // 組織グループノード選択時:
-        // 親から filteredOrgGroupCds（選択ノード＋子孫CD一覧）が渡されている場合は
-        // それを scopeKeys として複数スコープ一括取得する。
-        // orgGroupCds が空の場合は選択ノード単体＋祖先方向にフォールバックする。
+        // 選択ノード＋祖先グループ（withAncestors=true）と子孫グループ（orgGroupCds）を
+        // 並列取得してマージする。上位層（祖先）の Prefix も表示し、編集は isAncestorRow で制御する。
         if (orgGroupCds && orgGroupCds.length > 0) {
-          fetchNamespaces(undefined, undefined, orgGroupCds);
+          fetchNamespacesWithAncestorsAndDescendants(key, orgGroupCds);
         } else {
           fetchNamespaces(key, true);
         }
@@ -188,10 +250,12 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   };
 
   useEffect(() => {
-    // スコープ変更時に未保存のインライン入力行・編集中状態・チェック状態をクリアする
+    // スコープ変更時に未保存のインライン入力行・編集中状態・チェック状態・既存行をクリアする
+    // setRows([]) を先に呼ぶことで、フェッチ完了前に前スコープのデータが表示されるのを防ぐ
     setNewRows([]);
     setEditingId(null);
     setSelectedRowKeys([]);
+    setRows([]);
     reloadNamespaces();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNsKey, JSON.stringify(orgGroupCds)]);
@@ -428,6 +492,42 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }
       },
     });
+  };
+
+  // ── 共有ボタン押下: ShareScopeModal を開く
+  const handleShareButtonClick = (keys: React.Key[]) => {
+    // 選択中の Prefix 行を ShareItem 形式に変換
+    const items: ShareItem[] = (keys as string[]).reduce<ShareItem[]>((acc, prefix) => {
+      const row = rows.find((r) => r.prefix === prefix);
+      if (row) {
+        const shareItem: ShareItem = {
+          id: row.prefix,
+          label: row.prefix,
+          labelKey: t('prefixManagement.colPrefix'),
+          sublabel: row.description ?? '',
+          sublabelKey: t('prefixManagement.colDescription'),
+        };
+        acc.push(shareItem);
+      }
+      return acc;
+    }, []);
+    setShareItemsForModal(items);
+    setShareScopeModalOpen(true);
+  };
+
+  // ── ShareScopeModal の「共有」ボタン: sharePrefixes API を呼び出す
+  const handlePrefixShare = async (selectedItemIds: string[]) => {
+    // 現在の選択スコープキーを共有先として使用
+    const targetScopeKey = (scopeKey ?? selectedNsKey ?? '').replace(/^personal-/, '') || '';
+    try {
+      await sharePrefixes(selectedItemIds, targetScopeKey);
+      setShareScopeModalOpen(false);
+      setSelectedRowKeys([]);
+      message.success(t('prefixShare.toastSuccess'));
+      reloadNamespaces();
+    } catch {
+      message.error(t('prefixShare.toastError'));
+    }
   };
 
   // ── 一括非アクティブ化
@@ -754,20 +854,30 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           );
         }
         const isActive = r.isActive !== false; // undefined は active とみなす
+        // 現在の選択スコープキーを算出（personal-{userId} → userId に変換）
+        const currentScopeKey = (scopeKey ?? selectedNsKey ?? '').replace(/^personal-/, '') || null;
+        // 編集可能なスコープキー一覧（選択ノード自身＋子孫ノードの CD）
+        // orgGroupCds が渡されている場合はそれを使用し、選択ノード単体のときは currentScopeKey のみ
+        const editableScopeKeys = new Set<string | null | undefined>(
+          orgGroupCds && orgGroupCds.length > 0 ? orgGroupCds : currentScopeKey ? [currentScopeKey] : []
+        );
+        // 上位層（祖先グループ）の行かどうかを判定
+        // currentScopeKey が null（全件表示モード）の場合は判定しない
+        const isAncestorRow = currentScopeKey != null && !editableScopeKeys.has(r.scopeKey);
         return (
           <span style={{ display: 'flex', gap: 4 }}>
             <Button
               size="small"
               icon={<EditOutlined />}
-              disabled={viewOnly || !isActive}
+              disabled={viewOnly || !isActive || isAncestorRow}
               onClick={() => startEdit(r)}
             >
               {t('prefixManagement.btnEdit')}
             </Button>
             <Button
               size="small"
-              danger={!viewOnly && isActive}
-              disabled={viewOnly}
+              danger={!viewOnly && isActive && !isAncestorRow}
+              disabled={viewOnly || isAncestorRow}
               style={{ minWidth: '105px' }}
               onClick={() => isActive ? handleDeactivate(r) : handleActivate(r)}
             >
@@ -816,7 +926,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }}>
           {showShareButton && (
             <Button
-              onClick={() => onShareSelected?.(selectedRowKeys)}
+              onClick={() => handleShareButtonClick(selectedRowKeys)}
               style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
             >
               {t('prefixManagement.btnShare', { count: String(selectedRowKeys.length) })}
@@ -923,9 +1033,18 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
                 />
               ),
               onChange: (keys) => setSelectedRowKeys(keys),
-              getCheckboxProps: (record) => ({
-                disabled: '_rowId' in record,
-              }),
+              getCheckboxProps: (record) => {
+                if ('_rowId' in record) return { disabled: true };
+                const r = record as PrefixRow;
+                const currentScopeKey = (scopeKey ?? selectedNsKey ?? '').replace(/^personal-/, '') || null;
+                const editableScopeKeys = new Set<string | null | undefined>(
+                  orgGroupCds && orgGroupCds.length > 0 ? orgGroupCds : currentScopeKey ? [currentScopeKey] : []
+                );
+                const isAncestorRow = currentScopeKey != null && !editableScopeKeys.has(r.scopeKey);
+                // 現在ノード由来の行（既に現在ノードに存在するため引き上げ不要）はチェック不可
+                const isCurrentNodeRow = currentScopeKey != null && r.scopeKey === currentScopeKey;
+                return { disabled: isAncestorRow || isCurrentNodeRow };
+              },
             }}
             onRow={(record) => {
               if ('_rowId' in record) return {};
@@ -961,6 +1080,15 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         </Spin>
 
       </div>
+
+      {/* ── Prefix 共有ダイアログ */}
+      <ShareScopeModal
+        open={shareScopeModalOpen}
+        shareItems={shareItemsForModal}
+        onClose={() => setShareScopeModalOpen(false)}
+        onShare={handlePrefixShare}
+        targetScopeName={targetScopeName}
+      />
     </div>
   );
 };

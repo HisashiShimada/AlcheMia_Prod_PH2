@@ -462,10 +462,11 @@ const UncertaintyApprovalTab: React.FC<UncertaintyApprovalTabProps> = ({ project
           {/* 右側: 件数表示 + 更新ボタン */}
           <Space size={token.marginXS}>
             <Text style={{ fontSize: token.fontSizeSM, color: token.colorTextSecondary }}>
-              {t('uncertaintyApproval.totalCount')
-                .replace('{total}', String(filteredRecords.length))
-                .replace('{from}', '1')
-                .replace('{to}', String(filteredRecords.length))}
+              {t('uncertaintyApproval.totalCount', {
+                total: String(filteredRecords.length),
+                from: '1',
+                to: String(filteredRecords.length),
+              })}
             </Text>
             <Button
               size="small"

@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
+  App,
   Modal,
   Input,
   Button,
@@ -23,7 +24,6 @@ import {
   Row,
   Col,
   Spin,
-  message,
 } from 'antd';
 import {
   FileOutlined,
@@ -74,6 +74,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
 }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const { message } = App.useApp();
   const [isConfirming, setIsConfirming] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');

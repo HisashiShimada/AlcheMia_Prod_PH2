@@ -4,7 +4,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Alert, Space, Typography, Card, Button, Tag, Tabs, Spin, message } from 'antd';
+import { App, Alert, Space, Typography, Card, Button, Tag, Tabs, Spin } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   RocketOutlined, 
@@ -242,6 +242,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
   onExitExperimentControl,
   onOpenSubNetViewer,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
 
   // 🎯 複数メソッド対応: 型定義

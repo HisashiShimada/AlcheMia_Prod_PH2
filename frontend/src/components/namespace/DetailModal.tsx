@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Modal, Descriptions, Input, Select, Tag, Button, message, Typography,
+  App, Modal, Descriptions, Input, Select, Tag, Button, Typography,
 } from 'antd';
 import {
   SaveOutlined, CloseOutlined, GlobalOutlined, BankOutlined, UserOutlined,
@@ -33,6 +33,7 @@ const typeOptions = [
 // ──────────────────────────────────────────────
 const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTermSaved, onNamespaceSaved }) => {
 
+  const { message } = App.useApp();
   const { t } = useLanguage();
 
   // ── 用語用ステート
