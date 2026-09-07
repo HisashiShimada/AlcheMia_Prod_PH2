@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Modal, Button, Space, Select, Upload, Alert, Typography, message } from 'antd';
+import { App, Modal, Button, Space, Select, Upload, Alert, Typography } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -25,6 +25,7 @@ export default function UncertaintyImportModal({
   open,
   onClose,
 }: UncertaintyImportModalProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [importFormat, setImportFormat] = useState<ImportFormat>('CSV');
   const [targetScope, setTargetScope] = useState<string>('rd-measurement');

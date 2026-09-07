@@ -29,7 +29,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Layout, Typography, Spin, Alert, message, Tabs, Space, Button, Tooltip, Modal, Tag, List,
+  App, Layout, Typography, Spin, Alert, Tabs, Space, Button, Tooltip, Modal, Tag, List,
 } from 'antd';
 import {
   LockOutlined, UnlockOutlined, SyncOutlined, ScissorOutlined,
@@ -127,6 +127,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
   // ---------------------------------------------------------------------------
 
   /** MAIMLツリー */
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [treeData, setTreeData] = useState<MaimlTreeNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(true);

@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import {
+  App,
   Table,
   Button,
   Tooltip,
   Space,
   Empty,
   Dropdown,
-  message,
   theme,
   Modal,
   Form,
@@ -76,6 +76,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
   isCheckoutLocked = false,
 }) => {
   const { token } = theme.useToken();
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
@@ -126,9 +127,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
       }
 
       message.success(
-        t('projectManagement.fileManagement.messages.renameSuccess')
-          .replace('{{oldName}}', renamingFile.name)
-          .replace('{{newName}}', newFileName)
+        t('projectManagement.fileManagement.messages.renameSuccess', { oldName: renamingFile.name, newName: newFileName })
       );
       setRenameModalOpen(false);
       // ファイル一覧を再取得
@@ -166,13 +165,13 @@ const FileListTable: React.FC<FileListTableProps> = ({
 
       // 成功メッセージ表示
       message.success(
-        t('projectManagement.fileManagement.messages.downloadStarted').replace('{{fileName}}', file.name)
+        t('projectManagement.fileManagement.messages.downloadStarted', { fileName: file.name })
       );
     } catch (error) {
       console.error('ファイルダウンロードエラー:', error);
       const errorMsg = error instanceof Error ? error.message : '不明なエラー';
       message.error(
-        t('projectManagement.fileManagement.messages.downloadError').replace('{{error}}', errorMsg)
+        t('projectManagement.fileManagement.messages.downloadError', { error: errorMsg })
       );
     } finally {
       setDownloadingFileId(null);
@@ -447,16 +446,30 @@ const FileListTable: React.FC<FileListTableProps> = ({
               { max: 255, message: t('file.renameMaxLength') },
             ]}
           >
-            <Input
-              autoFocus
-              placeholder={t('file.renameInputPlaceholder')}
-              onPressEnter={handleRenameConfirm}
-              addonAfter={
-                renamingFile && renamingFile.name.lastIndexOf('.') > 0
-                  ? renamingFile.name.substring(renamingFile.name.lastIndexOf('.'))
-                  : undefined
-              }
-            />
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                autoFocus
+                placeholder={t('file.renameInputPlaceholder')}
+                onPressEnter={handleRenameConfirm}
+              />
+              {renamingFile && renamingFile.name.lastIndexOf('.') > 0 && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0 11px',
+                    background: 'rgba(0,0,0,0.02)',
+                    border: '1px solid #d9d9d9',
+                    borderLeft: 'none',
+                    borderRadius: '0 6px 6px 0',
+                    whiteSpace: 'nowrap',
+                    lineHeight: '30px',
+                  }}
+                >
+                  {renamingFile.name.substring(renamingFile.name.lastIndexOf('.'))}
+                </span>
+              )}
+            </Space.Compact>
           </Form.Item>
         </Form>
       </Modal>

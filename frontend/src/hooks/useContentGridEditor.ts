@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { message } from 'antd';
+import { App } from 'antd';
 import { parseCsvFileToGrid, parseXmlFileToGrid } from '@/utils/dataGridImporter';
 import type { ImportMessages, ImportOptions } from '@/utils/dataGridImporter';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -59,6 +59,7 @@ export function useContentGridEditor({
   onChange,
   maxFileSize,
 }: UseContentGridEditorOptions): UseContentGridEditorReturn {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [isImporting, setIsImporting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);

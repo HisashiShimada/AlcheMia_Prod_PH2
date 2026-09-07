@@ -47,7 +47,7 @@ const RenameProjectModal: React.FC<RenameProjectModalProps> = ({
 
       setLoading(true);
       const result = await renameProject(projectId, newName);
-      message.success(t('projectManagement.rename.success').replace('{{name}}', result.newProjectName));
+      message.success(t('projectManagement.rename.success', { name: result.newProjectName }));
       onSuccess(result.newProjectName);
     } catch (error: unknown) {
       // バリデーションエラーは Form が処理するので無視

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  Modal, Form, Input, Select, Radio, Button, Divider, Alert, Typography, message,
+  App, Modal, Form, Input, Select, Radio, Button, Divider, Alert, Typography,
 } from 'antd';
 import {
   CheckOutlined, CloseOutlined, LinkOutlined,
@@ -37,6 +37,7 @@ const ncNamePattern = /^[A-Za-z_][A-Za-z0-9._\-]*$/;
 // コンポーネント
 // ──────────────────────────────────────────────
 const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, onRegistered }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [form]  = Form.useForm<NamespaceFormValues>();
   const [level, setLevel] = useState<Level>('organization');

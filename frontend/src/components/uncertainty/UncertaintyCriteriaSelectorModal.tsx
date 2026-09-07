@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import {
+  App,
   Modal,
   Button,
   Table,
@@ -13,7 +14,6 @@ import {
   Typography,
   Popconfirm,
   Spin,
-  message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
@@ -180,6 +180,7 @@ export default function UncertaintyCriteriaSelectorModal({
   onAssign,
   initialPayload,
 }: UncertaintyCriteriaSelectorModalProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   // ----- 不確かさ基準作成モーダル -----
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -355,7 +356,7 @@ export default function UncertaintyCriteriaSelectorModal({
     onAssign({
       criteria: selectedCriteria,
     });
-    message.success(t('uncertaintyCriteriaSelector.assignSuccess').replace('{name}', selectedCriteria.name));
+    message.success(t('uncertaintyCriteriaSelector.assignSuccess', { name: selectedCriteria.name }));
     onClose();
   };
 

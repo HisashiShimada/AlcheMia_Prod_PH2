@@ -11,10 +11,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { App } from 'antd';
 import { MaimlParserTyped } from '@/utils/maimlParserTyped';
 import type { MaimlRoot } from '@/types/maiml-unified';
 import { getProjectMaiml } from '@/services/projectApiService';
-import { message } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
@@ -68,6 +68,7 @@ interface ProjectMaimlProviderProps {
  */
 export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ children }) => {
   const { t } = useLanguage();
+  const { message } = App.useApp();
   const [maimlRoot, setMaimlRoot] = useState<MaimlRoot | null>(null);
   const [maimlContent, setMaimlContent] = useState<string | null>(null);
   const [parser, setParser] = useState<MaimlParserTyped | null>(null);

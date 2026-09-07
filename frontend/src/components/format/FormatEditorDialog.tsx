@@ -11,6 +11,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
+  App,
   Modal,
   Button,
   Input,
@@ -22,7 +23,6 @@ import {
   TreeSelect,
   Divider,
   Tag,
-  message,
   Collapse,
 } from 'antd';
 import {
@@ -90,6 +90,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
   allNodes = [],
   templateErrors = {},
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [hasChanges, setHasChanges] = useState(false);
   // ✅ 初期化済みフラグ: open 中に node 参照が変わっても useEffect の再実行を防ぐ

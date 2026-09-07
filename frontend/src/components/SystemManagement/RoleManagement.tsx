@@ -349,7 +349,7 @@ export default function RoleManagementMock() {
     }
     modal.confirm({
       title: t('roleManagement.messages.activateConfirmTitle'),
-      content: t('roleManagement.messages.activateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('roleManagement.messages.activateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('roleManagement.status.active'),
       cancelText: t('roleManagement.buttons.cancel'),
       onOk: async () => {
@@ -357,7 +357,7 @@ export default function RoleManagementMock() {
           await batchUpdateMasterStatus(selectedRowKeys.map(String), true);
           await fetchRoleMasters();
           setSelectedRowKeys([]);
-          message.success(t('roleManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          message.success(t('roleManagement.messages.activateSuccess', { count: String(selectedRowKeys.length) }));
         } catch (error) {
           message.error(extractErrorMessage(error, t('roleManagement.messages.activateError')));
         }
@@ -372,7 +372,7 @@ export default function RoleManagementMock() {
     }
     modal.confirm({
       title: t('roleManagement.messages.deactivateConfirmTitle'),
-      content: t('roleManagement.messages.deactivateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('roleManagement.messages.deactivateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('roleManagement.status.inactive'),
       cancelText: t('roleManagement.buttons.cancel'),
       okButtonProps: { danger: true },
@@ -381,7 +381,7 @@ export default function RoleManagementMock() {
           await batchUpdateMasterStatus(selectedRowKeys.map(String), false);
           await fetchRoleMasters();
           setSelectedRowKeys([]);
-          message.success(t('roleManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          message.success(t('roleManagement.messages.deactivateSuccess', { count: String(selectedRowKeys.length) }));
         } catch (error) {
           message.error(extractErrorMessage(error, t('roleManagement.messages.deactivateError')));
         }
@@ -398,8 +398,8 @@ export default function RoleManagementMock() {
     const newStatus = !currentStatus;
 
     modal.confirm({
-      title: t('roleManagement.messages.toggleConfirmTitle').replace('{name}', String(masterName)).replace('{action}', actionText),
-      content: t('roleManagement.messages.toggleConfirmContent').replace('{action}', actionText),
+      title: t('roleManagement.messages.toggleConfirmTitle', { name: String(masterName), action: actionText }),
+      content: t('roleManagement.messages.toggleConfirmContent', { action: actionText }),
       okText: actionText,
       cancelText: t('roleManagement.buttons.cancel'),
       okButtonProps: currentStatus ? { danger: true } : undefined,
@@ -407,7 +407,7 @@ export default function RoleManagementMock() {
         try {
           await updateMasterStatus(String(record[idField]), newStatus);
           await fetchRoleMasters();
-          message.success(t('roleManagement.messages.toggleSuccess').replace('{name}', String(masterName)).replace('{action}', actionText));
+          message.success(t('roleManagement.messages.toggleSuccess', { name: String(masterName), action: actionText }));
         } catch (error) {
           message.error(extractErrorMessage(error, t('roleManagement.messages.toggleError')));
         }
@@ -701,7 +701,7 @@ export default function RoleManagementMock() {
             pageSize: pageSize,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
-            showTotal: (total) => t('roleManagement.pagination.showTotal').replace('{total}', String(total)),
+            showTotal: (total) => t('roleManagement.pagination.showTotal', { total: String(total) }),
             onChange: (page, size) => {
               setCurrentPage(page);
               setPageSize(size);
