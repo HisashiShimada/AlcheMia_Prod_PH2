@@ -124,7 +124,10 @@
     "unsavedWarningTitle": "未保存のデータがあります",
     "unsavedWarningContent": "プロパティカードに保存されていないデータがあります。このまま次へ進みますか？",
     "unsavedWarningOk": "進む",
-    "unsavedWarningCancel": "キャンセル"
+    "unsavedWarningCancel": "キャンセル",
+    "qualitativeEvalDesc": "定性評価説明",
+    "qualitativeEvalReason": "定性評価理由",
+    "qualitativeEvalReasonPlaceholder": "入力"
   },
   "dataRecordDialog": {
     "plannedValue": "指定値",

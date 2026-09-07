@@ -30,7 +30,7 @@ import type { ToleranceValueEntry } from '../types/api';
  */
 export class ProjectNotEditableError extends Error {
   constructor(projectStatus: string) {
-    super(`Project is not editable. Current status: ${projectStatus}. Editable statuses are: draft, active, waiting_approval.`);
+    super(`Project is not editable. Current status: ${projectStatus}. Editable statuses are: 1 (task_pending), 2 (task_in_progress), 6 (review_rejected).`);
     this.name = 'ProjectNotEditableError';
   }
 }
@@ -113,8 +113,9 @@ export class ExperimentDataService {
       const projectStatus = statusResult.rows[0].project_status;
       const projectName: string = statusResult.rows[0].project_name;
 
-      // 編集可能なステータスかチェック（2:タスク実行中）
-      const editableStatuses = [2];
+      // 編集可能なステータスかチェック
+      // 1: TASK_PENDING（タスク実行待ち）、2: TASK_IN_PROGRESS（タスク実行中）、6: REVIEW_REJECTED（レビュー差戻・訂正モード）
+      const editableStatuses = [1, 2, 6];
       if (!editableStatuses.includes(projectStatus)) {
         throw new ProjectNotEditableError(projectStatus);
       }
