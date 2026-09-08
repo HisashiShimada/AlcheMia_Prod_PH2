@@ -370,6 +370,24 @@ export interface PrefixManagementProps {
    */
   targetScopeName?: string;
 }
+/**
+ * TermManagement コンポーネントの Props
+ */
+export interface TermManagementProps {
+  /** trueのとき閲覧モード（検索・フィルター以外のボタンを非活性） */
+  viewOnly?: boolean;
+  /** 外部から渡される選択中の名前空間ノードキー（左ツリー連動用） */
+  selectedNsKey?: string | null;
+  /**
+   * 用語を登録する際の公開スコープキー
+   * null/undefined のとき scope_key は NULL（全体公開）
+   */
+  scopeKey?: string | null;
+  /** 選択可能な Prefix の一覧（新規行の Prefix デフォルト値に使用） */
+  availablePrefixes?: string[];
+}
+
+
 
 /**
  * PrefixManagement のインライン編集値
