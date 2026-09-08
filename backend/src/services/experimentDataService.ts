@@ -30,7 +30,7 @@ import type { ToleranceValueEntry } from '../types/api';
  */
 export class ProjectNotEditableError extends Error {
   constructor(projectStatus: string) {
-    super(`Project is not editable. Current status: ${projectStatus}. Editable statuses are: draft, active, waiting_approval.`);
+    super(`Project is not editable. Current status: ${projectStatus}. Editable statuses are: 1 (task_pending), 2 (task_in_progress), 6 (review_rejected).`);
     this.name = 'ProjectNotEditableError';
   }
 }
@@ -113,8 +113,9 @@ export class ExperimentDataService {
       const projectStatus = statusResult.rows[0].project_status;
       const projectName: string = statusResult.rows[0].project_name;
 
-      // 編集可能なステータスかチェック（2:タスク実行中）
-      const editableStatuses = [2];
+      // 編集可能なステータスかチェック
+      // 1: TASK_PENDING（タスク実行待ち）、2: TASK_IN_PROGRESS（タスク実行中）、6: REVIEW_REJECTED（レビュー差戻・訂正モード）
+      const editableStatuses = [1, 2, 6];
       if (!editableStatuses.includes(projectStatus)) {
         throw new ProjectNotEditableError(projectStatus);
       }
@@ -499,6 +500,35 @@ export async function getTemplateData(
           }
         }
 
+        // ── 定性評価説明 / 定性評価理由の分離 ──
+        // DB の uncertainty[].description には保存時に書き込まれた「定性評価理由」（作業者入力）が入っている。
+        // 一方「定性評価説明」は実験管理者がチェックアウト時に設定したMAIMLの元の description であり、
+        // フォールバックデータ（MAIML由来）の qualitativeNote から取得する。
+        // enrichedProperties の各プロパティを以下のように書き換える:
+        //   qualitativeReason = DB の qualitativeNote（作業者が入力した定性評価理由）
+        //   qualitativeNote   = MAIML の qualitativeNote（管理者が設定した定性評価説明）
+        const fallbackItemForDesc = fallbackAll.find(f => f.placeId === placeId);
+        if (fallbackItemForDesc && Array.isArray(fallbackItemForDesc.data.properties)) {
+          const fallbackPropMap = new Map<string, Record<string, unknown>>();
+          for (const fp of fallbackItemForDesc.data.properties as Record<string, unknown>[]) {
+            const fpKey = fp['key'] as string | undefined;
+            if (fpKey) fallbackPropMap.set(fpKey, fp);
+          }
+          enrichedProperties = enrichedProperties.map((ep) => {
+            const propKey = ep['key'] as string | undefined;
+            if (!propKey) return ep;
+            const fallbackProp = fallbackPropMap.get(propKey);
+            if (!fallbackProp) return ep;
+            return {
+              ...ep,
+              // DB由来の qualitativeNote を qualitativeReason として保持
+              qualitativeReason: (ep['qualitativeNote'] as string | null) ?? null,
+              // MAIML由来の qualitativeNote で上書き（管理者が設定した説明文）
+              qualitativeNote:   (fallbackProp['qualitativeNote'] as string | null) ?? null,
+            };
+          });
+        }
+
         const enrichedPs = ps != null
           ? { ...ps, properties: enrichedProperties }
           : { properties: enrichedProperties };
@@ -659,6 +689,9 @@ function convertPropertyForFallback(
     qualitativeOptions,
     qualitativeEval,
     qualitativeNote,
+    // uncertainty[] 配列をそのまま保持する（フロントエンドの保存ロジックが
+    // 定性評価選択値・理由を uncertainty[].value / description に書き込むために参照する）
+    uncertainty: p.uncertainty ?? [],
     // ネスト構造を再帰的に変換（深さ制限で無限ループ防止）
     properties: depth < MAX_DEPTH
       ? (p.properties || []).map(child => convertPropertyForFallback(child, depth + 1, uncertaintyDetailMap))

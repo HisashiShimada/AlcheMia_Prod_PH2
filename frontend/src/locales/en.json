@@ -124,7 +124,10 @@
     "unsavedWarningTitle": "Unsaved data",
     "unsavedWarningContent": "There is unsaved data in the property card. Do you want to proceed without saving?",
     "unsavedWarningOk": "Proceed",
-    "unsavedWarningCancel": "Cancel"
+    "unsavedWarningCancel": "Cancel",
+    "qualitativeEvalDesc": "Qualitative evaluation description",
+    "qualitativeEvalReason": "Qualitative evaluation reason",
+    "qualitativeEvalReasonPlaceholder": "Enter"
   },
   "dataRecordDialog": {
     "plannedValue": "Planned value (Expected)",

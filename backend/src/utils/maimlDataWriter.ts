@@ -743,6 +743,55 @@ function buildPropertyXML(
       }
     }
 
+    // uncertainty（単数形）: 実験作業者が入力した定性評価選択値・定性評価理由を
+    // <uncertainty> タグとして転記する。
+    // 構造: [{ key, xsiType, units, value（定性評価選択値）, description（定性評価理由）, ... }, ...]
+    // - value と description がどちらも空の場合は出力しない（元の空タグ状態を維持）
+    // - uncertainties（複数形）との重複出力を避けるため、uncertainties に同一キーが存在しない
+    //   エントリのみ出力する
+    if (prop['uncertainty'] && Array.isArray(prop['uncertainty'])) {
+      // uncertainties（複数形）に既に出力済みのキーを収集
+      const alreadyOutputKeys = new Set<string>();
+      if (Array.isArray(prop['uncertainties'])) {
+        for (const uc of prop['uncertainties'] as Record<string, unknown>[]) {
+          const k = uc?.['key'] as string | undefined;
+          if (k) alreadyOutputKeys.add(k);
+        }
+      }
+      // 同一キーの重複エントリは先頭1件のみ処理（MAIMLに2件定義されている場合の安全策）
+      const processedKeys = new Set<string>();
+      for (const uc of prop['uncertainty'] as Record<string, unknown>[]) {
+        if (!uc || typeof uc !== 'object') continue;
+        const ucKey = uc['key'] as string | undefined;
+        if (!ucKey) continue;
+        // uncertainties（複数形）で既に出力済みのキーはスキップ
+        if (alreadyOutputKeys.has(ucKey)) continue;
+        // 同一キーの重複エントリは先頭1件のみ出力
+        if (processedKeys.has(ucKey)) continue;
+        processedKeys.add(ucKey);
+
+        const ucValue = uc['value'];
+        const ucDesc  = uc['description'];
+        const hasValue = ucValue !== null && ucValue !== undefined && ucValue !== '';
+        const hasDesc  = ucDesc  !== null && ucDesc  !== undefined && ucDesc  !== '';
+        // value も description も空の場合は出力しない
+        if (!hasValue && !hasDesc) continue;
+
+        let ucAttrs = ` key="${escapeXml(ucKey)}"`;
+        if (uc['xsiType']) ucAttrs += ` xsi:type="${escapeXml(String(uc['xsiType']))}"`;
+        if (uc['units'])   ucAttrs += ` units="${escapeXml(String(uc['units']))}"`;
+
+        xml += `${childIndent}<uncertainty${ucAttrs}>\n`;
+        if (hasValue) {
+          xml += `${childIndent}  <value>${escapeXml(String(ucValue))}</value>\n`;
+        }
+        if (hasDesc) {
+          xml += `${childIndent}  <description>${escapeXml(String(ucDesc))}</description>\n`;
+        }
+        xml += `${childIndent}</uncertainty>\n`;
+      }
+    }
+
     // customElements（任意の追加要素）
     if (prop['customElements'] && typeof prop['customElements'] === 'object') {
       for (const [elemName, customElem] of Object.entries(prop['customElements'] as Record<string, unknown>)) {
