@@ -455,17 +455,32 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     if (!projectId) return;
     setLoading(true);
     try {
-      const [instData, methodData, taskRegData] = await Promise.all([
+      // Promise.allSettled: 1つが失敗しても他のAPIの結果を捨てない
+      const [instResult, methodResult, taskRegResult] = await Promise.allSettled([
         getExperimentInstructions(projectId),
         getProjectMethods(projectId),
         getTaskRegistration(projectId),
       ]);
-      setInstructions(instData);
-      setMethods(methodData);
-      setTaskRegistrations(taskRegData.tasks);
-    } catch (err) {
-      console.error('[ExperimentInstructionTab] fetchData error:', err);
-      message.error(t('experimentInstruction.fetchError'));
+
+      if (instResult.status === 'fulfilled') {
+        setInstructions(instResult.value);
+      } else {
+        console.error('[ExperimentInstructionTab] getExperimentInstructions failed:', instResult.reason);
+        message.error(t('experimentInstruction.fetchError'));
+      }
+
+      if (methodResult.status === 'fulfilled') {
+        setMethods(methodResult.value);
+      } else {
+        console.error('[ExperimentInstructionTab] getProjectMethods failed:', methodResult.reason);
+      }
+
+      if (taskRegResult.status === 'fulfilled') {
+        setTaskRegistrations(taskRegResult.value.tasks);
+      } else {
+        // タスク登録情報取得失敗は非致命的: taskNumbers が空になるだけで他表示には影響しない
+        console.warn('[ExperimentInstructionTab] getTaskRegistration failed (non-fatal):', taskRegResult.reason);
+      }
     } finally {
       setLoading(false);
     }
