@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Typography, Space, theme } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -62,12 +63,12 @@ const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
     } catch (error) {
       console.error('❌ [CreateFormatModal] エラー:', error);
 
-      // APIエラーの場合、エラーメッセージを表示
-      const apiError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
-      if (apiError?.response?.data?.error?.message) {
-        setErrorMessage(apiError.response.data.error.message);
+      // APIエラーの場合、エラーコードから翻訳済みメッセージを取得して表示
+      const apiError = error as { response?: { data?: { error?: { code?: string; message?: string } } }; message?: string };
+      if (apiError?.response?.data?.error?.code) {
+        setErrorMessage(extractErrorMessage(error));
       } else if (apiError?.message && apiError.message !== 'Validation failed') {
-        setErrorMessage(apiError.message);
+        setErrorMessage(extractErrorMessage(error));
       }
       // フォームバリデーションエラーの場合は何もしない（Form内で表示される）
     } finally {
