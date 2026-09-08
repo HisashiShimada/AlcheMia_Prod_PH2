@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
+  App,
   Modal,
   Button,
   Form,
@@ -11,7 +12,6 @@ import {
   Switch,
   Tag,
   Space,
-  message,
   Spin,
 } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -23,14 +23,33 @@ import {
   saveUncertaintyCriteriaNewVersion,
   type UncertaintyCriteriaDetailApiRow,
 } from '@/services/uncertaintyCriteriaApiService';
+import {
+  NUMERIC_PROPERTY_TYPES,
+  isUnitAllowed,
+} from '@/utils/xsiTypeAttributes';
+import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 
 const { TextArea } = Input;
 
-/** xsi:type の選択肢（数量系のみ） */
-const XSI_TYPE_OPTIONS = [
-  { value: 'doubleType',  label: 'doubleType'  },
-  { value: 'decimalType', label: 'decimalType' },
-  { value: 'intType',     label: 'intType'     },
+/**
+ * xsi:type セレクト選択肢（グループ表示対応）
+ * 数値型のみ（units が使用できる型）に限定する
+ */
+const XSI_TYPE_SELECT_OPTIONS = [
+  {
+    label: 'Simple Types',
+    options: NUMERIC_PROPERTY_TYPES.filter((t) => t.category === 'Simple').map((t) => ({
+      value: t.value,
+      label: t.label,
+    })),
+  },
+  {
+    label: 'List Types',
+    options: NUMERIC_PROPERTY_TYPES.filter((t) => t.category === 'List').map((t) => ({
+      value: t.value,
+      label: t.label,
+    })),
+  },
 ];
 
 /** Props型定義 */
@@ -297,6 +316,7 @@ export default function UncertaintyDetailModal({
   onClose,
   onSaved,
 }: UncertaintyDetailModalProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<UncertaintyCriteriaDetailApiRow | null>(null);
@@ -307,6 +327,12 @@ export default function UncertaintyDetailModal({
   const [diffData, setDiffData] = useState<DiffData | null>(null);
   const [statusState, setStatusState] = useState<'active' | 'deprecated'>('active');
   const [form] = Form.useForm();
+
+  // ─── Attributeマスタ取得（units / formatString / scaleFactor の選択肢用） ───
+  const { getAttributeValues } = useAttributeMasters();
+  const unitsOptions       = useMemo(() => getAttributeValues('units'),        [getAttributeValues]);
+  const formatStrOptions   = useMemo(() => getAttributeValues('formatString'), [getAttributeValues]);
+  const scaleFactorOptions = useMemo(() => getAttributeValues('scaleFactor'),  [getAttributeValues]);
 
   /** buildDiffData に渡す翻訳ラベルを生成 */
   const buildDiffLabels = (): DiffLabels => ({
@@ -631,23 +657,52 @@ export default function UncertaintyDetailModal({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
                 <Form.Item
                   name="xsiType"
-                  label={<span>xsi:type <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                  label="xsi:type"
+                  rules={[{ required: true }]}
                   style={{ marginBottom: 0 }}
                 >
-                  <Select options={XSI_TYPE_OPTIONS} />
+                  <Select
+                    options={XSI_TYPE_SELECT_OPTIONS}
+                    onChange={(v) => {
+                      // 単位不可の型に切り替えた場合は units をクリア
+                      if (!isUnitAllowed(v)) {
+                        form.setFieldValue('units', '');
+                      }
+                    }}
+                  />
                 </Form.Item>
-                <Form.Item
-                  name="units"
-                  label={<span>units <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  style={{ marginBottom: 0 }}
-                >
-                  <Input />
+                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.xsiType !== cur.xsiType}>
+                  {({ getFieldValue }) => {
+                    const unitEnabled = isUnitAllowed(getFieldValue('xsiType') as string | undefined);
+                    return (
+                      <Form.Item
+                        name="units"
+                        label="units"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          options={unitsOptions}
+                          disabled={!unitEnabled || unitsOptions.length === 0}
+                          allowClear
+                          placeholder={unitEnabled ? undefined : '—'}
+                        />
+                      </Form.Item>
+                    );
+                  }}
                 </Form.Item>
                 <Form.Item name="formatString" label="formatString" style={{ marginBottom: 0 }}>
-                  <Input />
+                  <Select
+                    options={formatStrOptions}
+                    disabled={formatStrOptions.length === 0}
+                    allowClear
+                  />
                 </Form.Item>
                 <Form.Item name="scaleFactor" label="scaleFactor" style={{ marginBottom: 0 }}>
-                  <Input placeholder="1" />
+                  <Select
+                    options={scaleFactorOptions}
+                    disabled={scaleFactorOptions.length === 0}
+                    allowClear
+                  />
                 </Form.Item>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
@@ -656,6 +711,7 @@ export default function UncertaintyDetailModal({
                   name="toleranceUpper"
                   label={t('uncertaintyDetail.toleranceUpperLabel')}
                   style={{ marginBottom: 0 }}
+                  rules={[{ required: true, message: t('uncertaintyDetail.toleranceUpperRequired') }]}
                 >
                   <Input type="number" placeholder={t('uncertaintyDetail.toleranceUpperPlaceholder')} />
                 </Form.Item>
@@ -664,6 +720,7 @@ export default function UncertaintyDetailModal({
                   name="toleranceLower"
                   label={t('uncertaintyDetail.toleranceLowerLabel')}
                   style={{ marginBottom: 0 }}
+                  rules={[{ required: true, message: t('uncertaintyDetail.toleranceLowerRequired') }]}
                 >
                   <Input type="number" placeholder={t('uncertaintyDetail.toleranceLowerPlaceholder')} />
                 </Form.Item>

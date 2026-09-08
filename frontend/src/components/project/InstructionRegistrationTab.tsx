@@ -8,11 +8,11 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
+  App,
   Button,
   Table,
   Space,
   Typography,
-  message,
   theme,
   Tooltip,
   Empty,
@@ -73,6 +73,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
 }) => {
   const { token } = useToken();
   const { t } = useLanguage();
+  const { message } = App.useApp();
   const { maimlRoot, isLoading: isMaimlLoading } = useProjectMaiml();
 
   // 状態管理
@@ -441,7 +442,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
           type="secondary"
           data-testid="instruction-status-summary"
         >
-          {t('instructionRegistration.listTitle').replace('{count}', instructions.length.toString())}
+          {t('instructionRegistration.listTitle', { count: instructions.length.toString() })}
         </Text>
       </div>
 

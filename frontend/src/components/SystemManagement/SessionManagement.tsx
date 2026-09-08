@@ -220,7 +220,7 @@ export default function SessionManagement() {
   const handleAutoRefreshChange = (checked: boolean) => {
     setAutoRefresh(checked);
     if (checked) {
-      messageApi.success(t('sessionManagement.autoRefresh.enableSuccess').replace('{interval}', String(refreshInterval)));
+      messageApi.success(t('sessionManagement.autoRefresh.enableSuccess', { interval: String(refreshInterval) }));
     } else {
       messageApi.info(t('sessionManagement.autoRefresh.disableInfo'));
     }
@@ -230,7 +230,7 @@ export default function SessionManagement() {
   const handleRefreshIntervalChange = (value: number) => {
     setRefreshInterval(value);
     if (autoRefresh) {
-      messageApi.info(t('sessionManagement.autoRefresh.intervalChanged').replace('{interval}', String(value)));
+      messageApi.info(t('sessionManagement.autoRefresh.intervalChanged', { interval: String(value) }));
     }
   };
 
@@ -303,7 +303,7 @@ export default function SessionManagement() {
               pageSize: pageSize,
               showSizeChanger: true,
               pageSizeOptions: ['20', '50', '100'],
-              showTotal: (total) => t('sessionManagement.pagination.showTotal').replace('{total}', String(total)),
+              showTotal: (total) => t('sessionManagement.pagination.showTotal', { total: String(total) }),
               onChange: (page, size) => {
                 setCurrentPage(page);
                 setPageSize(size);

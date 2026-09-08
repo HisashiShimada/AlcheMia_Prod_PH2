@@ -61,6 +61,15 @@ export default function PetriNetEditorScreen({
   }, [sourceS3Key]);
 
   const loadMaimlData = async () => {
+    // B案：maimlFileRegistered が明示的に false → APIを呼ばず新規作成モードで開始
+    // （MAIMLファイル未登録プロジェクトで不要な 404 が発生するのを防ぐ）
+    if (params.maimlFileRegistered === false) {
+      console.log('ℹ️ [PetriNetEditorScreen] MAIMLファイル未登録 → 新規作成モードで開始（API呼び出しスキップ）');
+      setMaimlContent(null);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       console.log('📂 [PetriNetEditorScreen] Loading MAIML:', sourceS3Key);

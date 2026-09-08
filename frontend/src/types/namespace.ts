@@ -406,6 +406,8 @@ export interface PrefixRowLocal {
   description?: string;
   /** アクティブ状態（true: アクティブ、false: 非アクティブ） */
   isActive?: boolean;
+  /** DB 由来のスコープ名（organization_group_name または user_name） */
+  scopePath?: string;
   /**
    * この Prefix が属する名前空間のスコープキー（organization_group_cd またはユーザーID）
    * 上位層（祖先グループ）行の判定に使用する
@@ -574,56 +576,6 @@ export interface CreateGroupResponse {
   departmentUnitId: string;
   /** 作成されたグループの名前 */
   unitName: string;
-}
-
-// ──────────────────────────────────────────────
-// TermManagement
-// ──────────────────────────────────────────────
-
-/**
- * TermManagement コンポーネントの Props
- */
-export interface TermManagementProps {
-  /** true の場合、追加・編集ボタンを非活性にする */
-  viewOnly?: boolean;
-  /** true の場合、グローバルPrefix紐づき用語のみ対象（将来拡張用） */
-  globalOnly?: boolean;
-  /**
-   * 選択中の名前空間スコープキー（userId または organization_group_cd）。
-   * 渡された場合、そのスコープに紐づく Prefix のみを取得して表示する。
-   * 未指定時は全件取得（従来動作）。
-   */
-  selectedNsKey?: string;
-}
-
-/**
- * TermManagement の新規入力行（テーブルインライン入力用）
- *
- * @remarks
- * TermManagement.tsx の新規行追加時に使用する入力行型。
- * NamespaceMain の NewTermRow とは typeHint/type フィールド名が異なる点に注意。
- */
-export interface NewTermRowLocal {
-  _rowId: string;
-  prefix: string;
-  localName: string;
-  displayName: string;
-  description: string;
-  typeHint: string;
-  unitHint: string;
-}
-
-/**
- * TermManagement の既存行インライン編集値
- *
- * @remarks
- * TermManagement.tsx の既存行編集時に使用する一時的な入力値を保持する
- */
-export interface TermEditValuesLocal {
-  displayName: string;
-  description: string;
-  typeHint: string;
-  unitHint: string;
 }
 
 // ──────────────────────────────────────────────

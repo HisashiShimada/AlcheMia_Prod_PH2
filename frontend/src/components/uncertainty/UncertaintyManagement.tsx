@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Button, Input, Select, Space, Tree, message } from 'antd';
+import { App, Button, Input, Select, Space, Tree } from 'antd';
 import { ImportOutlined, ExportOutlined, PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import UncertaintyListTable from './UncertaintyListTable';
@@ -212,6 +212,7 @@ interface UncertaintyManagementProps {
  * 左ペイン（名前空間ツリー固定）＋右ペイン（タブ：用語管理 / 不確かさ基準管理）
  */
 export default function UncertaintyManagement({ user, tabActivatedAt }: UncertaintyManagementProps = {}) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchText, setSearchText] = useState('');

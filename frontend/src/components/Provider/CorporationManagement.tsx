@@ -206,7 +206,7 @@ export default function CorporationManagement() {
     
     modal.confirm({
       title: t('corporationManagement.messages.activateConfirmTitle'),
-      content: t('corporationManagement.messages.activateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('corporationManagement.messages.activateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('corporationManagement.status.active'),
       cancelText: t('corporationManagement.buttons.cancel'),
       onOk: async () => {
@@ -220,7 +220,7 @@ export default function CorporationManagement() {
             );
           }
           
-          messageApi.success(t('corporationManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          messageApi.success(t('corporationManagement.messages.activateSuccess', { count: String(selectedRowKeys.length) }));
           setSelectedRowKeys([]);
           // ローカルステートを直接更新（再フェッチによる表示順変更を防ぐ）
           const now = new Date().toISOString();
@@ -248,7 +248,7 @@ export default function CorporationManagement() {
     
     modal.confirm({
       title: t('corporationManagement.messages.deactivateConfirmTitle'),
-      content: t('corporationManagement.messages.deactivateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('corporationManagement.messages.deactivateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('corporationManagement.status.inactive'),
       cancelText: t('corporationManagement.buttons.cancel'),
       okButtonProps: { danger: true },
@@ -263,7 +263,7 @@ export default function CorporationManagement() {
             );
           }
           
-          messageApi.success(t('corporationManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          messageApi.success(t('corporationManagement.messages.deactivateSuccess', { count: String(selectedRowKeys.length) }));
           setSelectedRowKeys([]);
           // ローカルステートを直接更新（再フェッチによる表示順変更を防ぐ）
           const now = new Date().toISOString();
@@ -288,8 +288,8 @@ export default function CorporationManagement() {
     const corporationName = corporation.corporationName;
 
     modal.confirm({
-      title: t('corporationManagement.messages.toggleConfirmTitle').replace('{name}', corporationName).replace('{action}', actionText),
-      content: t('corporationManagement.messages.toggleConfirmContent').replace('{action}', actionText),
+      title: t('corporationManagement.messages.toggleConfirmTitle', { name: corporationName, action: actionText }),
+      content: t('corporationManagement.messages.toggleConfirmContent', { action: actionText }),
       okText: actionText,
       cancelText: t('corporationManagement.buttons.cancel'),
       okButtonProps: corporation.isActive ? { danger: true } : undefined,
@@ -301,7 +301,7 @@ export default function CorporationManagement() {
             { isActive: !corporation.isActive }
           );
           
-          messageApi.success(t('corporationManagement.messages.toggleSuccess').replace('{name}', corporationName).replace('{action}', actionText));
+          messageApi.success(t('corporationManagement.messages.toggleSuccess', { name: corporationName, action: actionText }));
           // ローカルステートを直接更新（再フェッチによる表示順変更を防ぐ）
           setCorporations(prev =>
             prev.map(corp =>
@@ -594,7 +594,7 @@ export default function CorporationManagement() {
             pageSize: pageSize,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
-            showTotal: (total) => t('corporationManagement.pagination.showTotal').replace('{total}', String(total)),
+            showTotal: (total) => t('corporationManagement.pagination.showTotal', { total: String(total) }),
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           }}

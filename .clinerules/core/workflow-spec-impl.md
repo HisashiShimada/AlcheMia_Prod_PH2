@@ -104,6 +104,8 @@ attempt_completionを使用する前に、以下を確認すること：
 - [ ] ユーザーから「ファイル作成成功」の確認を得たか？
 - [ ] テストコードも必要に応じて作成したか？
 - [ ] migration SQLファイルがあれば作成したか？
+- [ ] バックエンドに変更がある場合 → `cd backend && npx tsc --noEmit` がエラー0件か？
+- [ ] フロントエンドに変更がある場合 → `cd frontend && npx tsc --noEmit` がエラー0件か？
 
 もし上記のいずれかが「No」なら、attempt_completionを使用してはいけない。
 ```

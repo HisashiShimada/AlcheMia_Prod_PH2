@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, Table, message, Modal, Spin, Typography, Tooltip } from 'antd';
+import { App, Button, Table, Modal, Spin, Typography, Tooltip } from 'antd';
 import { UploadOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -21,6 +21,7 @@ const { Text, Title } = Typography;
  * グローバル名前空間（prefix + URI）の一覧表示・インポート・エクスポートを提供する。
  */
 const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = ({ viewOnly = false }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [declarations, setDeclarations] = useState<GlobalNamespaceEntry[]>([]);
   const [loading, setLoading] = useState(false);

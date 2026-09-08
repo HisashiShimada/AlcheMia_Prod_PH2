@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Modal, Button, Space, Checkbox, Typography, Alert, message } from 'antd';
+import { App, Modal, Button, Space, Checkbox, Typography, Alert } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
@@ -25,6 +25,7 @@ export default function UncertaintyExportModal({
   selectedCount,
   onClose,
 }: UncertaintyExportModalProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [exportFormat, setExportFormat] = useState<ExportFormat>('XML');
   const [includeDesc, setIncludeDesc] = useState(true);

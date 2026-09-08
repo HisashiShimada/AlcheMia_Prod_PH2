@@ -50,6 +50,14 @@ export interface MaimlEditorParams {
    * フォーマット管理画面など未指定の場合は個人スコープのみにフォールバック。
    */
   organizationGroupCd?: string;
+  /**
+   * MAIMLファイルがS3に登録済みかどうか（任意）
+   * false の場合、PetriNetEditorScreen は API 呼び出しをスキップして新規作成モードで起動する。
+   * undefined の場合は従来通り API を呼び出す（後方互換）。
+   * - true:  maimlFileKey が存在する（S3登録済み）
+   * - false: maimlFileKey が null/undefined（未登録）
+   */
+  maimlFileRegistered?: boolean;
 }
 
 // ---------------------------------------------------------------------------

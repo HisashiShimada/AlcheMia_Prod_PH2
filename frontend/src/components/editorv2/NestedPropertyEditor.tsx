@@ -40,7 +40,11 @@ import {
   isUnsignedIntXsiType,
   isListXsiType,
 } from '@/utils/xsiTypeValidator';
-import { getAllowedAttributeNames } from '@/utils/xsiTypeAttributes';
+import {
+  getAllowedAttributeNames,
+  MAIML_PROPERTY_TYPES,
+  MAIML_CONTENT_TYPES,
+} from '@/utils/xsiTypeAttributes';
 import type { AttributeRecord } from '@/types/masterDataTypes';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -138,72 +142,10 @@ const OPTIONAL_MASTER_ATTRIBUTES = new Set(['axis', 'size']);
  * MaiMLスキーマで定義されているpropertyタイプ一覧
  * @see specification/MaiML-Schema-1_0/maiml-property.xsd
  */
-const MAIML_PROPERTY_TYPES = [
-  // Simple Types
-  { value: 'stringType', label: 'stringType - 文字列', category: 'Simple' },
-  { value: 'tokenType', label: 'tokenType - トークン', category: 'Simple' },
-  { value: 'idType', label: 'idType - ID', category: 'Simple' },
-  { value: 'idRefType', label: 'idRefType - ID参照', category: 'Simple' },
-  { value: 'qualifiedNameType', label: 'qualifiedNameType - 修飾名', category: 'Simple' },
-  { value: 'dateTimeType', label: 'dateTimeType - 日時', category: 'Simple' },
-  { value: 'decimalType', label: 'decimalType - 10進数', category: 'Simple' },
-  { value: 'doubleType', label: 'doubleType - 倍精度実数', category: 'Simple' },
-  { value: 'floatType', label: 'floatType - 単精度実数', category: 'Simple' },
-  { value: 'intType', label: 'intType - 整数', category: 'Simple' },
-  { value: 'longType', label: 'longType - 長整数', category: 'Simple' },
-  { value: 'shortType', label: 'shortType - 短整数', category: 'Simple' },
-  { value: 'byteType', label: 'byteType - バイト', category: 'Simple' },
-  { value: 'unsignedIntType', label: 'unsignedIntType - 符号なし整数', category: 'Simple' },
-  { value: 'unsignedLongType', label: 'unsignedLongType - 符号なし長整数', category: 'Simple' },
-  { value: 'unsignedShortType', label: 'unsignedShortType - 符号なし短整数', category: 'Simple' },
-  { value: 'unsignedByteType', label: 'unsignedByteType - 符号なしバイト', category: 'Simple' },
-  { value: 'booleanType', label: 'booleanType - 真偽値', category: 'Simple' },
-  { value: 'base64BinaryType', label: 'base64BinaryType - Base64バイナリ', category: 'Simple' },
-  { value: 'hexBinaryType', label: 'hexBinaryType - 16進バイナリ', category: 'Simple' },
-  { value: 'uriType', label: 'uriType - URI', category: 'Simple' },
-  { value: 'uuidType', label: 'uuidType - UUID', category: 'Simple' },
-  { value: 'languageType', label: 'languageType - 言語', category: 'Simple' },
-  
-  // List Types
-  { value: 'propertyListType', label: 'propertyListType - プロパティリスト（子要素を持つ）', category: 'List' },
-  { value: 'stringListType', label: 'stringListType - 文字列リスト', category: 'List' },
-  { value: 'idRefListType', label: 'idRefListType - ID参照リスト', category: 'List' },
-  { value: 'qualifiedNameListType', label: 'qualifiedNameListType - 修飾名リスト', category: 'List' },
-  { value: 'dateTimeListType', label: 'dateTimeListType - 日時リスト', category: 'List' },
-  { value: 'decimalListType', label: 'decimalListType - 10進数リスト', category: 'List' },
-  { value: 'doubleListType', label: 'doubleListType - 倍精度実数リスト', category: 'List' },
-  { value: 'floatListType', label: 'floatListType - 単精度実数リスト', category: 'List' },
-  { value: 'intListType', label: 'intListType - 整数リスト', category: 'List' },
-  { value: 'longListType', label: 'longListType - 長整数リスト', category: 'List' },
-  { value: 'shortListType', label: 'shortListType - 短整数リスト', category: 'List' },
-  { value: 'byteListType', label: 'byteListType - バイトリスト', category: 'List' },
-  { value: 'unsignedIntListType', label: 'unsignedIntListType - 符号なし整数リスト', category: 'List' },
-  { value: 'unsignedLongListType', label: 'unsignedLongListType - 符号なし長整数リスト', category: 'List' },
-  { value: 'unsignedShortListType', label: 'unsignedShortListType - 符号なし短整数リスト', category: 'List' },
-  { value: 'unsignedByteListType', label: 'unsignedByteListType - 符号なしバイトリスト', category: 'List' },
-  { value: 'booleanListType', label: 'booleanListType - 真偽値リスト', category: 'List' },
-  { value: 'base64BinaryListType', label: 'base64BinaryListType - Base64バイナリリスト', category: 'List' },
-  { value: 'hexBinaryListType', label: 'hexBinaryListType - 16進バイナリリスト', category: 'List' },
-  { value: 'uriListType', label: 'uriListType - URIリスト', category: 'List' },
-  { value: 'uuidListType', label: 'uuidListType - UUIDリスト', category: 'List' },
-  { value: 'languageListType', label: 'languageListType - 言語リスト', category: 'List' },
-  { value: 'stringEnumType', label: 'stringEnumType - 文字列列挙', category: 'List' },
-];
+// MAIML_PROPERTY_TYPES は @/utils/xsiTypeAttributes からインポート済み
 
 /** content タグ向け xsi:type 選択肢（DataRecordDialog の KNOWN_CONTENT_TYPES と一致させる） */
-const MAIML_CONTENT_TYPES: Array<{ value: string; label: string }> = [
-  { value: 'contentStringListType',      label: 'contentStringListType - 文字列リスト' },
-  { value: 'contentIntListType',         label: 'contentIntListType - 整数リスト' },
-  { value: 'contentLongListType',        label: 'contentLongListType - 長整数リスト' },
-  { value: 'contentShortListType',       label: 'contentShortListType - 短整数リスト' },
-  { value: 'contentByteListType',        label: 'contentByteListType - バイトリスト' },
-  { value: 'contentUnsignedIntListType', label: 'contentUnsignedIntListType - 符号なし整数リスト' },
-  { value: 'contentFloatListType',       label: 'contentFloatListType - 単精度実数リスト' },
-  { value: 'contentDoubleListType',      label: 'contentDoubleListType - 倍精度実数リスト' },
-  { value: 'contentDecimalListType',     label: 'contentDecimalListType - 10進数リスト' },
-  { value: 'contentBooleanListType',     label: 'contentBooleanListType - 真偽値リスト' },
-  { value: 'contentDateTimeListType',    label: 'contentDateTimeListType - 日時リスト' },
-];
+// MAIML_CONTENT_TYPES は @/utils/xsiTypeAttributes からインポート済み
 
 /**
  * NestedPropertyEditor - ネスト構造プロパティ編集（Ant Design版）

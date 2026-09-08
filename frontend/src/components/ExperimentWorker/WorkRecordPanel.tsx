@@ -13,6 +13,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Alert,
+  App,
   Badge,
   Button,
   Card,
@@ -33,7 +34,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
   theme,
 } from 'antd';
 import { BorderOutlined, CaretRightOutlined, CommentOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SaveOutlined, SearchOutlined, StepForwardOutlined, WarningOutlined } from '@ant-design/icons';
@@ -56,6 +56,7 @@ import type { Instruction, ProjectStatus, Transition } from '@/types/experimentW
 import { INSTRUCTION_KEY_LABELS } from '@/types/instructionRegistration';
 import { ProjectStatus as ProjectStatusConst, TaskStatus as TaskStatusConst } from '@/constants/codeMaster';
 import { correctRecord } from '@/services/experimentInstructionApiService';
+import { isNumericXsiType, isIntegerXsiType } from '@/utils/xsiTypeValidator';
 
 const { Sider, Content } = Layout;
 
@@ -173,8 +174,16 @@ interface WorkProperty {
   defaultConfidence?: string;
   /** 定性評価のボタン選択肢。未指定時は ['確か', '曖昧', '不確か'] */
   confidenceOptions?: string[];
-  /** property_set の description（定性評価ラベル右隣に表示） */
+  /**
+   * 定性評価のボタン選択肢（色情報付き）。
+   * バックエンドの intuition_selector.display_color を反映。
+   * 設定時は confidenceOptions より優先してボタン色に使用する。
+   */
+  confidenceOptionsWithColor?: Array<{ value: string; color: string }>;
+  /** MAIMLの uncertainty[].description（実験管理者が設定した定性評価説明） */
   description?: string;
+  /** template_data.property_set の uncertainty[].description（実験作業者が入力した定性評価理由） */
+  qualitativeReason?: string;
 }
 
 /** Insertion スロット（テンプレートに紐づくファイル添付欄） */
@@ -288,6 +297,11 @@ interface PropertyCardProps {
    */
   onConfidenceChange?: (propKey: string, value: string | null) => void;
   /**
+   * 定性評価理由が変化したときに親へ通知するコールバック（省略可）。
+   * value: 入力された理由テキスト（空文字の場合は null）
+   */
+  onQualitativeReasonChange?: (propKey: string, value: string | null) => void;
+  /**
    * 直近の保存で得られた不確かさ判定結果（省略可）。
    * uncertaintyKey をキーとした判定結果マップ。
    * 保存後にバッジ表示するために使用する。
@@ -310,7 +324,7 @@ const getConfidenceStyle = (level: string) =>
   CONFIDENCE_STYLE[level] ?? CONFIDENCE_STYLE_DEFAULT;
 
 const PropertyCard: React.FC<PropertyCardProps> = ({
-  prop, actual, readOnly, onChange, onUncertaintyValuesChange, onConfidenceChange, lastJudgeResultMap,
+  prop, actual, readOnly, onChange, onUncertaintyValuesChange, onConfidenceChange, onQualitativeReasonChange, lastJudgeResultMap,
 }) => {
   const { t } = useLanguage();
   const DEFAULT_CONFIDENCE_OPTIONS: string[] = [
@@ -319,7 +333,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     t('workRecord.confidenceUncertain'),
   ];
   const confidenceOptions = prop.confidenceOptions ?? DEFAULT_CONFIDENCE_OPTIONS;
+  /**
+   * 色情報付き選択肢（intuition_selector.display_color 由来）。
+   * 存在する場合はボタンスタイルの決定に優先使用し、ない場合は CONFIDENCE_STYLE にフォールバック。
+   */
+  const confidenceOptionsWithColor = prop.confidenceOptionsWithColor;
   const [confidence, setConfidence] = useState<string | null>(prop.defaultConfidence ?? null);
+  /** 定性評価理由の入力値（保存済みの値を初期値として設定） */
+  const [qualitativeReason, setQualitativeReason] = useState<string>(prop.qualitativeReason ?? '');
   /**
    * 定量評価入力行。
    * quantitativeUncertainties が設定されている場合は件数分の行を初期生成し
@@ -405,7 +426,15 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {confidence !== null && (
         <Tag
           style={{
-            ...getConfidenceStyle(confidence),
+            // confidenceOptionsWithColor（intuition_selector.display_color 由来）がある場合は優先使用する
+            ...(confidenceOptionsWithColor?.find((c) => c.value === confidence)
+              ? {
+                  background: '#fff',
+                  borderColor: confidenceOptionsWithColor.find((c) => c.value === confidence)!.color,
+                  color: confidenceOptionsWithColor.find((c) => c.value === confidence)!.color,
+                }
+              : getConfidenceStyle(confidence)
+            ),
             fontSize: 11,
             margin: 0,
             lineHeight: '18px',
@@ -493,15 +522,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* 確信度ボタン（実績値の下） */}
       {!readOnly && (
         <div>
-          <Flex align="center" gap={4} style={{ marginBottom: 2 }}>
-            <Text type="secondary" style={{ fontSize: 11 }}>{t('workRecord.qualitativeEval')}</Text>
-            {prop.description && (
-              <Text type="secondary" style={{ fontSize: 11 }}>（{prop.description}）</Text>
-            )}
-          </Flex>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.qualitativeEval')}</Text>
           <Flex gap={4}>
             {confidenceOptions.map((level) => {
-              const style = getConfidenceStyle(level);
+              // confidenceOptionsWithColor（intuition_selector.display_color 由来）がある場合はその色を優先使用する
+              const colorEntry = confidenceOptionsWithColor?.find((c) => c.value === level);
+              const style = colorEntry
+                ? { background: '#fff', borderColor: colorEntry.color, color: colorEntry.color }
+                : getConfidenceStyle(level);
               return (
                 <Button
                   key={level}
@@ -524,6 +552,28 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               );
             })}
           </Flex>
+
+          {/* 定性評価説明（常時表示、値がない場合は空欄） */}
+          <div style={{ marginTop: 6 }}>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.qualitativeEvalDesc')}</Text>
+            <div style={{ padding: '6px 10px', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRadius: 4, minHeight: 32, display: 'flex', alignItems: 'center' }}>
+              <Text style={{ fontSize: 12 }}>{prop.description ?? ''}</Text>
+            </div>
+          </div>
+
+          {/* 定性評価理由 (入力のみ、API未実装) */}
+          <div style={{ marginTop: 6 }}>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.qualitativeEvalReason')}</Text>
+            <Input
+              value={qualitativeReason}
+              placeholder={t('workRecord.qualitativeEvalReasonPlaceholder')}
+              onChange={(e) => {
+                const val = e.target.value;
+                setQualitativeReason(val);
+                onQualitativeReasonChange?.(prop.key, val || null);
+              }}
+            />
+          </div>
         </div>
       )}
 
@@ -665,6 +715,10 @@ interface PropertyListProps {
    * 直近の保存で得られた不確かさ判定結果マップ。
    * uncertaintyKey をキーとした判定結果（'良好' | '不良'）。
    */
+  /**
+   * 定性評価理由変化コールバック
+   */
+  onQualitativeReasonChange?: (placeId: string, propKey: string, value: string | null) => void;
   lastJudgeResultMap?: Record<string, '良好' | '不良'>;
 }
 
@@ -697,6 +751,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onInsertionUploadReady,
   onUncertaintyValuesChange,
   onConfidenceChange,
+  onQualitativeReasonChange,
   lastJudgeResultMap,
 }) => {
   const { t } = useLanguage();
@@ -754,6 +809,9 @@ const PropertyList: React.FC<PropertyListProps> = ({
               }}
               onConfidenceChange={(propKey, value) => {
                 onConfidenceChange?.(template.id, propKey, value);
+              }}
+              onQualitativeReasonChange={(propKey, value) => {
+                onQualitativeReasonChange?.(template.id, propKey, value);
               }}
               lastJudgeResultMap={lastJudgeResultMap}
             />
@@ -1549,6 +1607,11 @@ interface PlanProps {
    */
   onConfidenceChange?: (placeId: string, propKey: string, value: string | null) => void;
   /**
+   * 定性評価理由変化コールバック（placeId, propKey, value を受け取る）。
+   * handleSave 時に confidenceValues の description フィールドを更新するために使用する。
+   */
+  onQualitativeReasonChange?: (placeId: string, propKey: string, value: string | null) => void;
+  /**
    * 直近の保存で得られた不確かさ判定結果マップ（uncertaintyKey → '良好' | '不良'）。
    * PropertyCard 内のバッジ表示に使用する。
    */
@@ -1598,6 +1661,8 @@ const PlanB: React.FC<PlanProps> = ({
   progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onStatusChange,
   pendingEndKey, onSetPendingEndKey,
   onUncertaintyValuesChange,
+  onConfidenceChange,
+  onQualitativeReasonChange,
   lastJudgeResultMap,
   projectStatus,
   isCorrectionMode = false,
@@ -2010,6 +2075,8 @@ const PlanB: React.FC<PlanProps> = ({
             viewerLoading={viewerLoading}
             onInsertionUploadReady={onInsertionUploadReady}
             onUncertaintyValuesChange={onUncertaintyValuesChange}
+            onConfidenceChange={onConfidenceChange}
+            onQualitativeReasonChange={onQualitativeReasonChange}
             lastJudgeResultMap={lastJudgeResultMap}
           />
         </Content>
@@ -2061,9 +2128,10 @@ interface WorkRecordPanelProps {
 /** API の xsiType 文字列を WorkProperty の xsiType に変換する */
 function resolveXsiType(xsiType: string | undefined): WorkProperty['xsiType'] {
   if (!xsiType) return 'StringValue';
-  const lower = xsiType.toLowerCase();
-  if (lower.includes('double') || lower.includes('float')) return 'FloatValue';
-  if (lower.includes('int')) return 'IntegerValue';
+  // リスト型（例: "intListType"）は基底の Simple型（例: "intType"）に正規化してから判定する
+  const base = xsiType.replace(/ListType$/i, 'Type');
+  if (isIntegerXsiType(base)) return 'IntegerValue';
+  if (isNumericXsiType(base)) return 'FloatValue';
   return 'StringValue';
 }
 
@@ -2075,16 +2143,28 @@ function convertRawProperty(
   p: Record<string, unknown>
 ): WorkProperty {
   let confidenceOptions: string[] | undefined;
+  let confidenceOptionsWithColor: Array<{ value: string; color: string }> | undefined;
   let defaultConfidence: string | undefined;
-  // バックエンドが返す qualitativeOptions を直接利用する
+  // バックエンドが返す qualitativeOptions（intuition_selector 由来）を直接利用する
+  // displayColor（intuition_selector.display_color）も含めてボタン色に反映する
   const rawQualitativeOptions = p.qualitativeOptions as
-    | Array<{ displayOrder: number; selectorValue: string }>
+    | Array<{ displayOrder: number; selectorValue: string; displayColor?: string }>
     | null
     | undefined;
   if (rawQualitativeOptions && rawQualitativeOptions.length > 0) {
-    confidenceOptions = [...rawQualitativeOptions]
-      .sort((a, b) => a.displayOrder - b.displayOrder)
-      .map((opt) => opt.selectorValue);
+    const sortedOptions = [...rawQualitativeOptions].sort((a, b) => a.displayOrder - b.displayOrder);
+    confidenceOptions = sortedOptions.map((opt) => opt.selectorValue);
+    // displayColor が存在する選択肢がある場合のみ confidenceOptionsWithColor を設定する
+    const hasColor = sortedOptions.some((opt) => opt.displayColor && opt.displayColor.startsWith('#'));
+    if (hasColor) {
+      confidenceOptionsWithColor = sortedOptions.map((opt) => {
+        const colorValue = {
+          value: opt.selectorValue,
+          color: (opt.displayColor && opt.displayColor.startsWith('#')) ? opt.displayColor : '#888888',
+        };
+        return colorValue;
+      });
+    }
   }
   // 保存済みの定性評価値を初期選択状態にする
   const qualitativeEval = (p.qualitativeEval as string | null | undefined) ?? undefined;
@@ -2122,7 +2202,9 @@ function convertRawProperty(
     quantitativeUncertainties,
     defaultConfidence,
     confidenceOptions,
-    description: (p.qualitativeNote as string | null | undefined) ?? undefined,
+    confidenceOptionsWithColor,
+    description:        (p.qualitativeNote as string | null | undefined) ?? undefined,
+    qualitativeReason:  (p.qualitativeReason as string | null | undefined) ?? undefined,
   };
 }
 
@@ -2165,6 +2247,7 @@ export default function WorkRecordPanel({
 }: WorkRecordPanelProps = {}) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
+  const { message } = App.useApp();
   const [tasks, setTasks] = useState<WorkTask[]>([]);
 
   /**
@@ -2187,7 +2270,7 @@ export default function WorkRecordPanel({
    * PropertyCard の confidence ボタン選択時に onConfidenceChange コールバック経由で更新され、
    * handleSave / handleSaveAndNext 時に saveBatchExperimentData へ渡す qualitativeValues を構築する。
    */
-  const confidenceValuesRef = React.useRef<Map<string, { placeId: string; propKey: string; value: string }>>(new Map());
+  const confidenceValuesRef = React.useRef<Map<string, { placeId: string; propKey: string; value: string; description?: string | null }>>(new Map());
 
   /**
    * 直近の保存で得られた不確かさ判定結果マップ。
@@ -2685,6 +2768,26 @@ export default function WorkRecordPanel({
             });
           }
         }
+        // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
+        if (Array.isArray(baseData.properties)) {
+          (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+            if (p.isCustomProperty === true) return;
+            const propKey = String(p.key ?? '');
+            const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+            if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
+              (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+                // 定性評価選択値を書き込む
+                if (confidenceEntry?.value) {
+                  unc.value = confidenceEntry.value;
+                }
+                // 定性評価理由を書き込む
+                if (confidenceEntry?.description) {
+                  unc.description = confidenceEntry.description;
+                }
+              });
+            }
+          });
+        }
         return {
           placeId: item.placeId,
           templateType: item.templateType,
@@ -2708,8 +2811,8 @@ export default function WorkRecordPanel({
         }
       );
 
-      // qualitativeValues: confidenceValuesRef から構築
-      const qualitativeValues = Array.from(confidenceValuesRef.current.values());
+      // qualitativeValues: confidenceValuesRef から構築（value 空文字の理由のみエントリは除外）
+      const qualitativeValues = Array.from(confidenceValuesRef.current.values()).filter((qv) => qv.value !== '');
 
       const res = await saveBatchExperimentData(projectId, methodId, taskNo, {
         records,
@@ -2784,6 +2887,26 @@ export default function WorkRecordPanel({
                   });
                 }
               }
+              // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
+              if (Array.isArray(baseData.properties)) {
+                (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+                  if (p.isCustomProperty === true) return;
+                  const propKey = String(p.key ?? '');
+                  const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+                  if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
+                    (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+                      // 定性評価選択値を書き込む
+                      if (confidenceEntry?.value) {
+                        unc.value = confidenceEntry.value;
+                      }
+                      // 定性評価理由を書き込む
+                      if (confidenceEntry?.description) {
+                        unc.description = confidenceEntry.description;
+                      }
+                    });
+                  }
+                });
+              }
               return {
                 placeId: item.placeId,
                 templateType: item.templateType,
@@ -2802,7 +2925,7 @@ export default function WorkRecordPanel({
                   }));
               }
             );
-            const qualitativeValues = Array.from(confidenceValuesRef.current.values());
+            const qualitativeValues = Array.from(confidenceValuesRef.current.values()).filter((qv) => qv.value !== '');
             await saveBatchExperimentData(projectId, methodId, taskNo, {
               records, transitionId,
               ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
@@ -3322,7 +3445,17 @@ export default function WorkRecordPanel({
       if (value === null) {
         confidenceValuesRef.current.delete(key);
       } else {
-        confidenceValuesRef.current.set(key, { placeId, propKey, value });
+        const existing = confidenceValuesRef.current.get(key);
+        confidenceValuesRef.current.set(key, { placeId, propKey, value, description: existing?.description ?? null });
+      }
+    },
+    onQualitativeReasonChange: (placeId: string, propKey: string, value: string | null) => {
+      const key = `${placeId}__${propKey}`;
+      const existing = confidenceValuesRef.current.get(key);
+      if (existing) {
+        confidenceValuesRef.current.set(key, { ...existing, description: value ?? null });
+      } else if (value !== null) {
+        confidenceValuesRef.current.set(key, { placeId, propKey, value: '', description: value });
       }
     },
     lastJudgeResultMap,

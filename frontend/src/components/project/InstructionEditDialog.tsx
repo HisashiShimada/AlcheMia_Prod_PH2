@@ -131,7 +131,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
     matched.forEach(tk => {
       Array.from({ length: tk.trialCount }, (_, i) => i + 1).forEach(n => nos.add(n));
     });
-    return Array.from(nos).map(n => ({ label: t('instructionEditDialog.taskOptionLabel').replace('{n}', String(n)), value: n }));
+    return Array.from(nos).map(n => ({ label: t('instructionEditDialog.taskOptionLabel', { n: String(n) }), value: n }));
   }, [tasks, selectedMethodId, t]);
 
   const instructionKeyOptions = useMemo(() =>

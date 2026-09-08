@@ -8,6 +8,7 @@
 
 import React, { useState, useCallback } from 'react';
 import {
+  App,
   Modal,
   Tabs,
   Input,
@@ -21,7 +22,6 @@ import {
   Collapse,
   Tooltip,
   Alert,
-  message,
 } from 'antd';
 import {
   SearchOutlined,
@@ -72,8 +72,8 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
   onOpenProject,
   initialProjectName,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
-
   // 統合クエリ（メイン入力）
   const [query, setQuery] = useState('');
 

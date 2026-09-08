@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography, Checkbox } from 'antd';
+import { App, Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, Typography, Checkbox } from 'antd';
 import {
   SearchOutlined,
   PlusOutlined,
@@ -18,6 +18,10 @@ import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
+import {
+  MAIML_PROPERTY_TYPES,
+  isUnitAllowed,
+} from '@/utils/xsiTypeAttributes';
 import { getTerms, createTerm, updateTerm, toggleTermActive, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import { getOrgUsersForGroups, getGroupMembers } from '@/services/organizationGroupApiService';
 import DetailModal from './DetailModal';
@@ -624,6 +628,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   onNsKeyChange,
   viewOnly = false,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
 
   // ── ログインユーザー情報を localStorage から導出（useMemo でメモ化して依存配列に安定して渡せるようにする）
@@ -877,9 +882,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     getAttributeMaster()
       .then((items) => {
-        const units = items
-          .filter((a) => a.isActive)
-          .map((a) => a.attributeValue);
+        const units = items.map((a) => a.attributeValue);
         // データが0件の場合はフォールバックデータを使用
         if (units.length > 0) {
           setUnitAttributes(units);
@@ -1138,6 +1141,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setNewTerms((prev) => prev.map((r) => {
       if (r._rowId !== rowId) return r;
       const updated = { ...r, [field]: value };
+      // type 変更時: 単位不可の型に切り替えた場合は unitHint をクリア
+      if (field === 'type' && !isUnitAllowed(value as string)) {
+        updated.unitHint = '';
+      }
       if (isDeptRd) {
         const p = field === 'prefix'    ? (value as string) : updated.prefix;
         const l = field === 'localName' ? (value as string) : updated.localName;
@@ -1163,23 +1170,22 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       if (!isValidNCName(row.localName)) { message.error(t('namespaceMain.localNameNcnameInvalid')); return; }
     }
 
-    // 研究開発部（dept-rd）選択時は必ずエラーダイアログを表示して保存をブロック
-    if (effectiveNsKey === 'dept-rd') {
-      Modal.error({
-        title: t('namespaceMain.duplicateErrorTitle'),
-        content: t('namespaceMain.duplicateErrorContent'),
+    // createDirectiveTerm が false の行がある場合、確認警告を表示
+    const uncheckedRows = newTerms.filter((r) => !r.createDirectiveTerm);
+    if (uncheckedRows.length > 0) {
+      const termsList = uncheckedRows.map((r) => `${r.prefix}:${r.localName}`).join(', ');
+      const confirmed = await new Promise<boolean>((resolve) => {
+        const modalConfig = {
+          title: t('namespaceMain.noDirectiveTermWarningTitle'),
+          content: t('namespaceMain.noDirectiveTermWarningContent', { terms: termsList }),
+          okText: t('namespaceMain.warnRegister'),
+          cancelText: t('namespaceMain.warnCancel'),
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        };
+        Modal.confirm(modalConfig);
       });
-      return;
-    }
-
-    // 木村涼子（user-010）選択時は同用語名・別Prefix重複の警告を表示（保存は続行）
-    if (effectiveNsKey === 'user-010') {
-      Modal.confirm({
-        title: t('namespaceMain.warnDuplicateTitle'),
-        content: t('namespaceMain.warnDuplicateContent'),
-        okText: t('namespaceMain.warnRegister'),
-        cancelText: t('namespaceMain.warnCancel'),
-      });
+      if (!confirmed) return;
     }
 
     // Personal ノードの場合は 'personal-' プレフィックスを除去して userId のみ scopeKey として渡す
@@ -1277,13 +1283,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         typeHint:      editingValues.type,
         unitHint:      editingValues.unitHint,
       };
-      const updated = await updateTerm(
+      await updateTerm(
         editingValues.prefix,
         editingValues.localName,
         updateTermRequest
       );
-      setTerms((prev) => prev.map((t) => `${t.prefix}:${t.localName}` === editingTermId ? (updated as Term) : t));
       setEditingTermId(null);
+      fetchTermsForCurrentNsKey(effectiveNsKey);
       message.success(t('namespaceMain.updateSuccess'));
     } catch (err: unknown) {
       const errDetail =
@@ -1685,12 +1691,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // データ型フィルター選択肢
   const typeFilterOptions = useMemo(() => [
     { value: '', label: t('namespaceMain.typeFilterAll') },
-    { value: 'stringType',   label: 'stringType' },
-    { value: 'intType',      label: 'intType' },
-    { value: 'floatType',    label: 'floatType' },
-    { value: 'booleanType',  label: 'booleanType' },
-    { value: 'dateTimeType', label: 'dateTimeType' },
-    { value: 'uriType',      label: 'uriType' },
+    ...MAIML_PROPERTY_TYPES.map((tp) => ({ value: tp.value, label: tp.value })),
   ], [t]);
 
   // 単位フィルター選択肢（属性テーブルから取得）
@@ -1946,13 +1947,24 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     );
   };
 
-  const typeOptions = [
-    { value: 'stringType',   label: 'stringType' },
-    { value: 'intType',      label: 'intType' },
-    { value: 'floatType',    label: 'floatType' },
-    { value: 'booleanType',  label: 'booleanType' },
-    { value: 'dateTimeType', label: 'dateTimeType' },
-    { value: 'uriType',      label: 'uriType' },
+  /**
+   * 型セレクト選択肢（グループ表示対応・全型）
+   */
+  const typeSelectOptions = [
+    {
+      label: 'Simple Types',
+      options: MAIML_PROPERTY_TYPES.filter((tp) => tp.category === 'Simple').map((tp) => ({
+        value: tp.value,
+        label: tp.label,
+      })),
+    },
+    {
+      label: 'List Types',
+      options: MAIML_PROPERTY_TYPES.filter((tp) => tp.category === 'List').map((tp) => ({
+        value: tp.value,
+        label: tp.label,
+      })),
+    },
   ];
 
   const columns: TableColumnsType<Term | NewTermRow> = [
@@ -2096,12 +2108,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         if ('_rowId' in record) {
           return (
             <Select size="small" style={{ width: '100%' }} value={record.type || undefined} placeholder={t('namespaceMain.typeSelectPlaceholder')}
-              onChange={(val) => updateNewTerm(record._rowId, 'type', val)} options={typeOptions} />
+              onChange={(val) => updateNewTerm(record._rowId, 'type', val)} options={typeSelectOptions} />
           );
         }
         const term = record as Term;
         return term.id === editingTermId
-          ? <Select size="small" style={{ width: '100%' }} value={editingValues.type || undefined} onChange={(val) => setEditingValues((p) => ({ ...p, type: val }))} options={typeOptions} />
+          ? <Select size="small" style={{ width: '100%' }} value={editingValues.type || undefined} onChange={(val) => setEditingValues((p) => ({ ...p, type: val, unitHint: isUnitAllowed(val) ? p.unitHint : '' }))} options={typeSelectOptions} />
           : <Tag style={{ fontSize: 11, color: '#555', background: '#f5f5f5', borderColor: '#e8e8e8' }}>{term.type}</Tag>;
       },
     },
@@ -2113,9 +2125,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
+          const unitEnabled = isUnitAllowed(record.type);
           return (
             <Select size="small" style={{ width: '100%' }} allowClear
-              value={record.unitHint || undefined} placeholder={t('namespaceMain.unitSelectPlaceholder')}
+              value={record.unitHint || undefined}
+              placeholder={unitEnabled ? t('namespaceMain.unitSelectPlaceholder') : '—'}
+              disabled={!unitEnabled}
               options={unitAttributes.map((u) => ({ value: u, label: u }))}
               onChange={(val) => updateNewTerm(record._rowId, 'unitHint', val ?? '')} />
           );
@@ -2125,6 +2140,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           ? (
             <Select size="small" style={{ width: '100%' }} allowClear
               value={editingValues.unitHint || undefined}
+              disabled={!isUnitAllowed(editingValues.type)}
+              placeholder={isUnitAllowed(editingValues.type) ? undefined : '—'}
               options={unitAttributes.map((u) => ({ value: u, label: u }))}
               onChange={(val) => setEditingValues((p) => ({ ...p, unitHint: val ?? '' }))} />
           )
@@ -2356,7 +2373,25 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                 />
               ),
               onChange: (keys: React.Key[]) => setSelectedTermIds(keys as string[]),
-              getCheckboxProps: (record: Term | NewTermRow) => ({ disabled: '_rowId' in record }),
+              getCheckboxProps: (record: Term | NewTermRow) => {
+                if ('_rowId' in record) return { disabled: true };
+                const term = record as Term;
+                const isSystemNs = term.prefix === SYSTEM_NAMESPACE_PREFIX;
+                const currentScopeKey = effectiveNsKey
+                  ? effectiveNsKey.replace(/^personal-/, '')
+                  : null;
+                const isAncestorTerm =
+                  isCompanyNodeSelected &&
+                  currentScopeKey != null &&
+                  term.scopeKey != null &&
+                  term.scopeKey !== currentScopeKey;
+                const isReadonly =
+                  isSystemNs ||
+                  isAncestorTerm ||
+                  (!isCompanyNodeSelected && isReadonlyPrefix(term.prefix)) ||
+                  effectiveViewOnly;
+                return { disabled: isReadonly };
+              },
             };
             return (
               <Table<Term | NewTermRow>

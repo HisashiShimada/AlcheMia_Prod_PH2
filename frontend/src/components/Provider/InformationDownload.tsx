@@ -51,7 +51,7 @@ const InformationDownload: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      messageApi.success(t('informationDownload.messages.downloadSuccess').replace('{filename}', filename));
+      messageApi.success(t('informationDownload.messages.downloadSuccess', { filename: filename }));
     } catch (error) {
       console.error('CSV download error:', error);
       messageApi.error(extractErrorMessage(error, t('informationDownload.messages.downloadError')));

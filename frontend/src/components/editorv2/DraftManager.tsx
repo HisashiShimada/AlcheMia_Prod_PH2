@@ -162,7 +162,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
 
       Modal.confirm({
         title: t('draftManager.loadConfirmTitle'),
-        content: t('draftManager.loadConfirmContent').replace('{{objects}}', objectCounts),
+        content: t('draftManager.loadConfirmContent', { objects: objectCounts }),
         onOk: async () => {
           try {
             const data = await draftService.fetchDraftById(draft.draftKey);
@@ -227,7 +227,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
   const handleDelete = async (draftKey: string, draftName: string) => {
     try {
       await deleteDraft(draftKey);
-      Modal.success({ title: t('draftManager.deleteSuccess'), content: t('draftManager.deleteSuccessContent').replace('{{name}}', draftName) });
+      Modal.success({ title: t('draftManager.deleteSuccess'), content: t('draftManager.deleteSuccessContent', { name: draftName }) });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       Modal.error({ title: t('draftManager.deleteError'), content: errorMessage });
@@ -357,7 +357,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         {/* 自動保存ステータス表示 */}
         {autoSaveEnabled && currentDraftKey && (
           <Alert
-            title={t('draftManager.autoSaveStatus').replace('{{key}}', currentDraftKey || '')}
+            title={t('draftManager.autoSaveStatus', { key: currentDraftKey || '' })}
             type="success"
             style={{ marginBottom: 16 }}
           />
@@ -393,7 +393,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                     onChange={setSelectedAutoSaveGeneration}
                     style={{ width: '100%', maxWidth: 300 }}
                     options={autoSaveDrafts.slice(0, 3).map((draft, index) => ({
-                      label: `${index === 0 ? t('draftManager.autoSaveLatest') : t('draftManager.autoSaveGeneration').replace('{{count}}', String(index))} - ${new Date(draft.lastSavedAt || new Date()).toLocaleString('ja-JP', {
+                      label: `${index === 0 ? t('draftManager.autoSaveLatest') : t('draftManager.autoSaveGeneration', { count: String(index) })} - ${new Date(draft.lastSavedAt || new Date()).toLocaleString('ja-JP', {
                         month: '2-digit',
                         day: '2-digit',
                         hour: '2-digit',
@@ -406,10 +406,10 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                   {autoSaveDrafts[selectedAutoSaveGeneration] && (
                     <Space>
                       <Tag color="blue">
-                        {t('draftManager.nodeCount').replace('{{count}}', String(autoSaveDrafts[selectedAutoSaveGeneration].nodes?.length || 0))}
+                        {t('draftManager.nodeCount', { count: String(autoSaveDrafts[selectedAutoSaveGeneration].nodes?.length || 0) })}
                       </Tag>
                       <Tag color="blue">
-                        {t('draftManager.arcCount').replace('{{count}}', String(autoSaveDrafts[selectedAutoSaveGeneration].edges?.length || 0))}
+                        {t('draftManager.arcCount', { count: String(autoSaveDrafts[selectedAutoSaveGeneration].edges?.length || 0) })}
                       </Tag>
                       <Button
                         type="primary"
@@ -429,7 +429,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
             {manualDrafts.length > 0 && (
               <>
                 <Divider>
-                  <Text strong>{t('draftManager.manualSaveSection').replace('{{count}}', String(manualDrafts.length))}</Text>
+                  <Text strong>{t('draftManager.manualSaveSection', { count: String(manualDrafts.length) })}</Text>
                 </Divider>
                 <List
                   dataSource={manualDrafts}
@@ -443,9 +443,9 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                       </div>
 
                       <Space wrap style={{ marginBottom: 8 }}>
-                        <Tag>{t('draftManager.nodeCount').replace('{{count}}', String(draft.nodes?.length || 0))}</Tag>
-                        <Tag>{t('draftManager.arcCount').replace('{{count}}', String(draft.edges?.length || 0))}</Tag>
-                        <Tag>{t('draftManager.templateCount').replace('{{count}}', String(Object.keys(draft.templates || {}).length))}</Tag>
+                        <Tag>{t('draftManager.nodeCount', { count: String(draft.nodes?.length || 0) })}</Tag>
+                        <Tag>{t('draftManager.arcCount', { count: String(draft.edges?.length || 0) })}</Tag>
+                        <Tag>{t('draftManager.templateCount', { count: String(Object.keys(draft.templates || {}).length) })}</Tag>
                       </Space>
 
                       {draft.originalFileKey && (
@@ -468,7 +468,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                         </Button>
                         <Popconfirm
                           title={t('draftManager.deleteConfirmTitle')}
-                          description={t('draftManager.deleteConfirmDescription').replace('{{name}}', draft.draftName)}
+                          description={t('draftManager.deleteConfirmDescription', { name: draft.draftName })}
                           onConfirm={() => handleDelete(draft.draftKey, draft.draftName)}
                           okText={t('draftManager.deleteOkText')}
                           cancelText={t('draftManager.deleteCancelText')}

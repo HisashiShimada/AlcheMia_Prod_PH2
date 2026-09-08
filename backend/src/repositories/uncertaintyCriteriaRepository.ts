@@ -61,6 +61,8 @@ export interface UncertaintyCriteriaRow {
   xsiType: string | null;
   /** 単位（定量のみ） */
   units: string | null;
+  /** スケールファクター（定量のみ） */
+  scaleFactor: string | null;
   /** フォーマット文字列（定量のみ） */
   formatString: string | null;
   /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
@@ -109,6 +111,8 @@ export interface UncertaintyCriteriaSelectorRow {
   xsiType: string | null;
   /** 単位（定量のみ） */
   units: string | null;
+  /** スケールファクター（定量のみ） */
+  scaleFactor: string | null;
   /** フォーマット文字列（定量のみ） */
   formatString: string | null;
   /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
@@ -236,6 +240,7 @@ export async function findByKey(
     inheritanceUncertaintyKey: first.inheritanceUncertaintyKey,
     xsiType:                   first.xsiType,
     units:                     first.units,
+    scaleFactor:               (first as any).scaleFactor ?? null,
     formatString:              first.formatString,
     toleranceUpper:            (first as any).toleranceUpper ?? null,
     toleranceLower:            (first as any).toleranceLower ?? null,
@@ -275,6 +280,7 @@ export async function findForSelector(
     evaluationMethod: number;
     xsiType:          string | null;
     units:            string | null;
+    scaleFactor:      string | null;
     formatString:     string | null;
     toleranceUpper:   number | null;
     toleranceLower:   number | null;
@@ -301,6 +307,7 @@ export async function findForSelector(
         evaluationMethod: row.evaluationMethod,
         xsiType:          row.xsiType,
         units:            row.units,
+        scaleFactor:      row.scaleFactor,
         formatString:     row.formatString,
         toleranceUpper:   row.toleranceUpper,
         toleranceLower:   row.toleranceLower,

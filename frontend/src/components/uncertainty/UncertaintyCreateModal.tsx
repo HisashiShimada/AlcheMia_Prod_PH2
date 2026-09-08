@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
+  App,
   Modal,
   Button,
   Form,
@@ -9,7 +10,6 @@ import {
   Select,
   Segmented,
   Space,
-  message,
 } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
 import QualitativeOptionEditor, { type QualitativeOption } from './QualitativeOptionEditor';
@@ -19,17 +19,36 @@ import {
   saveUncertaintyCriteriaNewVersion,
 } from '@/services/uncertaintyCriteriaApiService';
 import { getTerms, type NamespaceTermRow } from '@/services/namespaceApiService';
+import {
+  NUMERIC_PROPERTY_TYPES,
+  isUnitAllowed,
+} from '@/utils/xsiTypeAttributes';
+import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 
 const { TextArea } = Input;
 
-/** xsi:type の選択肢（数量系のみ） */
-const XSI_TYPE_OPTIONS = [
-  { value: 'doubleType',  label: 'doubleType'  },
-  { value: 'decimalType', label: 'decimalType' },
-  { value: 'intType',     label: 'intType'     },
-];
-
 const DEFAULT_OPTIONS: QualitativeOption[] = [];
+
+/**
+ * xsi:type セレクト選択肢（グループ表示対応）
+ * 数値型のみ（units が使用できる型）に限定する
+ */
+const XSI_TYPE_SELECT_OPTIONS = [
+  {
+    label: 'Simple Types',
+    options: NUMERIC_PROPERTY_TYPES.filter((t) => t.category === 'Simple').map((t) => ({
+      value: t.value,
+      label: t.label,
+    })),
+  },
+  {
+    label: 'List Types',
+    options: NUMERIC_PROPERTY_TYPES.filter((t) => t.category === 'List').map((t) => ({
+      value: t.value,
+      label: t.label,
+    })),
+  },
+];
 
 /** Props型定義 */
 interface UncertaintyCreateModalProps {
@@ -54,6 +73,7 @@ export default function UncertaintyCreateModal({
   onClose,
   onSaved,
 }: UncertaintyCreateModalProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [evalMode, setEvalMode] = useState<'quantitative' | 'qualitative'>('quantitative');
   const [qualitativeOptions, setQualitativeOptions] = useState<QualitativeOption[]>(DEFAULT_OPTIONS);
@@ -61,6 +81,12 @@ export default function UncertaintyCreateModal({
   const [termDescription, setTermDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
+
+  // ─── Attributeマスタ取得（units / formatString / scaleFactor の選択肢用） ───
+  const { getAttributeValues } = useAttributeMasters();
+  const unitsOptions       = useMemo(() => getAttributeValues('units'),        [getAttributeValues]);
+  const formatStrOptions   = useMemo(() => getAttributeValues('formatString'), [getAttributeValues]);
+  const scaleFactorOptions = useMemo(() => getAttributeValues('scaleFactor'),  [getAttributeValues]);
 
   // ─── namespace_term から取得した用語一覧（Key属性設定プルダウンに使用） ───
   const [termRows, setTermRows] = useState<NamespaceTermRow[]>([]);
@@ -318,7 +344,7 @@ export default function UncertaintyCreateModal({
           {/* Key属性設定 → uncertainty_criteria.uncertainty_key（プルダウン選択） */}
           <Form.Item
             name="uncertaintyKey"
-            label={<span>{t('uncertaintyCreate.keyLabel')}<span style={{ color: '#ff4d4f' }}> *</span></span>}
+            label={t('uncertaintyCreate.keyLabel')}
             rules={[{ required: true, message: t('uncertaintyCreate.keyRequired') }]}
             style={{ marginBottom: 14 }}
           >
@@ -387,19 +413,40 @@ export default function UncertaintyCreateModal({
               {/* xsi:type → uncertainty_criteria.xsi_type */}
               <Form.Item
                 name="xsiType"
-                label={<span>xsi:type <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                label="xsi:type"
+                rules={[{ required: true }]}
                 initialValue="doubleType"
                 style={{ marginBottom: 0 }}
               >
-                <Select options={XSI_TYPE_OPTIONS} />
+                <Select
+                  options={XSI_TYPE_SELECT_OPTIONS}
+                  onChange={(v) => {
+                    // 単位不可の型に切り替えた場合は units をクリア
+                    if (!isUnitAllowed(v)) {
+                      form.setFieldValue('units', '');
+                    }
+                  }}
+                />
               </Form.Item>
               {/* units → uncertainty_criteria.units */}
-              <Form.Item
-                name="units"
-                label="units"
-                style={{ marginBottom: 0 }}
-              >
-                <Input placeholder="GPa" />
+              <Form.Item noStyle shouldUpdate={(prev, cur) => prev.xsiType !== cur.xsiType}>
+                {({ getFieldValue }) => {
+                  const unitEnabled = isUnitAllowed(getFieldValue('xsiType') as string | undefined);
+                  return (
+                    <Form.Item
+                      name="units"
+                      label="units"
+                      style={{ marginBottom: 0 }}
+                    >
+                      <Select
+                        options={unitsOptions}
+                        disabled={!unitEnabled || unitsOptions.length === 0}
+                        allowClear
+                        placeholder={unitEnabled ? undefined : '—'}
+                      />
+                    </Form.Item>
+                  );
+                }}
               </Form.Item>
               {/* format_string → uncertainty_criteria.format_string */}
               <Form.Item
@@ -407,7 +454,11 @@ export default function UncertaintyCreateModal({
                 label="formatString"
                 style={{ marginBottom: 0 }}
               >
-                <Input placeholder="#,###E0" />
+                <Select
+                  options={formatStrOptions}
+                  disabled={formatStrOptions.length === 0}
+                  allowClear
+                />
               </Form.Item>
               {/* scale_factor → uncertainty_criteria.scale_factor */}
               <Form.Item
@@ -415,7 +466,11 @@ export default function UncertaintyCreateModal({
                 label="scaleFactor"
                 style={{ marginBottom: 0 }}
               >
-                <Input placeholder="1" />
+                <Select
+                  options={scaleFactorOptions}
+                  disabled={scaleFactorOptions.length === 0}
+                  allowClear
+                />
               </Form.Item>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
@@ -424,6 +479,7 @@ export default function UncertaintyCreateModal({
                 name="toleranceUpper"
                 label={t('uncertaintyCreate.toleranceUpperLabel')}
                 style={{ marginBottom: 0 }}
+                rules={[{ required: true, message: t('uncertaintyCreate.toleranceUpperRequired') }]}
               >
                 <Input type="number" placeholder={t('uncertaintyCreate.toleranceUpperPlaceholder')} />
               </Form.Item>
@@ -432,6 +488,7 @@ export default function UncertaintyCreateModal({
                 name="toleranceLower"
                 label={t('uncertaintyCreate.toleranceLowerLabel')}
                 style={{ marginBottom: 0 }}
+                rules={[{ required: true, message: t('uncertaintyCreate.toleranceLowerRequired') }]}
               >
                 <Input type="number" placeholder={t('uncertaintyCreate.toleranceLowerPlaceholder')} />
               </Form.Item>

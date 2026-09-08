@@ -332,7 +332,7 @@ export default function OrganizationManagement() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      messageApi.success(t('organizationManagement.messages.certDownloadSuccess').replace('{cd}', org.organizationCd));
+      messageApi.success(t('organizationManagement.messages.certDownloadSuccess', { cd: org.organizationCd }));
     } catch (error) {
       console.error('証明書ダウンロードエラー:', error);
       messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.certDownloadError')));
@@ -390,7 +390,7 @@ export default function OrganizationManagement() {
     }
     modal.confirm({
       title: t('organizationManagement.messages.activateConfirmTitle'),
-      content: t('organizationManagement.messages.activateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('organizationManagement.messages.activateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('organizationManagement.status.active'),
       cancelText: t('organizationManagement.buttons.cancel'),
       onOk: async () => {
@@ -399,7 +399,7 @@ export default function OrganizationManagement() {
           for (const key of selectedRowKeys) {
             await client.patch(`/provider/organization/${key}/status`, { isActive: true });
           }
-          messageApi.success(t('organizationManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          messageApi.success(t('organizationManagement.messages.activateSuccess', { count: String(selectedRowKeys.length) }));
           setSelectedRowKeys([]);
           await fetchOrganizations();
         } catch (error) {
@@ -417,7 +417,7 @@ export default function OrganizationManagement() {
     }
     modal.confirm({
       title: t('organizationManagement.messages.deactivateConfirmTitle'),
-      content: t('organizationManagement.messages.deactivateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('organizationManagement.messages.deactivateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('organizationManagement.status.inactive'),
       cancelText: t('organizationManagement.buttons.cancel'),
       okButtonProps: { danger: true },
@@ -427,7 +427,7 @@ export default function OrganizationManagement() {
           for (const key of selectedRowKeys) {
             await client.patch(`/provider/organization/${key}/status`, { isActive: false });
           }
-          messageApi.success(t('organizationManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          messageApi.success(t('organizationManagement.messages.deactivateSuccess', { count: String(selectedRowKeys.length) }));
           setSelectedRowKeys([]);
           await fetchOrganizations();
         } catch (error) {
@@ -442,8 +442,8 @@ export default function OrganizationManagement() {
     const actionText = org.isActive ? t('organizationManagement.status.inactive') : t('organizationManagement.status.active');
     const organizationCd = org.organizationCd;
     modal.confirm({
-      title: t('organizationManagement.messages.toggleConfirmTitle').replace('{cd}', organizationCd).replace('{action}', actionText),
-      content: t('organizationManagement.messages.toggleConfirmContent').replace('{action}', actionText),
+      title: t('organizationManagement.messages.toggleConfirmTitle', { cd: organizationCd, action: actionText }),
+      content: t('organizationManagement.messages.toggleConfirmContent', { action: actionText }),
       okText: actionText,
       cancelText: t('organizationManagement.buttons.cancel'),
       okButtonProps: org.isActive ? { danger: true } : undefined,
@@ -451,7 +451,7 @@ export default function OrganizationManagement() {
         try {
           const client = createApiClient();
           await client.patch(`/provider/organization/${org.organizationId}/status`, { isActive: !org.isActive });
-          messageApi.success(t('organizationManagement.messages.toggleSuccess').replace('{cd}', organizationCd).replace('{action}', actionText));
+          messageApi.success(t('organizationManagement.messages.toggleSuccess', { cd: organizationCd, action: actionText }));
           await fetchOrganizations();
         } catch (error) {
           console.error('ステータス変更エラー:', error);
@@ -749,7 +749,7 @@ export default function OrganizationManagement() {
             pageSize: pageSize,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
-            showTotal: (total) => t('organizationManagement.pagination.showTotal').replace('{total}', String(total)),
+            showTotal: (total) => t('organizationManagement.pagination.showTotal', { total: String(total) }),
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           }}

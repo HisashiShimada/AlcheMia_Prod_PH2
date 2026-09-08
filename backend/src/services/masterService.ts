@@ -1232,6 +1232,7 @@ export async function getAttributeMastersWithFilters(
     search?: string;
     isActive?: boolean;
     organizationGroupCds?: string[];
+    attributeName?: string;
   } = {}
 ): Promise<AttributeMasterResponse[]> {
   console.log('=== masterService.getAttributeMastersWithFilters called ===');

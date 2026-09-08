@@ -3055,7 +3055,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           console.warn('⚠️ [PetriNetEditorInner] 保存後UUID更新エラー（無視）:', uuidErr);
         }
 
-        alert(t('editor.alert.s3_saved').replace('{name}', metadata.name));
+        alert(t('editor.alert.s3_saved', { name: metadata.name }));
 
         // S3保存成功時のみDraftを全削除（自動保存Draftをクリア）
         try {
@@ -3106,7 +3106,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         
         console.log('✅ [PetriNetEditorInner] ローカルダウンロード完了:', `${fileName}.maiml`);
         
-        alert(t('editor.alert.local_downloaded').replace('{name}', fileName));
+        alert(t('editor.alert.local_downloaded', { name: fileName }));
       }
       
       // 保存成功: 未保存フラグをリセット
@@ -3126,7 +3126,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           stack: err.stack
         } : { raw: String(err) }
       });
-      alert(t('editor.alert.save_failed').replace('{message}', errorMessage));
+      alert(t('editor.alert.save_failed', { message: errorMessage }));
     } finally {
       setIsSaving(false);
     }
