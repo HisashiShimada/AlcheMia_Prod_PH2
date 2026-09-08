@@ -1,4 +1,4 @@
-# タスク計画書: プロジェクト作成グループ選択_一般ユーザー未表示修正
+﻿# タスク計画書: プロジェクト作成グループ選択_一般ユーザー未表示修正
 
 ## メタデータ
 
@@ -205,10 +205,10 @@ setTeams(
 
 ### 実施日時
 
-開始: （作業開始時に記入）
-完了: （作業完了時に記入）
+開始: 2026-09-08
+完了: 2026-09-08
 
 ### 最終的な成果物
 
-- [ ] `frontend/src/services/organizationGroupApiService.ts` 修正完了
-- [ ] `frontend/src/components/project/CreateProjectModal.tsx` 修正完了
+- [x] `frontend/src/services/organizationGroupApiService.ts` 修正完了
+- [x] `frontend/src/components/project/CreateProjectModal.tsx` 修正完了
