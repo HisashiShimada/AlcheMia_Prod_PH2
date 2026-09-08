@@ -522,10 +522,10 @@ export class StorageService {
    * ]);
    */
   async createFolders(organizationId: string, folderPaths: string[]): Promise<void> {
-    for (const folderPath of folderPaths) {
-      await this.createFolder(organizationId, folderPath);
-    }
-    
+    await Promise.all(
+      folderPaths.map(folderPath => this.createFolder(organizationId, folderPath))
+    );
+
     console.log(`${folderPaths.length} folder(s) created`);
   }
 
