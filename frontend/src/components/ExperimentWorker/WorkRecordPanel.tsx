@@ -56,6 +56,7 @@ import type { Instruction, ProjectStatus, Transition } from '@/types/experimentW
 import { INSTRUCTION_KEY_LABELS } from '@/types/instructionRegistration';
 import { ProjectStatus as ProjectStatusConst, TaskStatus as TaskStatusConst } from '@/constants/codeMaster';
 import { correctRecord } from '@/services/experimentInstructionApiService';
+import { isNumericXsiType, isIntegerXsiType } from '@/utils/xsiTypeValidator';
 
 const { Sider, Content } = Layout;
 
@@ -179,8 +180,10 @@ interface WorkProperty {
    * 設定時は confidenceOptions より優先してボタン色に使用する。
    */
   confidenceOptionsWithColor?: Array<{ value: string; color: string }>;
-  /** property_set の description（定性評価ラベル右隣に表示） */
+  /** MAIMLの uncertainty[].description（実験管理者が設定した定性評価説明） */
   description?: string;
+  /** template_data.property_set の uncertainty[].description（実験作業者が入力した定性評価理由） */
+  qualitativeReason?: string;
 }
 
 /** Insertion スロット（テンプレートに紐づくファイル添付欄） */
@@ -336,8 +339,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
    */
   const confidenceOptionsWithColor = prop.confidenceOptionsWithColor;
   const [confidence, setConfidence] = useState<string | null>(prop.defaultConfidence ?? null);
-  /** 定性評価理由の入力値 */
-  const [qualitativeReason, setQualitativeReason] = useState<string>('');
+  /** 定性評価理由の入力値（保存済みの値を初期値として設定） */
+  const [qualitativeReason, setQualitativeReason] = useState<string>(prop.qualitativeReason ?? '');
   /**
    * 定量評価入力行。
    * quantitativeUncertainties が設定されている場合は件数分の行を初期生成し
@@ -2125,9 +2128,10 @@ interface WorkRecordPanelProps {
 /** API の xsiType 文字列を WorkProperty の xsiType に変換する */
 function resolveXsiType(xsiType: string | undefined): WorkProperty['xsiType'] {
   if (!xsiType) return 'StringValue';
-  const lower = xsiType.toLowerCase();
-  if (lower.includes('double') || lower.includes('float')) return 'FloatValue';
-  if (lower.includes('int')) return 'IntegerValue';
+  // リスト型（例: "intListType"）は基底の Simple型（例: "intType"）に正規化してから判定する
+  const base = xsiType.replace(/ListType$/i, 'Type');
+  if (isIntegerXsiType(base)) return 'IntegerValue';
+  if (isNumericXsiType(base)) return 'FloatValue';
   return 'StringValue';
 }
 
@@ -2199,7 +2203,8 @@ function convertRawProperty(
     defaultConfidence,
     confidenceOptions,
     confidenceOptionsWithColor,
-    description: (p.qualitativeNote as string | null | undefined) ?? undefined,
+    description:        (p.qualitativeNote as string | null | undefined) ?? undefined,
+    qualitativeReason:  (p.qualitativeReason as string | null | undefined) ?? undefined,
   };
 }
 
@@ -2764,13 +2769,22 @@ export default function WorkRecordPanel({
           }
         }
         // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
+        // ※ 定量評価（toleranceValues に含まれるキー）には書き込まない
         if (Array.isArray(baseData.properties)) {
           (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
             if (p.isCustomProperty === true) return;
             const propKey = String(p.key ?? '');
             const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+            // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
+            const quantitativeKeys = new Set(
+              (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
+                ?.map((tv) => tv.uncertaintyKey) ?? []
+            );
             if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
               (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+                const ucKey = unc['key'] as string | undefined;
+                // 定量評価キーはスキップ（定性評価のキーのみ書き込む）
+                if (!ucKey || quantitativeKeys.has(ucKey)) return;
                 // 定性評価選択値を書き込む
                 if (confidenceEntry?.value) {
                   unc.value = confidenceEntry.value;
@@ -2780,6 +2794,17 @@ export default function WorkRecordPanel({
                   unc.description = confidenceEntry.description;
                 }
               });
+            }
+            // フラットフィールドも同期して上書きする
+            // （rawTemplateItemsRef は保存後に更新されないため、古い値が残らないよう明示的に更新）
+            if (confidenceEntry?.value) {
+              p['qualitativeEval'] = confidenceEntry.value;
+            }
+            if (confidenceEntry?.description != null) {
+              p['qualitativeReason'] = confidenceEntry.description;
+            } else if (confidenceEntry !== undefined) {
+              // エントリは存在するが description が null/undefined の場合はクリア
+              p['qualitativeReason'] = null;
             }
           });
         }
@@ -2826,11 +2851,31 @@ export default function WorkRecordPanel({
       Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
       // 保存成功後に未保存フラグをリセット
       setIsDirty(false);
+      // 保存成功後: apiTransitions の WorkProperty を confidenceValuesRef の現在値で更新する
+      // これにより PropertyCard が再マウントされた際も定性評価選択・定性評価理由が保持される
+      setApiTransitions((prevTransitions) =>
+        prevTransitions.map((transition) => ({
+          ...transition,
+          templates: transition.templates.map((template) => ({
+            ...template,
+            properties: template.properties.map((prop) => {
+              const refKey = `${template.id}__${prop.key}`;
+              const entry = confidenceValuesRef.current.get(refKey);
+              if (!entry) return prop;
+              return {
+                ...prop,
+                ...(entry.value !== '' ? { defaultConfidence: entry.value } : {}),
+                ...(entry.description != null ? { qualitativeReason: entry.description } : {}),
+              };
+            }),
+          })),
+        }))
+      );
     } catch (err) {
       console.error('[WorkRecordPanel] handleSave error:', err);
       message.error(t('workRecord.saveContent'));
     }
-  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions]);
+  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions, setApiTransitions]);
 
   // ─── スキップ state ────────────────────────────────────────
   const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
@@ -2883,13 +2928,22 @@ export default function WorkRecordPanel({
                 }
               }
               // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
+              // ※ 定量評価（toleranceValues に含まれるキー）には書き込まない
               if (Array.isArray(baseData.properties)) {
                 (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
                   if (p.isCustomProperty === true) return;
                   const propKey = String(p.key ?? '');
                   const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+                  // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
+                  const quantitativeKeys = new Set(
+                    (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
+                      ?.map((tv) => tv.uncertaintyKey) ?? []
+                  );
                   if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
                     (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+                      const ucKey = unc['key'] as string | undefined;
+                      // 定量評価キーはスキップ（定性評価のキーのみ書き込む）
+                      if (!ucKey || quantitativeKeys.has(ucKey)) return;
                       // 定性評価選択値を書き込む
                       if (confidenceEntry?.value) {
                         unc.value = confidenceEntry.value;
@@ -2899,6 +2953,17 @@ export default function WorkRecordPanel({
                         unc.description = confidenceEntry.description;
                       }
                     });
+                  }
+                  // フラットフィールドも同期して上書きする
+                  // （rawTemplateItemsRef は保存後に更新されないため、古い値が残らないよう明示的に更新）
+                  if (confidenceEntry?.value) {
+                    p['qualitativeEval'] = confidenceEntry.value;
+                  }
+                  if (confidenceEntry?.description != null) {
+                    p['qualitativeReason'] = confidenceEntry.description;
+                  } else if (confidenceEntry !== undefined) {
+                    // エントリは存在するが description が null/undefined の場合はクリア
+                    p['qualitativeReason'] = null;
                   }
                 });
               }
@@ -2926,6 +2991,26 @@ export default function WorkRecordPanel({
               ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
               ...(qualitativeValues.length > 0 ? { qualitativeValues } : {}),
             });
+            // 保存成功後: apiTransitions の WorkProperty を confidenceValuesRef の現在値で更新する
+            // これにより PropertyCard が再マウントされた際も定性評価選択・定性評価理由が保持される
+            setApiTransitions((prevTransitions) =>
+              prevTransitions.map((transition) => ({
+                ...transition,
+                templates: transition.templates.map((template) => ({
+                  ...template,
+                  properties: template.properties.map((prop) => {
+                    const refKey = `${template.id}__${prop.key}`;
+                    const entry = confidenceValuesRef.current.get(refKey);
+                    if (!entry) return prop;
+                    return {
+                      ...prop,
+                      ...(entry.value !== '' ? { defaultConfidence: entry.value } : {}),
+                      ...(entry.description != null ? { qualitativeReason: entry.description } : {}),
+                    };
+                  }),
+                })),
+              }))
+            );
           } catch (err) {
             console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
             message.error(t('workRecord.saveContent'));
@@ -2963,7 +3048,7 @@ export default function WorkRecordPanel({
         Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
       }
     },
-    [projectId, methodId, tasks, skippedTransitionIds, t, uploadAllPendingInsertions, isDirty]
+    [projectId, methodId, tasks, skippedTransitionIds, t, uploadAllPendingInsertions, isDirty, setApiTransitions]
   );
 
   const handleSkip = useCallback(

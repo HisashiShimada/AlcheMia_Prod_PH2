@@ -26,6 +26,8 @@ export interface NamespaceEntry {
   scopeKey?: string;
   /** スコープ名（organization_group.organization_group_name） */
   scopeName?: string;
+  /** アクティブ状態（prefix.is_active カラム） */
+  isActive?: boolean;
 }
 
 /**
