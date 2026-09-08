@@ -8,9 +8,9 @@
   - `frontend/src/components/uncertainty/UncertaintyListTable.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-08-17
-- **最終更新日**: 2026-08-25
+- **最終更新日**: 2026-09-08
 - **担当者**: Development Team
-- **バージョン**: 1.1.0
+- **バージョン**: 1.2.0
 
 ---
 
@@ -50,6 +50,13 @@
 5. CSV インポート（`UncertaintyImportModal`）
 6. 選択行の CSV エクスポート（`UncertaintyExportModal`）
 
+### 1.5. UncertaintyManagement Props
+
+| Prop | 型 | 説明 |
+|------|----|------|
+| `user` | `User` (optional) | ログイン中ユーザー情報。Personal ノード表示や権限判定に使用 |
+| `tabActivatedAt` | `number` (optional) | タブ4（名前空間管理）がアクティブになった時刻（ms）。値の変化をトリガーとして組織ツリーを再取得する。`undefined` の場合はスキップ |
+
 ---
 
 ## 2. 画面レイアウト（右ペイン：不確かさ基準タブ）
@@ -62,14 +69,14 @@
 │ [評価方式: 全て ▼] [状態: 全て ▼] [🔍 基準名・説明で検索...]   │
 │                 [インポート] [エクスポート*] [+ 新規作成]        │
 ├────────────────────────────────────────────────────────────────┤
-│ ☐ │ 基準名 / Key     │ 評価方式 │ xsi:type  │ 継承元  │ スコープ │
-│   │ 説明             │ バージョン│ 状態      │ 操作    │          │
-│───┼──────────────────┼──────────┼───────────┼─────────┼──────────│
-│ ☐ │ 温度不確かさ基準  │ [定量]   │ floatType │ —       │ 開発部   │
-│   │ thermo-uc-001    │          │           │         │          │
-│───┼──────────────────┼──────────┼───────────┼─────────┼──────────│
-│ ☐ │ 観察者評価基準   │ [定性]    │ —         │thermo-uc│ TeamA    │
-│   │ obs-qual-002     │          │           │         │          │
+│ ☐ │ 基準名 / Key     │ 評価方式 │ xsi:type  │ スコープ │ 説明 │
+│   │                  │ バージョン│ 状態      │ 操作    │      │
+│───┼──────────────────┼──────────┼───────────┼─────────┼──────│
+│ ☐ │ 温度不確かさ基準  │ [定量]   │ floatType │ 開発部   │ ... │
+│   │ thermo-uc-001    │          │           │         │      │
+│───┼──────────────────┼──────────┼───────────┼─────────┼──────│
+│ ☐ │ 観察者評価基準   │ [定性]    │ —         │ TeamA   │ ... │
+│   │ obs-qual-002     │          │           │         │      │
 └────────────────────────────────────────────────────────────────┘
                                  全N件  1-20件  20件/ページ ▼
 ```
@@ -99,7 +106,6 @@
 | 基準名 / Key | `name` / `key` | 上段：基準名（太字）、下段：Key（モノスペース・灰色）| ソート可（名前で） |
 | 評価方式 | `eval` | 定量（blue Tag）/ 定性（purple Tag）| ソート可 |
 | xsi:type | `type` | 推奨 xsi:type（モノスペース Tag）| 定性の場合は「—」。ソート可 |
-| 継承元 | `extends` | 親基準の名称（上段）＋ Key（下段）| なければ「—」。ソート可 |
 | スコープ | `scope` | スコープパス最末尾ノードを Tag 表示。全パスは Tooltip | ソート可 |
 | 説明 | `desc` | 説明文（省略表示・Tooltip）| ソート可 |
 | バージョン | `version` | バージョン番号（`V1` 形式 Tag）| ソート可 |
@@ -117,26 +123,53 @@
 | `UncertaintyImportModal` | CSV インポート | ツールバー「インポート」ボタン |
 | `UncertaintyExportModal` | 選択行の CSV エクスポート | ツールバー「エクスポート」ボタン（行選択時のみ）|
 
+### 5.1. UncertaintyCreateModal Props
+
+| Prop | 型 | 説明 |
+|------|----|------|
+| `open` | `boolean` | モーダル表示フラグ |
+| `allCriteria` | `UncertaintyTemplate[]` | 継承元不確かさ基準の選択肢生成に使用 |
+| `selectedNsKey` | `string \| null` (optional) | 左ペインで選択中のスコープキー。Key属性設定プルダウンの用語絞り込みに使用 |
+| `onClose` | `() => void` | 閉じるコールバック |
+| `onSaved` | `() => void` (optional) | 保存成功時コールバック（一覧再取得などに使用） |
+
+### 5.2. UncertaintyDetailModal Props
+
+| Prop | 型 | 説明 |
+|------|----|------|
+| `open` | `boolean` | モーダル表示フラグ |
+| `template` | `UncertaintyTemplate \| null` | 編集対象の不確かさ基準 |
+| `isLatestVersion` | `boolean` | 最新バージョンかどうか（`true` のみ廃止切替操作が可能） |
+| `allCriteria` | `UncertaintyTemplate[]` | 継承元不確かさ基準の選択肢生成に使用 |
+| `onClose` | `() => void` | 閉じるコールバック |
+| `onSaved` | `() => void` (optional) | 保存成功時コールバック（一覧再取得などに使用） |
+
 ---
 
 ## 6. UncertaintyTemplate 型定義
 
 ```typescript
-interface UncertaintyTemplate {
+export interface UncertaintyTemplate {
   id: number;
-  name: string;                          // 基準名
+  name: string;                          // 基準名（uncertainty_name）
   key: string;                           // 一意キー（例: thermo-uc-001）
-  scope: string;                         // スコープパス（例: "開発部 › TeamA"）
+  scope: string;                         // スコープパス（nameSpaceId をそのまま使用）
   eval: 'quantitative' | 'qualitative';  // 評価方式
   type: string;                          // xsi:type（定性は空文字）
   desc: string;                          // 説明文
-  version: string;                       // バージョン（例: v1）
-  status: 'active' | 'deprecated';       // 状態
+  version: string;                       // バージョン（例: V1）
+  status: 'active' | 'deprecated';       // 状態（is_Invalid の反転）
   units: string;                         // 単位
-  format: string;                        // フォーマット文字列
-  validFrom: string;                     // 有効期間開始
-  validTo: string;                       // 有効期間終了
-  extends: string;                       // 継承元 Key
+  format: string;                        // フォーマット文字列（format_string）
+  validFrom: string;                     // 有効期間開始（DBにカラムなし・空文字固定）
+  validTo: string;                       // 有効期間終了（DBにカラムなし・空文字固定）
+  extends: string;                       // 継承元 Key（inheritance_uncertainty_key）
+  /** 名前空間の表示名（namespace_term.display_name） */
+  termDisplayName: string | null;
+  /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceLower: number | null;
 }
 ```
 
@@ -146,11 +179,30 @@ interface UncertaintyTemplate {
 
 | API | 用途 |
 |-----|------|
-| `GET /api/v1/uncertainty-criteria` | 不確かさ基準一覧取得（`fetchUncertaintyCriteriaList`）|
-| `GET /api/v1/uncertainty-criteria/:key/:version` | 特定バージョンの詳細取得（`fetchUncertaintyCriteriaDetail`）|
-| `POST /api/v1/uncertainty-criteria` | 新規作成（`saveUncertaintyCriteriaNewVersion`）|
-| `PUT /api/v1/uncertainty-criteria/:key` | 新バージョン保存（`saveUncertaintyCriteriaNewVersion`）|
+| `GET /api/v1/uncertainty-criteria` | 不確かさ基準一覧取得（`fetchUncertaintyCriteriaList`）。クエリ: `scopeKey?`（organization_group_cd またはユーザーID。省略時は全件） |
+| `GET /api/v1/uncertainty-criteria/for-selector` | セレクター用一覧取得（`fetchUncertaintyCriteriaForSelector`）。有効（is_Invalid=FALSE）なレコードのみ・定性評価の選択肢も含む |
+| `GET /api/v1/uncertainty-criteria/:uncertaintyKey?version=:version` | 特定バージョンの詳細取得（`fetchUncertaintyCriteriaDetail`）。定性評価の場合は intuition_selector の選択肢も含む |
+| `POST /api/v1/uncertainty-criteria` | 新規作成・新バージョン保存（`saveUncertaintyCriteriaNewVersion`）。同一 uncertaintyKey の MAX(version)+1 で新規 INSERT |
 | `POST /api/v1/namespaces/prefixes/share` | Prefix タブの共有機能：選択した Prefix を別スコープへコピー（`sharePrefixes`）|
+
+### 7.1. POST /api/v1/uncertainty-criteria リクエスト
+
+| フィールド | 型 | 必須 | 説明 |
+|-----------|----|----|------|
+| `nameSpaceId` | string | ✅ | 名前空間 ID |
+| `uncertaintyKey` | string | ✅ | 不確かさ基準キー |
+| `evaluationMethod` | number | ✅ | 1: 定量 / 2: 定性 |
+| `uncertaintyName` | string | — | 不確かさ基準名 |
+| `isInvalid` | boolean | — | true: 廃止 / false: 有効 |
+| `inheritanceUncertaintyKey` | string \| null | — | 継承元キー |
+| `xsiType` | string \| null | — | xsi:type（定量時） |
+| `units` | string \| null | — | 単位（定量時） |
+| `scaleFactor` | string \| null | — | 倍率（定量時） |
+| `formatString` | string \| null | — | フォーマット文字列（定量時） |
+| `toleranceUpper` | number \| null | — | 許容上限値（定量時） |
+| `toleranceLower` | number \| null | — | 許容下限値（定量時） |
+| `description` | string \| null | — | 説明文 |
+| `qualitativeOptions` | array | — | 定性評価の選択肢（定性時）|
 
 ---
 
@@ -186,7 +238,7 @@ Prefixタブの共有ボタン（`PrefixManagement` → `onShareSelected` コー
       → shareScopeOpen = true
         → [ShareScopeModal] 表示
           → ツリーから共有先を選択して「共有する」クリック
-            → sharePrefixes(selectedPrefixKeys, target.key)
+            → sharePrefixes(selectedPrefixKeys, targetScopeKey)
               → POST /api/v1/namespaces/prefixes/share
                 → 成功: 成功トーストを表示・モーダルを閉じる
                 → 失敗: エラートーストを表示
@@ -197,11 +249,11 @@ Prefixタブの共有ボタン（`PrefixManagement` → `onShareSelected` コー
 | Prop | 値 |
 |------|----|
 | `open` | `shareScopeOpen` |
-| `termCount` | `selectedPrefixKeys.length` |
-| `sourceRole` | `{ kind: 'sys_admin' }` 固定（全ノード選択可）|
-| `scopeNodes` | `shareScopeNodes`（Global ノードを除いた組織ツリー + Personal ノード）|
+| `shareItems` | `selectedPrefixKeys.map((k) => ({ id: k, label: k }))` |
 | `onClose` | `() => setShareScopeOpen(false)` |
-| `onShare` | `async (target) => sharePrefixes(selectedPrefixKeys, target.key)` |
+| `onShare` | `async (selectedItemIds: string[]) => sharePrefixes(selectedItemIds, targetScopeKey)` |
+
+> `targetScopeKey` は `selectedNsKey` から `personal-` プレフィックスを除去した値（`selectedNsKey.replace(/^personal-/, '')`）。
 
 ### 9.4. API仕様（POST /api/v1/namespaces/prefixes/share）
 
@@ -230,5 +282,6 @@ Prefixタブの共有ボタン（`PrefixManagement` → `onShareSelected` コー
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.2.0 | 2026-09-08 | §4: 「継承元」カラムを削除（実装と相違）。§6: `UncertaintyTemplate` に `termDisplayName`・`toleranceUpper`・`toleranceLower` を追記。§7: 詳細取得APIのURLを `?version=` クエリパラメータ形式に修正、`PUT` 行を削除、`GET /for-selector` を追加。§7.1: POST リクエストフィールド一覧を追加。§1.5: `UncertaintyManagement` Props 表を追加。§5.1/5.2: 子コンポーネント Props 詳細を追加。§9.3: `ShareScopeModal` Props を実装の `shareItems` 形式に修正 | Cline |
 | 1.1.0 | 2026-08-25 | §1.2: Prefixタブに共有ボタン機能あり（`showShareButton=true`）を追記。§7: `POST /api/v1/namespaces/prefixes/share` API を追加。§9: Prefixタブ共有機能セクション新規追加（データフロー・ShareScopeModal Props・API仕様） | Cline |
 | 1.0.0 | 2026-08-17 | 初版作成 | Development Team |
