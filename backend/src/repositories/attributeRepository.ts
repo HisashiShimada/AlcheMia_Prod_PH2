@@ -69,6 +69,7 @@ export const findAllWithFilters = async (
     search?: string;
     isActive?: boolean;
     organizationGroupCds?: string[];
+    attributeName?: string;
   } = {}
 ): Promise<AttributeMaster[]> => {
   const pgp = getPgp();
@@ -123,6 +124,17 @@ ORDER BY`
 ORDER BY`
     );
     values.push(filters.organizationGroupCds);
+    paramIndex++;
+  }
+
+  // attribute_name 完全一致フィルタ（単位取得など特定種別に絞り込む場合）
+  if (filters.attributeName) {
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND a.attribute_name = $${paramIndex}
+ORDER BY`
+    );
+    values.push(filters.attributeName);
     paramIndex++;
   }
 

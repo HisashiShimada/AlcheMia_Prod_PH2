@@ -821,7 +821,8 @@ export const getAttributeMaster = async (): Promise<AttributeMaster[]> => {
     console.log('🔖 [namespaceApiService] 属性マスター一覧取得');
 
     const response = await client.get<{ success: boolean; data: AttributeMaster[] }>(
-      '/master/attribute'
+      '/master/attribute',
+      { params: { attribute_name: 'units', is_active: 'true' } }
     );
 
     return response.data?.data ?? [];

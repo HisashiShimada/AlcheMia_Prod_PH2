@@ -56,6 +56,7 @@ import type { Instruction, ProjectStatus, Transition } from '@/types/experimentW
 import { INSTRUCTION_KEY_LABELS } from '@/types/instructionRegistration';
 import { ProjectStatus as ProjectStatusConst, TaskStatus as TaskStatusConst } from '@/constants/codeMaster';
 import { correctRecord } from '@/services/experimentInstructionApiService';
+import { isNumericXsiType, isIntegerXsiType } from '@/utils/xsiTypeValidator';
 
 const { Sider, Content } = Layout;
 
@@ -2127,9 +2128,10 @@ interface WorkRecordPanelProps {
 /** API の xsiType 文字列を WorkProperty の xsiType に変換する */
 function resolveXsiType(xsiType: string | undefined): WorkProperty['xsiType'] {
   if (!xsiType) return 'StringValue';
-  const lower = xsiType.toLowerCase();
-  if (lower.includes('double') || lower.includes('float')) return 'FloatValue';
-  if (lower.includes('int')) return 'IntegerValue';
+  // リスト型（例: "intListType"）は基底の Simple型（例: "intType"）に正規化してから判定する
+  const base = xsiType.replace(/ListType$/i, 'Type');
+  if (isIntegerXsiType(base)) return 'IntegerValue';
+  if (isNumericXsiType(base)) return 'FloatValue';
   return 'StringValue';
 }
 
