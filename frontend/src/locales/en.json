@@ -3868,12 +3868,14 @@
     "inheritanceFetchFailed": "Failed to fetch parent data",
     "savedAs": "Saved as V{version}",
     "saveFailed": "Save failed. Please try again.",
-    "nameReadOnlyPlaceholder": "(Inherited from source)",
-    "descReadOnlyPlaceholder": "(Inherited from source)",
+    "nameReadOnlyPlaceholder": "(Auto-filled when a Key Attribute is selected)",
+    "descReadOnlyPlaceholder": "(Auto-filled when a Key Attribute is selected)",
     "toleranceUpperLabel": "Tolerance Upper",
-    "toleranceUpperPlaceholder": "e.g. 100.0 (blank = no judgment)",
+    "toleranceUpperPlaceholder": "e.g. 100.0",
+    "toleranceUpperRequired": "Tolerance Upper is required",
     "toleranceLowerLabel": "Tolerance Lower",
-    "toleranceLowerPlaceholder": "e.g. 0.0 (blank = no judgment)"
+    "toleranceLowerPlaceholder": "e.g. 0.0",
+    "toleranceLowerRequired": "Tolerance Lower is required"
   },
   "uncertaintyDetail": {
     "titleSuffix": "Detail / Edit",
@@ -3918,9 +3920,11 @@
     "evalQualitative": "Qualitative (options)",
     "noChangeWarning": "No changes detected. Please edit before saving.",
     "toleranceUpperLabel": "Tolerance Upper",
-    "toleranceUpperPlaceholder": "e.g. 100.0 (blank = no judgment)",
+    "toleranceUpperPlaceholder": "e.g. 100.0",
+    "toleranceUpperRequired": "Tolerance Upper is required",
     "toleranceLowerLabel": "Tolerance Lower",
-    "toleranceLowerPlaceholder": "e.g. 0.0 (blank = no judgment)",
+    "toleranceLowerPlaceholder": "e.g. 0.0",
+    "toleranceLowerRequired": "Tolerance Lower is required",
     "diffLabel": {
       "uncertaintyName": "Uncertainty Criteria Name",
       "uncertaintyKey": "Key Attribute Settings",

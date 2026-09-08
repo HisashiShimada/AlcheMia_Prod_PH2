@@ -656,7 +656,8 @@ export default function UncertaintyDetailModal({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
                 <Form.Item
                   name="xsiType"
-                  label={<span>xsi:type <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                  label="xsi:type"
+                  rules={[{ required: true }]}
                   style={{ marginBottom: 0 }}
                 >
                   <Select
@@ -675,7 +676,7 @@ export default function UncertaintyDetailModal({
                     return (
                       <Form.Item
                         name="units"
-                        label={<span>units <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                        label="units"
                         style={{ marginBottom: 0 }}
                       >
                         <Select
@@ -709,6 +710,7 @@ export default function UncertaintyDetailModal({
                   name="toleranceUpper"
                   label={t('uncertaintyDetail.toleranceUpperLabel')}
                   style={{ marginBottom: 0 }}
+                  rules={[{ required: true, message: t('uncertaintyDetail.toleranceUpperRequired') }]}
                 >
                   <Input type="number" placeholder={t('uncertaintyDetail.toleranceUpperPlaceholder')} />
                 </Form.Item>
@@ -717,6 +719,7 @@ export default function UncertaintyDetailModal({
                   name="toleranceLower"
                   label={t('uncertaintyDetail.toleranceLowerLabel')}
                   style={{ marginBottom: 0 }}
+                  rules={[{ required: true, message: t('uncertaintyDetail.toleranceLowerRequired') }]}
                 >
                   <Input type="number" placeholder={t('uncertaintyDetail.toleranceLowerPlaceholder')} />
                 </Form.Item>

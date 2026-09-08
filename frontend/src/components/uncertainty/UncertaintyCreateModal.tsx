@@ -343,7 +343,7 @@ export default function UncertaintyCreateModal({
           {/* Key属性設定 → uncertainty_criteria.uncertainty_key（プルダウン選択） */}
           <Form.Item
             name="uncertaintyKey"
-            label={<span>{t('uncertaintyCreate.keyLabel')}<span style={{ color: '#ff4d4f' }}> *</span></span>}
+            label={t('uncertaintyCreate.keyLabel')}
             rules={[{ required: true, message: t('uncertaintyCreate.keyRequired') }]}
             style={{ marginBottom: 14 }}
           >
@@ -412,7 +412,8 @@ export default function UncertaintyCreateModal({
               {/* xsi:type → uncertainty_criteria.xsi_type */}
               <Form.Item
                 name="xsiType"
-                label={<span>xsi:type <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                label="xsi:type"
+                rules={[{ required: true }]}
                 initialValue="doubleType"
                 style={{ marginBottom: 0 }}
               >
@@ -477,6 +478,7 @@ export default function UncertaintyCreateModal({
                 name="toleranceUpper"
                 label={t('uncertaintyCreate.toleranceUpperLabel')}
                 style={{ marginBottom: 0 }}
+                rules={[{ required: true, message: t('uncertaintyCreate.toleranceUpperRequired') }]}
               >
                 <Input type="number" placeholder={t('uncertaintyCreate.toleranceUpperPlaceholder')} />
               </Form.Item>
@@ -485,6 +487,7 @@ export default function UncertaintyCreateModal({
                 name="toleranceLower"
                 label={t('uncertaintyCreate.toleranceLowerLabel')}
                 style={{ marginBottom: 0 }}
+                rules={[{ required: true, message: t('uncertaintyCreate.toleranceLowerRequired') }]}
               >
                 <Input type="number" placeholder={t('uncertaintyCreate.toleranceLowerPlaceholder')} />
               </Form.Item>
