@@ -96,7 +96,7 @@ export default function ExperimentWorkerMenu({
   fixedProjectId,
   readOnly = false,
 }: ExperimentWorkerMenuProps) {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('4');
@@ -607,7 +607,7 @@ export default function ExperimentWorkerMenu({
       .map((r) => r.transitionName || r.transitionId)
       .join('、');
 
-    Modal.confirm({
+    modal.confirm({
       title: '別のトランジションが作業中です',
       icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
       content: (
@@ -732,7 +732,7 @@ export default function ExperimentWorkerMenu({
             onForceEnd={async () => {
               if (!selectedProject) return;
               const currentProject = selectedProject;
-              Modal.confirm({
+              modal.confirm({
                 title: t('projectManagement.forceTerminate.confirmTitle'),
                 content: t('projectManagement.forceTerminate.confirmContent'),
                 okText: t('projectManagement.forceTerminate.okText'),

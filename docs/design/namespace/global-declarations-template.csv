@@ -2,3 +2,7 @@ prefix,uri
 maiml,http://www.maiml.org/schemas
 xsi,http://www.w3.org/2001/XMLSchema-instance
 Alchemia,https://Alchemia.co.jp
+time,http://www.xes-standard.org/time.xesext#
+lifecycle,http://www.xes-standard.org/lifecycle.xesext#
+concept,http://www.xes-standard.org/concept.xesext#
+

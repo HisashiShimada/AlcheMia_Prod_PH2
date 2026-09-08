@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { App, Modal } from 'antd';
+import { App } from 'antd';
 import { uploadFiles } from '@/services/fileAccessService';
 import type { Insertion } from '@/types/maiml-unified';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -80,7 +80,7 @@ export function useInsertionEditor({
   maxFileSize,
   acceptedFormats,
 }: UseInsertionEditorOptions): UseInsertionEditorReturn {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -140,7 +140,7 @@ export function useInsertionEditor({
       }
 
       // アップロード確認ダイアログ
-      Modal.confirm({
+      modal.confirm({
         title: t('insertionEditor.uploadConfirmTitle'),
         content: file.name,
         okText: t('insertionEditor.uploadConfirmOk'),

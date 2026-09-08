@@ -48,7 +48,7 @@ interface ProjectManagementInnerProps {
 const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
   onEdit, onOpenWorkerScreen, user, onNavigateToGroupManagement,
 }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const { maimlContent, reloadMaiml } = useProjectMaiml();
@@ -179,7 +179,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
     if (!selectedProject) return;
     const projectName = selectedProject.name;
     const projectId = selectedProject.id;
-    Modal.confirm({
+    modal.confirm({
       title: t('projectManagement.forceTerminate.confirmTitle'),
       content: t('projectManagement.forceTerminate.confirmContent'),
       okText: t('projectManagement.forceTerminate.okText'),
