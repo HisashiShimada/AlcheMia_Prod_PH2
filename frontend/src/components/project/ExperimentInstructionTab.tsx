@@ -50,12 +50,13 @@ import {
   recordNg,
   correctRecord,
 } from '@/services/experimentInstructionApiService';
-import { getProjectMaiml } from '@/services/projectApiService';
+import { getProjectMaiml, getTaskRegistration } from '@/services/projectApiService';
 import type {
   InstructionMethodResponse,
   ProjectMethod,
   UncertaintyJudgeSummary,
 } from '@/types/experimentInstruction';
+import type { TaskRegistrationItem } from '@/types/taskRegistration';
 import type { FileData } from '@/types/editor';
 
 const { Text } = Typography;
@@ -426,6 +427,8 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   // ── ExperimentPlanDialog ──
   const [planDialogOpen, setPlanDialogOpen]       = useState(false);
   const [planDialogMethodId, setPlanDialogMethodId] = useState<string>('');
+  /** タスク登録情報（project_task ベース）。ExperimentPlanDialog の taskNumbers 算出に使用 */
+  const [taskRegistrations, setTaskRegistrations] = useState<TaskRegistrationItem[]>([]);
 
   // ── 列カスタマイズ ──
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>([...ALL_COLUMN_KEYS]);
@@ -452,12 +455,14 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     if (!projectId) return;
     setLoading(true);
     try {
-      const [instData, methodData] = await Promise.all([
+      const [instData, methodData, taskRegData] = await Promise.all([
         getExperimentInstructions(projectId),
         getProjectMethods(projectId),
+        getTaskRegistration(projectId),
       ]);
       setInstructions(instData);
       setMethods(methodData);
+      setTaskRegistrations(taskRegData.tasks);
     } catch (err) {
       console.error('[ExperimentInstructionTab] fetchData error:', err);
       message.error(t('experimentInstruction.fetchError'));
@@ -1396,10 +1401,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           projectId={projectId}
           methodId={planDialogMethodId}
           taskNumbers={
-            uniq(
-              (instructions.find((m) => m.methodId === planDialogMethodId)?.tasks ?? [])
-                .map((t) => t.taskNo)
-            ).sort((a, b) => a - b)
+            taskRegistrations
+              .filter((t) => t.methodId === planDialogMethodId)
+              .flatMap((t) => Array.from({ length: t.trialCount }, (_, i) => i + 1))
           }
           allowMethodSelection
           methodOptions={methods.map((m) => ({ id: m.id, name: m.name ?? m.id }))}

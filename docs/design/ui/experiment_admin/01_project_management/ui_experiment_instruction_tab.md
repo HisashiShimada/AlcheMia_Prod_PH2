@@ -150,6 +150,7 @@ export interface ExperimentInstructionTabProps {
 | `bulkSelectedNgReason` | `string` | `''` | 一括ダイアログのNG理由 |
 | `planDialogOpen` | `boolean` | `false` | ExperimentPlanDialog 表示状態 |
 | `planDialogMethodId` | `string` | `''` | ExperimentPlanDialog に渡すメソッドID |
+| `taskRegistrations` | `TaskRegistrationItem[]` | `[]` | タスク登録情報（`project_task` ベース）。ExperimentPlanDialog の `taskNumbers` 算出に使用 |
 | `visibleColumnKeys` | `string[]` | `ALL_COLUMN_KEYS` | 表示中の列キー一覧 |
 | `columnDropdownOpen` | `boolean` | `false` | 列選択ドロップダウンの開閉状態 |
 | `viewerDialogs` | `{ id, file, zIndex }[]` | `[]` | フローティングビューア一覧 |
@@ -328,7 +329,9 @@ interface FilterState {
 
 ## 8. API連携
 
-### 8.1. 使用APIエンドポイント（`experimentInstructionApiService`）
+### 8.1. 使用APIエンドポイント
+
+#### `experimentInstructionApiService`
 
 | API | メソッド | パス | 用途 |
 |-----|---------|------|------|
@@ -338,6 +341,12 @@ interface FilterState {
 | NG記録 | PUT | `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/ng` | NG記録処理（event_log 記録含む） |
 | 記録値訂正 | PATCH | `/api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct` | 実績値訂正（event_log 記録含む） |
 
+#### `projectApiService`
+
+| API | メソッド | パス | 用途 |
+|-----|---------|------|------|
+| タスク登録情報取得 | GET | `/api/v1/projects/:projectId/task-registration` | ExperimentPlanDialog の `taskNumbers` 算出用（`project_task` ベース） |
+
 ### 8.2. データ取得フロー
 
 ```
@@ -346,9 +355,10 @@ interface FilterState {
 Promise.all([
   getExperimentInstructions(projectId),
   getProjectMethods(projectId),
+  getTaskRegistration(projectId),       ← 追加
 ])
   ↓
-instructions / methods ステートに保存
+instructions / methods / taskRegistrations ステートに保存
   ↓
 flattenInstructions(instructions) でフラット化 → allRows（useMemo）
   ↓
@@ -476,3 +486,4 @@ setCorrectionLoading(false)
 | 2026-06-22 | 初版作成 | Cline |
 | 2026-08-20 | アーキテクチャ変更に合わせて全面改訂（フラットテーブル化・不確かさ列・フィルターバー・一括承認ダイアログ・ペトリネットビューア追加） | Cline |
 | 2026-09-01 | 記録値訂正機能追加（訂正モード UI・訂正フロー・API仕様・i18nキー・event_log記録）、承認/NG に event_log 記録を追加、ツールバー構成更新 | Cline |
+| 2026-09-08 | タスクタブ未表示バグ修正（`taskRegistrations` state 追加・`getTaskRegistration` 並行取得・`taskNumbers` 算出ロジック修正） | Cline |
