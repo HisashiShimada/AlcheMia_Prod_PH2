@@ -53,6 +53,23 @@ const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = ({ viewOnly = fa
     if (csvInputRef.current) csvInputRef.current.value = '';
     if (!file) return;
 
+    // ── ヘッダー検証（期待ヘッダー: prefix,uri）
+    const isValidHeader = await new Promise<boolean>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = (ev.target?.result as string).replace(/^\uFEFF/, '');
+        const firstLine = text.split(/\r?\n/)[0]?.trim() ?? '';
+        resolve(firstLine === 'prefix,uri');
+      };
+      reader.onerror = () => resolve(false);
+      reader.readAsText(file, 'utf-8');
+    });
+
+    if (!isValidHeader) {
+      message.error(t('globalNamespace.csvHeaderMismatch'));
+      return;
+    }
+
     Modal.confirm({
       title: t('globalNamespace.importConfirmTitle'),
       content: t('globalNamespace.importConfirmContent'),

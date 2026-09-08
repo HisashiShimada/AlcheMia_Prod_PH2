@@ -44,6 +44,12 @@ export function parseGlobalDeclarationsCsv(csvText: string): GlobalDeclarationEn
   const lines = csvText.split(/\r?\n/);
   const result: GlobalDeclarationEntry[] = [];
 
+  // ヘッダー行を検証（最初の非空行が 'prefix,uri' と一致しなければエラー）
+  const firstNonEmpty = lines.find((l) => l.trim());
+  if (!firstNonEmpty || firstNonEmpty.trim() !== CSV_HEADER) {
+    throw new Error(`CSVのヘッダー行が不正です。期待する形式: ${CSV_HEADER}`);
+  }
+
   for (const line of lines) {
     const trimmed = line.trim();
     // ヘッダー行・空行をスキップ
