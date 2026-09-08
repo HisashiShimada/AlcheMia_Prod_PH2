@@ -486,4 +486,4 @@ setCorrectionLoading(false)
 | 2026-06-22 | 初版作成 | Cline |
 | 2026-08-20 | アーキテクチャ変更に合わせて全面改訂（フラットテーブル化・不確かさ列・フィルターバー・一括承認ダイアログ・ペトリネットビューア追加） | Cline |
 | 2026-09-01 | 記録値訂正機能追加（訂正モード UI・訂正フロー・API仕様・i18nキー・event_log記録）、承認/NG に event_log 記録を追加、ツールバー構成更新 | Cline |
-| 2026-09-08 | タスクタブ未表示バグ修正（`taskRegistrations` state 追加・`getTaskRegistration` 並行取得・`taskNumbers` 算出ロジック修正） | Cline |
+| 2026-09-08 | タスクタブ未表示バグ修正（`taskRegistrations` state 追加・`getTaskRegistration` 並行取得・`taskNumbers` 算出ロジック修正）、`Promise.allSettled` 対応（`getTaskRegistration` 失敗時の他API結果保護） | Cline |
