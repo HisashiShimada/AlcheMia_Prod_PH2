@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography, Checkbox } from 'antd';
+import { App, Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, Typography, Checkbox } from 'antd';
 import {
   SearchOutlined,
   PlusOutlined,
@@ -628,6 +628,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   onNsKeyChange,
   viewOnly = false,
 }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
 
   // ── ログインユーザー情報を localStorage から導出（useMemo でメモ化して依存配列に安定して渡せるようにする）

@@ -13,6 +13,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Alert,
+  App,
   Badge,
   Button,
   Card,
@@ -33,7 +34,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
   theme,
 } from 'antd';
 import { BorderOutlined, CaretRightOutlined, CommentOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SaveOutlined, SearchOutlined, StepForwardOutlined, WarningOutlined } from '@ant-design/icons';
@@ -2167,6 +2167,7 @@ export default function WorkRecordPanel({
 }: WorkRecordPanelProps = {}) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
+  const { message } = App.useApp();
   const [tasks, setTasks] = useState<WorkTask[]>([]);
 
   /**

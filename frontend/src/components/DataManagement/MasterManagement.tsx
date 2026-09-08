@@ -444,7 +444,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     
     modal.confirm({
       title: t('masterManagement.messages.activateConfirmTitle'),
-      content: t('masterManagement.messages.activateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('masterManagement.messages.activateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('masterManagement.status.active'),
       cancelText: t('masterManagement.buttons.cancel'),
       onOk: async () => {
@@ -466,7 +466,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           setSelectedRowKeys([]);
-          message.success(t('masterManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          message.success(t('masterManagement.messages.activateSuccess', { count: String(selectedRowKeys.length) }));
         } catch (error) {
           console.error('一括アクティブ化エラー:', error);
           message.error(extractErrorMessage(error, t('masterManagement.messages.activateError')));
@@ -483,7 +483,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     }
     modal.confirm({
       title: t('masterManagement.messages.deactivateConfirmTitle'),
-      content: t('masterManagement.messages.deactivateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('masterManagement.messages.deactivateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('masterManagement.status.inactive'),
       cancelText: t('masterManagement.buttons.cancel'),
       okButtonProps: { danger: true },
@@ -506,7 +506,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           setSelectedRowKeys([]);
-          message.success(t('masterManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          message.success(t('masterManagement.messages.deactivateSuccess', { count: String(selectedRowKeys.length) }));
         } catch (error) {
           console.error('エラー:', error);
           message.error(extractErrorMessage(error, t('masterManagement.messages.deactivateError')));
@@ -546,8 +546,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     const newStatus = !currentStatus;
 
     modal.confirm({
-      title: t('masterManagement.messages.toggleConfirmTitle').replace('{name}', masterName).replace('{action}', actionText),
-      content: t('masterManagement.messages.toggleConfirmContent').replace('{action}', actionText),
+      title: t('masterManagement.messages.toggleConfirmTitle', { name: masterName, action: actionText }),
+      content: t('masterManagement.messages.toggleConfirmContent', { action: actionText }),
       okText: actionText,
       cancelText: t('masterManagement.buttons.cancel'),
       okButtonProps: currentStatus ? { danger: true } : undefined,
@@ -559,7 +559,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             newStatus
           );
           await fetchMasterData(selectedMasterInfo.masterId);
-          message.success(t('masterManagement.messages.toggleSuccess').replace('{name}', masterName).replace('{action}', actionText));
+          message.success(t('masterManagement.messages.toggleSuccess', { name: masterName, action: actionText }));
         } catch (error) {
           console.error('エラー:', error);
           message.error(extractErrorMessage(error, t('masterManagement.messages.toggleError')));
@@ -689,9 +689,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           width: 600,
         });
         
-        message.error(t('masterManagement.messages.csvUploadError').replace('{count}', String(failureCount)));
+        message.error(t('masterManagement.messages.csvUploadError', { count: String(failureCount) }));
       } else if (successCount > 0) {
-        message.success(t('masterManagement.messages.csvUploadSuccess').replace('{count}', String(successCount)));
+        message.success(t('masterManagement.messages.csvUploadSuccess', { count: String(successCount) }));
         
         // データを再取得
         await fetchMasterData(selectedMasterInfo.masterId);
@@ -1235,7 +1235,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       .filter(Boolean)
       .join(t('common.searchJoiner') !== 'common.searchJoiner' ? t('common.searchJoiner') : '、');
     return fieldNames
-      ? t('masterManagement.form.searchPlaceholder').replace('{fields}', fieldNames)
+      ? t('masterManagement.form.searchPlaceholder', { fields: fieldNames })
       : t('common.search');
   }, [selectedMasterInfo, fuzzySearchFields, t]);
 
@@ -1511,7 +1511,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             pageSize: pageSize,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
-            showTotal: (total) => t('masterManagement.pagination.showTotal').replace('{total}', String(total)),
+            showTotal: (total) => t('masterManagement.pagination.showTotal', { total: String(total) }),
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           }}
@@ -1679,11 +1679,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                     key={key}
                     name={key}
                     label={category.headerName}
-                    rules={isRequired ? [{ required: true, message: t('masterManagement.form.requiredSelect').replace('{label}', category.headerName) }] : []}
+                    rules={isRequired ? [{ required: true, message: t('masterManagement.form.requiredSelect', { label: category.headerName }) }] : []}
                   >
                     <Select
                       options={vendorOptions}
-                      placeholder={t('masterManagement.form.selectPlaceholder').replace('{label}', category.headerName)}
+                      placeholder={t('masterManagement.form.selectPlaceholder', { label: category.headerName })}
                       disabled={isDisabled}
                       showSearch
                       filterOption={(input, option) =>
@@ -1700,11 +1700,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                     key={key}
                     name={key}
                     label={category.headerName}
-                    rules={isRequired ? [{ required: true, message: t('masterManagement.form.requiredSelect').replace('{label}', category.headerName) }] : []}
+                    rules={isRequired ? [{ required: true, message: t('masterManagement.form.requiredSelect', { label: category.headerName }) }] : []}
                   >
                     <Select
                       options={instrumentOptions}
-                      placeholder={t('masterManagement.form.selectPlaceholder').replace('{label}', category.headerName)}
+                      placeholder={t('masterManagement.form.selectPlaceholder', { label: category.headerName })}
                       disabled={isDisabled}
                       showSearch
                       filterOption={(input, option) =>
@@ -1721,7 +1721,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                 key={key}
                 name={key}
                 label={category.headerName}
-                rules={isRequired ? [{ required: true, message: t('masterManagement.form.required').replace('{label}', category.headerName) }] : []}
+                rules={isRequired ? [{ required: true, message: t('masterManagement.form.required', { label: category.headerName }) }] : []}
               >
                 <Input disabled={isDisabled} />
               </Form.Item>

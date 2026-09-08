@@ -16,7 +16,7 @@
 
 import React, { useState } from 'react';
 import {
-  Table, Button, Space, Popconfirm, Tooltip, Typography, Tag, message,
+  App, Table, Button, Space, Popconfirm, Tooltip, Typography, Tag,
 } from 'antd';
 import {
   PlusOutlined,
@@ -63,6 +63,7 @@ interface KeyManagementProps {
 
 const KeyManagement: React.FC<KeyManagementProps> = ({ keys, onKeysChange }) => {
   // モーダル開閉
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);

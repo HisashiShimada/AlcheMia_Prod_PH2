@@ -9,7 +9,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Typography, message, theme } from 'antd';
+import { App, Card, Typography, theme } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LoginForm from './LoginForm';
 import PINCodeForm from './PINCodeForm';
@@ -48,6 +48,7 @@ export default function AuthContainer({
 }: AuthContainerProps) {
   const { token } = useToken();
   const router = useRouter();
+  const { message } = App.useApp();
   const { t } = useLanguage();
   
   // 認証フロー状態

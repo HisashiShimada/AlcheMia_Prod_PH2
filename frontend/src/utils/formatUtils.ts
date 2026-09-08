@@ -34,10 +34,10 @@ export const formatRelativeTime = (dateString: string): string => {
   const diffDays = Math.floor(diffMs / 86400000);
 
   if (diffMins < 1) return getTranslation('formatters.justNow');
-  if (diffMins < 60) return getTranslation('formatters.minutesAgo').replace('{n}', String(diffMins));
-  if (diffHours < 24) return getTranslation('formatters.hoursAgo').replace('{n}', String(diffHours));
+  if (diffMins < 60) return getTranslation('formatters.minutesAgo', { n: String(diffMins) });
+  if (diffHours < 24) return getTranslation('formatters.hoursAgo', { n: String(diffHours) });
   if (diffDays === 1) return getTranslation('formatters.yesterday');
-  if (diffDays < 7) return getTranslation('formatters.daysAgo').replace('{n}', String(diffDays));
+  if (diffDays < 7) return getTranslation('formatters.daysAgo', { n: String(diffDays) });
   
   // 1週間以上前は日付を表示
   const year = date.getFullYear();

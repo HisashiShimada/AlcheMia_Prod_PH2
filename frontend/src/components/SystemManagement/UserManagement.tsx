@@ -330,7 +330,7 @@ export default function UserManagement() {
     }
     modal.confirm({
       title: t('userManagement.messages.activateConfirmTitle'),
-      content: t('userManagement.messages.activateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('userManagement.messages.activateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('userManagement.status.active'),
       cancelText: t('userManagement.buttons.cancel'),
       onOk: async () => {
@@ -339,7 +339,7 @@ export default function UserManagement() {
           await batchUpdateUserStatus(selectedRowKeys as string[], true);
           await loadUsers();
           setSelectedRowKeys([]);
-          message.success(t('userManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          message.success(t('userManagement.messages.activateSuccess', { count: String(selectedRowKeys.length) }));
         } catch (error) {
           console.error('アクティブ化に失敗:', error);
           message.error(extractErrorMessage(error, t('userManagement.messages.activateError')));
@@ -357,7 +357,7 @@ export default function UserManagement() {
     }
     modal.confirm({
       title: t('userManagement.messages.deactivateConfirmTitle'),
-      content: t('userManagement.messages.deactivateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      content: t('userManagement.messages.deactivateConfirmContent', { count: String(selectedRowKeys.length) }),
       okText: t('userManagement.status.inactive'),
       cancelText: t('userManagement.buttons.cancel'),
       okButtonProps: { danger: true },
@@ -367,7 +367,7 @@ export default function UserManagement() {
           await batchUpdateUserStatus(selectedRowKeys as string[], false);
           await loadUsers();
           setSelectedRowKeys([]);
-          message.success(t('userManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
+          message.success(t('userManagement.messages.deactivateSuccess', { count: String(selectedRowKeys.length) }));
         } catch (error) {
           console.error('非アクティブ化に失敗:', error);
           message.error(extractErrorMessage(error, t('userManagement.messages.deactivateError')));
@@ -384,8 +384,8 @@ export default function UserManagement() {
     const actionText = user.isActive ? t('userManagement.status.inactive') : t('userManagement.status.active');
     const userName = String(user.userName);
     modal.confirm({
-      title: t('userManagement.messages.toggleConfirmTitle').replace('{name}', userName).replace('{action}', actionText),
-      content: t('userManagement.messages.toggleConfirmContent').replace('{action}', actionText),
+      title: t('userManagement.messages.toggleConfirmTitle', { name: userName, action: actionText }),
+      content: t('userManagement.messages.toggleConfirmContent', { action: actionText }),
       okText: actionText,
       cancelText: t('userManagement.buttons.cancel'),
       okButtonProps: user.isActive ? { danger: true } : undefined,
@@ -394,7 +394,7 @@ export default function UserManagement() {
           setLoading(true);
           await updateUserStatus(userId, !user.isActive);
           await loadUsers();
-          message.success(t('userManagement.messages.toggleSuccess').replace('{name}', userName).replace('{action}', actionText));
+          message.success(t('userManagement.messages.toggleSuccess', { name: userName, action: actionText }));
         } catch (error) {
           console.error('ステータス更新に失敗:', error);
           message.error(extractErrorMessage(error, t('userManagement.messages.toggleError')));
@@ -604,7 +604,7 @@ export default function UserManagement() {
             pageSize: pageSize,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
-            showTotal: (total) => t('userManagement.pagination.showTotal').replace('{total}', String(total)),
+            showTotal: (total) => t('userManagement.pagination.showTotal', { total: String(total) }),
             onChange: (page, size) => {
               setCurrentPage(page);
               setPageSize(size);

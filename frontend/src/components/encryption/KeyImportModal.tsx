@@ -8,7 +8,7 @@
  */
 
 import React, { useState } from 'react';
-import { Modal, Form, Input, Upload, Typography, Alert, message } from 'antd';
+import { App, Modal, Form, Input, Upload, Typography, Alert } from 'antd';
 import { UploadOutlined, InboxOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import type { EncryptionKey } from '@/types/encryption';
@@ -28,6 +28,7 @@ interface KeyImportModalProps {
 const ACCEPT_EXTENSIONS = '.key,.pem,.pfx';
 
 const KeyImportModal: React.FC<KeyImportModalProps> = ({ open, onClose, onImported }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);

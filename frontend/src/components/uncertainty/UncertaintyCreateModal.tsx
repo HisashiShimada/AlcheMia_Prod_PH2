@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
+  App,
   Modal,
   Button,
   Form,
@@ -9,7 +10,6 @@ import {
   Select,
   Segmented,
   Space,
-  message,
 } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
 import QualitativeOptionEditor, { type QualitativeOption } from './QualitativeOptionEditor';
@@ -73,6 +73,7 @@ export default function UncertaintyCreateModal({
   onClose,
   onSaved,
 }: UncertaintyCreateModalProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [evalMode, setEvalMode] = useState<'quantitative' | 'qualitative'>('quantitative');
   const [qualitativeOptions, setQualitativeOptions] = useState<QualitativeOption[]>(DEFAULT_OPTIONS);

@@ -475,7 +475,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       await getFileDownloadUrlByKey(file.path);
 
       // 成功メッセージ表示
-      message.success(t('formatManagement.messages.download_started').replace('{{fileName}}', file.name));
+      message.success(t('formatManagement.messages.download_started', { fileName: file.name }));
     } catch (error) {
       console.error('❌ ダウンロードエラー:', error);
       message.error(
@@ -491,7 +491,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     // 削除確認モーダルを表示
     modal.confirm({
       title: t('formatManagement.dialog.delete_title'),
-      content: t('formatManagement.dialog.delete_confirm').replace('{{fileName}}', file.name),
+      content: t('formatManagement.dialog.delete_confirm', { fileName: file.name }),
       okText: t('formatManagement.dialog.delete_ok'),
       okButtonProps: { danger: true },
       cancelText: t('formatManagement.dialog.delete_cancel'),
@@ -502,7 +502,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           // 削除API呼び出し（共通化されたdeleteFileByKeyを使用）
           await deleteFileByKey(file.path);
           
-          message.success(t('formatManagement.dialog.delete_success').replace('{{fileName}}', file.name));
+          message.success(t('formatManagement.dialog.delete_success', { fileName: file.name }));
           
           // ファイル一覧を更新
           if (selectedFormatId) {
@@ -548,7 +548,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     if (file.id === 'back') return;
 
     modal.confirm({
-      title: t('formatManagement.dialog.folder_delete_title').replace('{{folderName}}', file.name),
+      title: t('formatManagement.dialog.folder_delete_title', { folderName: file.name }),
       content: t('formatManagement.dialog.folder_delete_content'),
       okText: t('formatManagement.dialog.folder_delete_ok'),
       okButtonProps: { danger: true },
@@ -559,7 +559,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
 
           await deleteFolderByPath(file.path);
 
-          message.success(t('formatManagement.dialog.folder_delete_success').replace('{{folderName}}', file.name));
+          message.success(t('formatManagement.dialog.folder_delete_success', { folderName: file.name }));
 
           // ファイル一覧を更新
           if (selectedFormatId) {

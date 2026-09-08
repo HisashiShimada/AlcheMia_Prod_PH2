@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
+  App,
   Modal,
   Button,
   Form,
@@ -11,7 +12,6 @@ import {
   Switch,
   Tag,
   Space,
-  message,
   Spin,
 } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -316,6 +316,7 @@ export default function UncertaintyDetailModal({
   onClose,
   onSaved,
 }: UncertaintyDetailModalProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<UncertaintyCriteriaDetailApiRow | null>(null);
