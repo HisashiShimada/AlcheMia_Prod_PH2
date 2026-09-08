@@ -12,8 +12,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import {
-  Card, Button, Space, Typography,
-  Alert, Divider, Modal,
+  App, Card, Button, Space, Typography,
+  Alert, Divider,
 } from 'antd';
 import {
   UnlockOutlined, SyncOutlined, ExclamationCircleOutlined,
@@ -70,6 +70,7 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
   onDecryptPreview,
   onDecryptExecute,
 }) => {
+  const { modal } = App.useApp();
   /** 代表ノード（アルゴリズム情報表示に使用） */
   const representativeNode = targets[0] ?? null;
   const encryptionInfo = representativeNode?.encryptionInfo;
@@ -98,7 +99,7 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
   // 実行ボタン用確認ダイアログ
   const handleDecryptExecuteClick = () => {
     if (!keyId) return;
-    Modal.confirm({
+    modal.confirm({
       title: '復号化の実行',
       icon: <ExclamationCircleOutlined />,
       content: (

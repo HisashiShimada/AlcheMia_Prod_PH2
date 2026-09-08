@@ -64,7 +64,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   onClose,
   onSave,
 }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
   const [form] = Form.useForm();
   const [hasChanges, setHasChanges] = useState<boolean>(false);
@@ -274,7 +274,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
    */
   const handleCancel = useCallback(() => {
     if (hasChanges) {
-      Modal.confirm({
+      modal.confirm({
         title: t('document.unsavedChangesTitle'),
         content: t('document.unsavedChangesContent'),
         okText: t('document.discardButton'),

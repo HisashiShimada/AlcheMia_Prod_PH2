@@ -476,6 +476,21 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   }, [termMap]);
 
   /**
+   * key 属性選択モーダルの選択肢一覧（qname → ラベル文字列）
+   * NestedPropertyEditor の属性追加モーダルで key 選択時に使用する
+   */
+  const termKeyOptions = useMemo<Array<{ value: string; label: string }>>(() => {
+    const options: Array<{ value: string; label: string }> = [];
+    termMap.forEach((term, qname) => {
+      const label = term.displayName && term.displayName.trim() !== ''
+        ? `${term.displayName}（${qname}）`
+        : qname;
+      options.push({ value: qname, label });
+    });
+    return options;
+  }, [termMap]);
+
+  /**
    * テンプレートタイプ判定
    */
   const nodeCategory = useMemo(() => {
@@ -829,6 +844,104 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       ...properties,
       [newKey]: deepCopy
     });
+    setHasChanges(true);
+  };
+
+  /**
+   * プロパティのキーリネーム処理
+   * - 辞書キーを oldKey → newKey に変更する
+   * - PropertyData.key も newKey に更新する
+   * - 新しいキーに対応する用語マップの型・単位・説明で属性・要素を上書きする
+   */
+  const handleRenameProperty = (oldKey: string, newKey: string) => {
+    const trimmedNewKey = newKey.trim();
+    if (!trimmedNewKey) {
+      message.error(t('editor.template.propKeyRequired'));
+      return;
+    }
+    if (trimmedNewKey !== oldKey && properties[trimmedNewKey]) {
+      message.error(t('editor.template.propKeyDuplicate'));
+      return;
+    }
+
+    setProperties(prevProperties => {
+      const updated: Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
+      if (!updated[oldKey]) return updated;
+
+      const renamedData: PropertyData = { ...updated[oldKey], key: trimmedNewKey };
+
+      // 新キーの用語マップエントリで属性・要素を上書き
+      const typeUnitEntry = termTypeUnitMap.get(trimmedNewKey);
+      if (typeUnitEntry) {
+        if (!renamedData.attributes) renamedData.attributes = {};
+        if (typeUnitEntry.type) {
+          renamedData.attributes['xsi:type'] = typeUnitEntry.type;
+        }
+        if (typeUnitEntry.unitHint) {
+          renamedData.attributes['units'] = typeUnitEntry.unitHint;
+        }
+      }
+      const displayName = termDisplayMap.get(trimmedNewKey);
+      if (displayName) {
+        if (!renamedData.elements) renamedData.elements = {};
+        renamedData.elements['description'] = displayName;
+      }
+
+      delete updated[oldKey];
+      updated[trimmedNewKey] = renamedData;
+      return updated;
+    });
+
+    setForceRenderKey(Date.now());
+    setHasChanges(true);
+  };
+
+  /**
+   * Content のキーリネーム処理
+   * - 辞書キーを oldKey → newKey に変更する
+   * - PropertyData.key も newKey に更新する
+   * - 新しいキーに対応する用語マップの型・単位・説明で属性・要素を上書きする
+   */
+  const handleRenameContent = (oldKey: string, newKey: string) => {
+    const trimmedNewKey = newKey.trim();
+    if (!trimmedNewKey) {
+      message.error(t('editor.template.propKeyRequired'));
+      return;
+    }
+    if (trimmedNewKey !== oldKey && contents[trimmedNewKey]) {
+      message.error(t('editor.template.propKeyDuplicate'));
+      return;
+    }
+
+    setContents(prevContents => {
+      const updated: Record<string, PropertyData> = JSON.parse(JSON.stringify(prevContents));
+      if (!updated[oldKey]) return updated;
+
+      const renamedData: PropertyData = { ...updated[oldKey], key: trimmedNewKey };
+
+      // 新キーの用語マップエントリで属性・要素を上書き
+      const typeUnitEntry = termTypeUnitMap.get(trimmedNewKey);
+      if (typeUnitEntry) {
+        if (!renamedData.attributes) renamedData.attributes = {};
+        if (typeUnitEntry.type) {
+          renamedData.attributes['xsi:type'] = typeUnitEntry.type;
+        }
+        if (typeUnitEntry.unitHint) {
+          renamedData.attributes['units'] = typeUnitEntry.unitHint;
+        }
+      }
+      const displayName = termDisplayMap.get(trimmedNewKey);
+      if (displayName) {
+        if (!renamedData.elements) renamedData.elements = {};
+        renamedData.elements['description'] = displayName;
+      }
+
+      delete updated[oldKey];
+      updated[trimmedNewKey] = renamedData;
+      return updated;
+    });
+
+    setForceContentRenderKey(Date.now());
     setHasChanges(true);
   };
 
@@ -1858,6 +1971,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 onDeleteUncertainty={handleDeleteUncertainty}
                 termDisplayMap={termDisplayMap}
                 termTypeUnitMap={termTypeUnitMap}
+                termKeyOptions={termKeyOptions}
+                onRenameProperty={handleRenameProperty}
               />
             ))
           )}
@@ -1991,6 +2106,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     forceRenderKey={forceContentRenderKey}
                     attributeRecords={attributeRecords}
                     termTypeUnitMap={termTypeUnitMap}
+                    termKeyOptions={termKeyOptions}
+                    onRenameProperty={handleRenameContent}
                   />
                 ))
               )}

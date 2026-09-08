@@ -78,7 +78,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
   preselectedFolder = '',
   projectId,
 }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
 
   // 状態管理
@@ -420,7 +420,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
           const details = axiosError.response.data.error.details;
           const errorList = (details?.errors ?? []) as Array<{ type: string; severity: string; message: string; suggestion?: string }>;
           setUploadState(prev => ({ ...prev, isUploading: false, error: null }));
-          Modal.error({
+          modal.error({
             title: t('upload.maimlValidationErrorTitle', { fileName: details?.fileName ?? '' }),
             width: 640,
             content: (
@@ -487,7 +487,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     const currentController = abortControllerRef.current;
     if (!currentController) return;
 
-    Modal.confirm({
+    modal.confirm({
       title: t('upload.cancelConfirmTitle'),
       content: t('upload.cancelConfirmContent'),
       okText: t('upload.cancelConfirmOk'),
@@ -522,7 +522,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
    */
   const handleClose = useCallback(() => {
     if (uploadState.isUploading) {
-      Modal.confirm({
+      modal.confirm({
         title: t('upload.uploadingConfirmTitle'),
         content: t('upload.uploadingConfirmContent'),
         okText: t('upload.cancelConfirmOk'),

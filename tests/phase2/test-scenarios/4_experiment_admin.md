@@ -18,7 +18,7 @@
 | テスト実施日 | 2026-09-02（4-1、4-3、4-4、4-5、4-7、4-8、4-9、4-11、4-12、4-18 実施済み） |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | 不合格（NG 6件・未実施 199件） |
+| 総合判定 | 不合格（NG 8件・未実施 182件） |
 | 備考 | NG: 4-1-10（AISOLMAIML-337）、4-1-13（AISOLMAIML-338）、4-1-23（AISOLMAIML-339/340）、4-1-35（AISOLMAIML-341）、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。未実施: 4-2／4-6／4-10／4-13〜4-17 など |
 
 ---
@@ -36,10 +36,10 @@
 | **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | 手動 | 5 | 0 | 2 |
 | **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 14件 | 手動 | 0 | 0 | 14 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 3件 | 手動 | 3 | 0 | 0 |
-| **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 29 | 0 | 20 |
-| **4-9** | トランジション検索 | 追加機能R | 10件 | 手動 | 9 | 0 | 1 |
+| **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 31 | 1 | 17 |
+| **4-9** | トランジション検索 | 追加機能R | 10件 | 手動 | 9 | 1 | 0 |
 | **4-10** | プロジェクト公開 | 追加機能S | 11件 | 手動（フロントエンド実装後） | 0 | 0 | 11 |
-| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件 | 手動 | 9 | 0 | 8 |
+| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件 | 手動 | 10 | 0 | 7 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | 手動 | 8 | 0 | 0 |
 | **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | 0 | 0 | 16 |
 | **4-14** | PropertyViewer 値なし区別表示・ツールチップ | `docs/改善仕様調査/No.8/result.md`（No.8対応） | 15件 | 手動 | 0 | 0 | 15 |
@@ -440,21 +440,21 @@
 | 4-8-41 | （maiml編集でペトリネット表示→ノード選択→テンプレート編集）TemplateEditorDialogを開くと「UI編集」「XMLビュー」の2タブが表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`TemplateEditorDialog.tsx` Tabs | - | OK | |
 | 4-8-42 | 「UI編集」タブが初期表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`activeTab='ui'` 初期値 | - | OK | |
 | 4-8-43 | 「XMLビュー」タブをクリックするとテンプレートのXML文字列がTextAreaに表示されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`convertTemplateToXML` | - | OK | UI → XML 切り替え時に `convertTemplateToXML` が呼ばれること |
-| 4-8-44 | XMLビューでXMLを直接編集して「UI編集」タブに戻るとUI Stateに変更が反映されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`parseXMLToTemplate` | - | - | XML → UI 切り替え時に `parseXMLToTemplate` が呼ばれること |
-| 4-8-45 | XMLビューで不正なXML（構文エラー）を入力してバリデーションを実行するとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | - | バリデーションボタン押下時にエラーAlertが表示されること |
-| 4-8-46 | XMLビューで有効なXMLを入力してバリデーションを実行するとエラーメッセージが表示されないこと | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | - | エラーAlertが表示されないこと |
-| 4-8-47 | XMLビューから保存するとXMLがパースされてテンプレートデータが正しく保存されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` | - | - | `validateTemplateXML` → `parseXMLToTemplate` → 保存の順で処理されること |
-| 4-8-48 | XMLビューでエラーがある状態で保存しようとするとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` バリデーション | - | - | 不正なXMLのまま保存ボタンを押すとエラーが表示されること |
-| 4-8-49 | フォーマットアップロード開始後、プログレスバーの右上に「キャンセル」ボタンが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 キャンセルボタンのUI | - | - | |
-| 4-8-50 | アップロード完了（progress=100）後はキャンセルボタンが無効化（disabled）になること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1「アップロード完了後はキャンセルボタン無効化」 | - | - | |
-| 4-8-51 | アップロード中にキャンセルボタンを押すとアップロードが即座に中断されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 handleCancelUpload | POST `/api/v1/files/upload` | - | AbortController.abort()でHTTPリクエストが中断されること |
-| 4-8-52 | キャンセル実行後に「アップロードがキャンセルされました」メッセージが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §12「キャンセル後のUI/UX」 | - | - | |
-| 4-8-53 | キャンセル実行後にダイアログのアップロード状態（進捗バー・isUploading）がリセットされること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 状態管理 | - | - | |
-| 4-8-54 | キャンセル実行後、途中までアップロードされたファイルがバックエンド（ストレージ・DB）から削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.2 cancelBatch API | POST `/api/v1/files/batches/:batchId/cancel` | - | cancelBatch APIのレスポンス（`deletedFileCount`）で確認 |
-| 4-8-55 | 複数ファイルアップロード中にキャンセルした場合、アップロード済みの全ファイルが削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §8「複数ファイルアップロード中のキャンセル」 | POST `/api/v1/files/batches/:batchId/cancel` | - | `deletedFileCount` ≥ 1 であること |
-| 4-8-56 | フォーマット未選択時のフッターボタンが「キャンセル」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §FormatUploadDialog.tsx | - | - | No.24対応: 未選択時フッター「閉じる」→「キャンセル」に変更 |
-| 4-8-57 | 既に同名のフォーマットフォルダが存在する状態で `CreateFormatModal` から作成しようとするとフィールド下部にAPIエラーメッセージ（例: 「同名のフォルダが既に存在します」）が表示されること | 異常系 | `ui_create_format_modal.md` §6.2 APIエラー表示、API 409エラー | POST `/api/v1/formats/folders` | - | モーダルは閉じずにインライン表示されること |
-| 4-8-58 | `CreateFormatModal` をキャンセルして閉じた後、再度「新規フォーマットフォルダ」ボタンをクリックしてモーダルを開くと、前回の入力値・エラーメッセージが残らずリセットされていること | 正常系 | `ui_create_format_modal.md` §2.3.4 キャンセルボタン、§7「状態リセット」 | - | - | `CreateFormatFolderModal`（サブフォルダ）でも同様の状態リセットが行われることを確認すること |
+| 4-8-44 | XMLビューでXMLを直接編集して「UI編集」タブに戻るとUI Stateに変更が反映されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`parseXMLToTemplate` | - | OK | XML → UI 切り替え時に `parseXMLToTemplate` が呼ばれること |
+| 4-8-45 | XMLビューで不正なXML（構文エラー）を入力してバリデーションを実行するとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | OK | バリデーションボタン押下時にエラーAlertが表示されること |
+| 4-8-46 | XMLビューで有効なXMLを入力してバリデーションを実行するとエラーメッセージが表示されないこと | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | OK | エラーAlertが表示されないこと |
+| 4-8-47 | XMLビューから保存するとXMLがパースされてテンプレートデータが正しく保存されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` | - | OK | `validateTemplateXML` → `parseXMLToTemplate` → 保存の順で処理されること |
+| 4-8-48 | XMLビューでエラーがある状態で保存しようとするとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` バリデーション | - | OK | 不正なXMLのまま保存ボタンを押すとエラーが表示されること |
+| 4-8-49 | フォーマットアップロード開始後、プログレスバーの右上に「キャンセル」ボタンが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 キャンセルボタンのUI | - | OK | |
+| 4-8-50 | アップロード完了（progress=100）後はキャンセルボタンが無効化（disabled）になること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1「アップロード完了後はキャンセルボタン無効化」 | - | OK | シナリオ誤り：実装では isUploading=false と同時に Alert ごと非表示になる（disabled ではなく hidden） |
+| 4-8-51 | アップロード中にキャンセルボタンを押すとアップロードが即座に中断されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 handleCancelUpload | POST `/api/v1/files/upload` | OK | シナリオ誤り：キャンセルボタン押下時は即座に中断されず、確認ダイアログ（Modal.confirm）が表示され、OKを押した後に AbortController.abort() が実行される |
+| 4-8-52 | キャンセル実行後に「アップロードがキャンセルされました」メッセージが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §12「キャンセル後のUI/UX」 | - | OK | |
+| 4-8-53 | キャンセル実行後にダイアログのアップロード状態（進捗バー・isUploading）がリセットされること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 状態管理 | - | OK | |
+| 4-8-54 | キャンセル実行後、途中までアップロードされたファイルがバックエンド（ストレージ・DB）から削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.2 cancelBatch API | POST `/api/v1/files/batches/:batchId/cancel` | OK | cancelBatch APIのレスポンス（`deletedFileCount`）で確認 |
+| 4-8-55 | 複数ファイルアップロード中にキャンセルした場合、アップロード済みの全ファイルが削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §8「複数ファイルアップロード中のキャンセル」 | POST `/api/v1/files/batches/:batchId/cancel` | OK | `deletedFileCount` ≥ 1 であること |
+| 4-8-56 | フォーマット未選択時のフッターボタンが「キャンセル」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §FormatUploadDialog.tsx | - | OK | No.24対応: 未選択時フッター「閉じる」→「キャンセル」に変更。「キャンセル」ではなく「閉じる」と表示されている |
+| 4-8-57 | 既に同名のフォーマットフォルダが存在する状態で `CreateFormatModal` から作成しようとするとフィールド下部にAPIエラーメッセージ（例: 「同名のフォルダが既に存在します」）が表示されること | 異常系 | `ui_create_format_modal.md` §6.2 APIエラー表示、API 409エラー | POST `/api/v1/formats/folders` | NG | モーダルは閉じずにインライン表示されること https://soft-service.atlassian.net/browse/AISOLMAIML-345 |
+| 4-8-58 | `CreateFormatModal` をキャンセルして閉じた後、再度「新規フォーマットフォルダ」ボタンをクリックしてモーダルを開くと、前回の入力値・エラーメッセージが残らずリセットされていること | 正常系 | `ui_create_format_modal.md` §2.3.4 キャンセルボタン、§7「状態リセット」 | - | OK | `CreateFormatFolderModal`（サブフォルダ）でも同様の状態リセットが行われることを確認すること |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -500,7 +500,7 @@
 | 4-9-6 | 検索結果が0件の場合に「検索結果が見つかりませんでした」メッセージが表示されること | 正常系 | 追加機能R、`SearchResults.tsx` Empty コンポーネント | POST `/api/v1/semantic-search/search` | OK | |
 | 4-9-7 | 検索条件を変更して再検索すると結果が更新されること | 正常系 | 追加機能R | POST `/api/v1/semantic-search/search` | OK | |
 | 4-9-8 | リセットボタンをクリックすると検索クエリ・分解結果・検索結果がクリアされること | 正常系 | 追加機能R、`handleClear` | - | OK | |
-| 4-9-9 | 検索結果のプロジェクト名タグをクリックするとモーダルが閉じてプロジェクトが選択状態になること | 正常系 | 追加機能R、`onOpenProject` コールバック | - | - | |
+| 4-9-9 | 検索結果のプロジェクト名タグをクリックするとモーダルが閉じてプロジェクトが選択状態になること | 正常系 | 追加機能R、`onOpenProject` コールバック | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-347 |
 | 4-9-10 | バッチ処理パネルからEmbedding生成バッチを起動できること | 正常系（手動） | 追加機能R、`TransitionSetBatchProcessingPanel.tsx` | POST `/api/v1/semantic-search/batch` | OK | |
 
 **前提条件:**
@@ -578,13 +578,13 @@
 | 4-11-8 | ~~アップロード中にダイアログを閉じようとすると確認ダイアログが表示され、OKボタンが「中断する」（赤色・dangerスタイル）、キャンセルボタンが「続行」と表示されること~~ | 異常系 | `ui_bulk_upload_dialog.md` §3.7、`docs/改善仕様調査/No.16-24/result.md` | - | OK | No.24対応: 中断確認ダイアログのボタンラベル・スタイル変更 |
 | 4-11-9 | 単一ファイルモードで複数ファイルを選択すると最後の1ファイルのみが選択状態になること | 表示確認 | `ui_bulk_upload_dialog.md` §3.2.3 | - | OK | |
 | 4-11-10 | モード切り替え時に選択済みファイルリストがクリアされること | 表示確認 | `ui_bulk_upload_dialog.md` §3.1.2 | - | OK | |
-| 4-11-11 | アップロード開始後、プログレスバーの右上に「キャンセル」ボタンが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 キャンセルボタンのUI | - | - | |
-| 4-11-12 | アップロード完了（progress=100）後はキャンセルボタンが無効化（disabled）になること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1「アップロード完了後はキャンセルボタン無効化」 | - | - | |
-| 4-11-13 | アップロード中にキャンセルボタンを押すとアップロードが即座に中断されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 handleCancelUpload | POST `/api/v1/files/upload` | - | AbortController.abort()でHTTPリクエストが中断されること |
-| 4-11-14 | キャンセル実行後に「アップロードがキャンセルされました」メッセージが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §12「キャンセル後のUI/UX」 | - | - | |
-| 4-11-15 | キャンセル実行後にダイアログのアップロード状態（進捗バー・isUploading）がリセットされること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 状態管理 | - | - | |
-| 4-11-16 | キャンセル実行後、途中までアップロードされたファイルがバックエンド（ストレージ・DB）から削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.2 cancelBatch API | POST `/api/v1/files/batches/:batchId/cancel` | - | cancelBatch APIのレスポンス（`deletedFileCount`）で確認 |
-| 4-11-17 | 複数ファイルアップロード中にキャンセルした場合、アップロード済みの全ファイルが削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §8「複数ファイルアップロード中のキャンセル」 | POST `/api/v1/files/batches/:batchId/cancel` | - | `deletedFileCount` ≥ 1 であること |
+| 4-11-11 | アップロード開始後、プログレスバーの右上に「キャンセル」ボタンが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 キャンセルボタンのUI | - | OK | |
+| 4-11-12 | アップロード完了（progress=100）後はキャンセルボタンが無効化（disabled）になること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1「アップロード完了後はキャンセルボタン無効化」 | - | OK | シナリオ誤り：実装では isUploading=false と同時に Alert ごと非表示になる（disabled ではなく hidden） |
+| 4-11-13 | アップロード中にキャンセルボタンを押すとアップロードが即座に中断されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 handleCancelUpload | POST `/api/v1/files/upload` | OK | シナリオ誤り：キャンセルボタン押下時は即座に中断されず、確認ダイアログ（Modal.confirm）が表示され、OKを押した後に AbortController.abort() が実行される |
+| 4-11-14 | キャンセル実行後に「アップロードがキャンセルされました」メッセージが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §12「キャンセル後のUI/UX」 | - | OK | |
+| 4-11-15 | キャンセル実行後にダイアログのアップロード状態（進捗バー・isUploading）がリセットされること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 状態管理 | - | OK | リセットではなく非表示になる |
+| 4-11-16 | キャンセル実行後、途中までアップロードされたファイルがバックエンド（ストレージ・DB）から削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.2 cancelBatch API | POST `/api/v1/files/batches/:batchId/cancel` | OK | cancelBatch APIのレスポンス（`deletedFileCount`）で確認 |
+| 4-11-17 | 複数ファイルアップロード中にキャンセルした場合、アップロード済みの全ファイルが削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §8「複数ファイルアップロード中のキャンセル」 | POST `/api/v1/files/batches/:batchId/cancel` | OK | `deletedFileCount` ≥ 1 であること |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -1059,8 +1059,6 @@
 | 4-18-12-2 | プレフィックスの操作ボタンが「編集」「非アクティブ」と表示されること | 表示確認 | `ui_prefix_management.md` §3 テーブルカラム定義 | - | OK | システム名前空間行には操作ボタンの代わりに `<Tag>` バッジが表示されること |
 
 #### 4-18-C: 不確かさ基準管理
-
-⚠️ **【実施不可シナリオ】** 
 
 > 📌 実装上は `UncertaintyManagement` の `criteria` タブ（`activeTab='criteria'`）として名前空間管理画面内に存在します。
 > UI設計書: `docs/design/ui/experiment_admin/04_namespace_management/ui_uncertainty_criteria_management.md`

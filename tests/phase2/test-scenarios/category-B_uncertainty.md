@@ -1,7 +1,7 @@
 # 分類B シナリオテスト ― 不確かさ（Uncertainty）記録機能
 
 **作成日**: 2026-08-19
-**更新日**: 2026-08-21
+**更新日**: 2026-09-08
 **作成者**: SSV
 **対象機能**: 不確かさ（Uncertainty）記録機能
 **前提資料**:
@@ -147,7 +147,7 @@
 | 項目 | 参照先 |
 |------|--------|
 | コンポーネント | `UncertaintyCreateModal.tsx` / `UncertaintyManagement.tsx` / `GlobalNamespaceView.tsx` |
-| API | `GET /api/v1/uncertainty-criteria/:key/:version`（継承元詳細取得）|
+| API | `GET /api/v1/uncertainty-criteria/:uncertaintyKey?version=:version`（継承元詳細取得）|
 
 ### 前提条件
 
@@ -172,14 +172,14 @@
 | 5 | experiment_admin | 「参照元不確かさ基準」プルダウンを開く | 既存の不確かさ基準（基準名 + Key が2段表示）が選択肢に表示されている |
 | 6 | experiment_admin | `thermo-uc-001` を選択する | 最新バージョンの詳細（`fetchUncertaintyCriteriaDetail`）が取得され、評価方式・xsi:type・units・scaleFactor・formatString・定性オプションがフォームに自動填入される |
 | 7 | experiment_admin | 別の Key（`thermo-uc-002` など）を「Key属性設定」で選択し、保存する | `inheritanceUncertaintyKey: thermo-uc-001`、`uncertaintyKey: thermo-uc-002` で登録される |
-| 8 | — | 一覧で登録されたレコードの「継承元」列を確認する | 「温度不確かさ基準 / thermo-uc-001」が継承元として表示されている |
+| 8 | — | `UncertaintyDetailModal` を開いて継承元の設定を確認する | 「継承元（参照元）」フィールドに `thermo-uc-001` が表示されている（※一覧テーブルに「継承元」列は存在しないため、詳細モーダルで確認する）|
 
 ### 確認ポイント
 
 - [ ] Global ノード選択時はタブバーが非表示になり `GlobalNamespaceView`（viewOnly=true）が表示される
 - [ ] 組織ノードに戻ると Prefix / 用語管理 / 不確かさ基準のタブバーが再表示される
 - [ ] 参照元選択後、`fetchUncertaintyCriteriaDetail` が呼ばれて評価方式設定が自動填入される
-- [ ] 一覧テーブルの「継承元」列に親基準名（上段）と Key（下段）が表示される
+- [ ] 継承元は `UncertaintyDetailModal` の「参照元不確かさ基準」フィールドで確認できる（一覧テーブルには「継承元」列なし）
 
 ### テスト結果
 

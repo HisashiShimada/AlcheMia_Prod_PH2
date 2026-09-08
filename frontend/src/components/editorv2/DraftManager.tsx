@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
+  App,
   Modal,
   Button,
   Input,
@@ -57,6 +58,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
   currentDraftKey = null,
   projectId,
 }) => {
+  const { modal } = App.useApp();
   const { t } = useLanguage();
 
   // useDraftManager hook の使用
@@ -110,7 +112,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
    */
   const handleSaveNew = async () => {
     if (!newDraftName.trim()) {
-      Modal.error({ title: t('draftManager.saveDialogErrorTitle'), content: t('draftManager.saveDialogErrorContent') });
+      modal.error({ title: t('draftManager.saveDialogErrorTitle'), content: t('draftManager.saveDialogErrorContent') });
       return;
     }
 
@@ -129,12 +131,12 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         projectId: projectId || null,
       });
 
-      Modal.success({ title: t('draftManager.saveSuccess'), content: t('draftManager.saveSuccessContent') });
+      modal.success({ title: t('draftManager.saveSuccess'), content: t('draftManager.saveSuccessContent') });
       setShowSaveDialog(false);
       setNewDraftName('');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      Modal.error({ title: t('draftManager.saveError'), content: errorMessage });
+      modal.error({ title: t('draftManager.saveError'), content: errorMessage });
     }
   };
 
@@ -160,7 +162,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         .filter(Boolean)
         .join(t('common.searchJoiner'));
 
-      Modal.confirm({
+      modal.confirm({
         title: t('draftManager.loadConfirmTitle'),
         content: t('draftManager.loadConfirmContent', { objects: objectCounts }),
         onOk: async () => {
@@ -187,7 +189,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
             onClose();
           } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-            Modal.error({ title: t('draftManager.loadError'), content: errorMessage });
+            modal.error({ title: t('draftManager.loadError'), content: errorMessage });
           }
         },
       });
@@ -216,7 +218,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         onClose();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        Modal.error({ title: t('draftManager.loadError'), content: errorMessage });
+        modal.error({ title: t('draftManager.loadError'), content: errorMessage });
       }
     }
   };
@@ -227,10 +229,10 @@ const DraftManager: React.FC<DraftManagerProps> = ({
   const handleDelete = async (draftKey: string, draftName: string) => {
     try {
       await deleteDraft(draftKey);
-      Modal.success({ title: t('draftManager.deleteSuccess'), content: t('draftManager.deleteSuccessContent', { name: draftName }) });
+      modal.success({ title: t('draftManager.deleteSuccess'), content: t('draftManager.deleteSuccessContent', { name: draftName }) });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      Modal.error({ title: t('draftManager.deleteError'), content: errorMessage });
+      modal.error({ title: t('draftManager.deleteError'), content: errorMessage });
     }
   };
 

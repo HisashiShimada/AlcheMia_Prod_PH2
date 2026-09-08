@@ -5,6 +5,8 @@ import { X2jOptions } from 'fast-xml-parser';
 import { ErrorContent,statistics, Correction } from '../types/maimlValidation';
 import * as maimlAnalysisResultRepository from '../repositories/maimlAnalysisResultRepository';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
+import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
+import { readGlobalDeclarations } from '../services/globalNamespaceFileService';
 
 const defaultNameSpace = 'http://www.maiml.org/schemas';
 const supportedVersion = '1.0';
@@ -33,7 +35,8 @@ const errorTypes = {
     VERSION_MISMATCH: 'version_mismatch',
     REFERENCE_ERROR: 'reference_error',
     DUPLICATE_ID: 'duplicate_id',  // 🆕 追加: 重複IDエラー
-    VALIDATION_WARNING: 'validation_warning'
+    VALIDATION_WARNING: 'validation_warning',
+    TERM_NOT_REGISTERED: 'term_not_registered', // 🆕 追加: 未登録用語キーエラー
 };
 
 export async function analyzeMaiMLFile(organaizationId: string, maimlContent : string, fileKey: string, skipSave?: boolean, validationMode: ValidationMode = 'strict'): Promise<AnalysisResult>  {
@@ -133,6 +136,25 @@ export async function analyzeMaiMLFile(organaizationId: string, maimlContent : s
       const duplicateValidation = validateDuplicateIds(parsedXML, validationMode);
       analysisResult.errors.push(...duplicateValidation.errors);
       analysisResult.warnings.push(...duplicateValidation.warnings);
+
+      // Phase 7: 用語キー照合バリデーション（organizationIdがある場合のみ実行）
+      if (organaizationId) {
+        console.log('validatePropertyTermKeys');
+        const [activeTerms, globalDeclarations] = await Promise.all([
+          namespaceTermRepository.findAllActiveByOrganization(organaizationId),
+          readGlobalDeclarations(),
+        ]);
+        const registeredQNames = new Set(activeTerms.map(t => t.qname));
+        const globalPrefixes = new Set(globalDeclarations.map(d => d.prefix));
+        const termKeyValidation = validatePropertyTermKeys(
+          parsedXML,
+          registeredQNames,
+          globalPrefixes,
+          validationMode
+        );
+        analysisResult.errors.push(...termKeyValidation.errors);
+        analysisResult.warnings.push(...termKeyValidation.warnings);
+      }
 
       analysisResult.processingTime = Date.now() - startTime;
       
@@ -1038,9 +1060,117 @@ function validateReferences(parsedXML : any) {
     return { errors, warnings };
   }
   
-    /**
-     * Generate auto-correction suggestions for common errors
-     */
+  /**
+   * property / uncertainty タグの key 属性値を再帰的に収集する
+   *
+   * @param obj - パース済みXMLオブジェクト（任意の階層）
+   * @param keys - 収集した key 値を格納する Set（重複排除のため Set を使用）
+   */
+  function collectPropertyAndUncertaintyKeys(obj: any, keys: Set<string>): void {
+    if (typeof obj !== 'object' || obj === null) return;
+
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        collectPropertyAndUncertaintyKeys(item, keys);
+      }
+      return;
+    }
+
+    for (const tagName of Object.keys(obj)) {
+      if (tagName === 'property' || tagName === 'uncertainty') {
+        const elements = Array.isArray(obj[tagName]) ? obj[tagName] : [obj[tagName]];
+        for (const el of elements) {
+          if (el && typeof el === 'object' && el['@_key']) {
+            keys.add(String(el['@_key']));
+          }
+          // ネスト内も再帰的に走査
+          collectPropertyAndUncertaintyKeys(el, keys);
+        }
+      } else {
+        collectPropertyAndUncertaintyKeys(obj[tagName], keys);
+      }
+    }
+  }
+
+  /**
+   * Phase 7: property / uncertainty タグの key 属性値を用語テーブルと照合するバリデーション
+   *
+   * 判定フロー:
+   * 1. key に含まれる prefix がグローバルCSV（global-declarations.csv）に登録されている
+   *    → エラーなし（グローバル宣言の prefix を持つ用語として許可）
+   * 2. グローバルCSV未登録 prefix のキー、またはプレーンキー（prefix なし）
+   *    → namespace_term（DB）のアクティブ用語と照合
+   *    → 未登録の場合 → strict: errors / lenient: warnings に追加
+   *
+   * @param parsedXML - fast-xml-parser でパース済みのXMLオブジェクト
+   * @param registeredQNames - namespace_term のアクティブ用語 qname の Set
+   * @param globalPrefixes - グローバルCSVに登録済みの prefix Set
+   * @param mode - バリデーションモード ('strict' | 'lenient')
+   * @returns { errors: ErrorContent[], warnings: ErrorContent[] }
+   */
+  function validatePropertyTermKeys(
+    parsedXML: any,
+    registeredQNames: Set<string>,
+    globalPrefixes: Set<string>,
+    mode: ValidationMode
+  ): { errors: ErrorContent[]; warnings: ErrorContent[] } {
+    const errors: ErrorContent[] = [];
+    const warnings: ErrorContent[] = [];
+
+    // property / uncertainty タグの key 属性値を全収集
+    const collectedKeys = new Set<string>();
+    collectPropertyAndUncertaintyKeys(parsedXML, collectedKeys);
+
+    console.log(`🔍 [validatePropertyTermKeys] 収集された key 数: ${collectedKeys.size}`);
+
+    for (const key of collectedKeys) {
+      // prefix:localName 形式かプレーンキーかを判定
+      const colonIdx = key.indexOf(':');
+      if (colonIdx !== -1) {
+        // prefix:localName 形式
+        const prefix = key.substring(0, colonIdx);
+
+        // ステップ1: グローバルCSVに登録されている prefix か
+        if (globalPrefixes.has(prefix)) {
+          // グローバル宣言の prefix → エラーなし
+          continue;
+        }
+
+        // ステップ2: namespace_term（DB）に登録されているか
+        if (registeredQNames.has(key)) {
+          continue;
+        }
+      } else {
+        // プレーンキー形式（prefix なし）
+        // ステップ2: namespace_term（DB）に登録されているか
+        if (registeredQNames.has(key)) {
+          continue;
+        }
+      }
+
+      // 未登録キー
+      console.log(`❌ [validatePropertyTermKeys] 未登録用語キー: "${key}"`);
+      const errorEntry: ErrorContent = {
+        type: errorTypes.TERM_NOT_REGISTERED,
+        severity: 'error',
+        message: `Unregistered term key "${key}" used in property/uncertainty tag.`,
+        details: `The key "${key}" is not registered in the namespace term management.`,
+        suggestion: 'Register this term in the namespace management screen before using it.',
+        // lenient モードでも canBeIgnoredOnUpload=true（アップロード許可）にするが
+        // errors 配列に追加することで maimlHasErrors=true となり編集不可モードが発動する
+        canBeIgnoredOnUpload: mode === 'lenient',
+      };
+
+      errors.push(errorEntry);
+    }
+
+    console.log(`✅ [validatePropertyTermKeys] 完了: ${errors.length} エラー, ${warnings.length} 警告`);
+    return { errors, warnings };
+  }
+
+  /**
+   * Generate auto-correction suggestions for common errors
+   */
     export function generateAutoCorrections(analysisResult: AnalysisResult) {
       const corrections : Correction[] = [];
   
