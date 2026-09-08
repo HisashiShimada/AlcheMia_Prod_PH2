@@ -1247,6 +1247,7 @@
       "issueTypePlaceholder": "Select issue type",
       "contentRequired": "Please enter content",
       "contentMinLength": "Content must be at least 10 characters",
+      "contentMaxLength": "Content must be 1000 characters or less",
       "save": "Save",
       "cancel": "Cancel"
     },
