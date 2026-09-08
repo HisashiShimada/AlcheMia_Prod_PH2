@@ -179,8 +179,10 @@ interface WorkProperty {
    * 設定時は confidenceOptions より優先してボタン色に使用する。
    */
   confidenceOptionsWithColor?: Array<{ value: string; color: string }>;
-  /** property_set の description（定性評価ラベル右隣に表示） */
+  /** MAIMLの uncertainty[].description（実験管理者が設定した定性評価説明） */
   description?: string;
+  /** template_data.property_set の uncertainty[].description（実験作業者が入力した定性評価理由） */
+  qualitativeReason?: string;
 }
 
 /** Insertion スロット（テンプレートに紐づくファイル添付欄） */
@@ -336,8 +338,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
    */
   const confidenceOptionsWithColor = prop.confidenceOptionsWithColor;
   const [confidence, setConfidence] = useState<string | null>(prop.defaultConfidence ?? null);
-  /** 定性評価理由の入力値 */
-  const [qualitativeReason, setQualitativeReason] = useState<string>('');
+  /** 定性評価理由の入力値（保存済みの値を初期値として設定） */
+  const [qualitativeReason, setQualitativeReason] = useState<string>(prop.qualitativeReason ?? '');
   /**
    * 定量評価入力行。
    * quantitativeUncertainties が設定されている場合は件数分の行を初期生成し
@@ -2199,7 +2201,8 @@ function convertRawProperty(
     defaultConfidence,
     confidenceOptions,
     confidenceOptionsWithColor,
-    description: (p.qualitativeNote as string | null | undefined) ?? undefined,
+    description:        (p.qualitativeNote as string | null | undefined) ?? undefined,
+    qualitativeReason:  (p.qualitativeReason as string | null | undefined) ?? undefined,
   };
 }
 

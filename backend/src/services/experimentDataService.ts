@@ -500,6 +500,35 @@ export async function getTemplateData(
           }
         }
 
+        // ── 定性評価説明 / 定性評価理由の分離 ──
+        // DB の uncertainty[].description には保存時に書き込まれた「定性評価理由」（作業者入力）が入っている。
+        // 一方「定性評価説明」は実験管理者がチェックアウト時に設定したMAIMLの元の description であり、
+        // フォールバックデータ（MAIML由来）の qualitativeNote から取得する。
+        // enrichedProperties の各プロパティを以下のように書き換える:
+        //   qualitativeReason = DB の qualitativeNote（作業者が入力した定性評価理由）
+        //   qualitativeNote   = MAIML の qualitativeNote（管理者が設定した定性評価説明）
+        const fallbackItemForDesc = fallbackAll.find(f => f.placeId === placeId);
+        if (fallbackItemForDesc && Array.isArray(fallbackItemForDesc.data.properties)) {
+          const fallbackPropMap = new Map<string, Record<string, unknown>>();
+          for (const fp of fallbackItemForDesc.data.properties as Record<string, unknown>[]) {
+            const fpKey = fp['key'] as string | undefined;
+            if (fpKey) fallbackPropMap.set(fpKey, fp);
+          }
+          enrichedProperties = enrichedProperties.map((ep) => {
+            const propKey = ep['key'] as string | undefined;
+            if (!propKey) return ep;
+            const fallbackProp = fallbackPropMap.get(propKey);
+            if (!fallbackProp) return ep;
+            return {
+              ...ep,
+              // DB由来の qualitativeNote を qualitativeReason として保持
+              qualitativeReason: (ep['qualitativeNote'] as string | null) ?? null,
+              // MAIML由来の qualitativeNote で上書き（管理者が設定した説明文）
+              qualitativeNote:   (fallbackProp['qualitativeNote'] as string | null) ?? null,
+            };
+          });
+        }
+
         const enrichedPs = ps != null
           ? { ...ps, properties: enrichedProperties }
           : { properties: enrichedProperties };
