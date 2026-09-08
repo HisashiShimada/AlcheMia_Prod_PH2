@@ -1060,8 +1060,6 @@
 
 #### 4-18-C: 不確かさ基準管理
 
-⚠️ **【実施不可シナリオ】** 
-
 > 📌 実装上は `UncertaintyManagement` の `criteria` タブ（`activeTab='criteria'`）として名前空間管理画面内に存在します。
 > UI設計書: `docs/design/ui/experiment_admin/04_namespace_management/ui_uncertainty_criteria_management.md`
 > API: `docs/design/api/api_uncertainty_criteria.md`（v1.0.0 2026-08-14）
