@@ -2767,13 +2767,22 @@ export default function WorkRecordPanel({
           }
         }
         // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
+        // ※ 定量評価（toleranceValues に含まれるキー）には書き込まない
         if (Array.isArray(baseData.properties)) {
           (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
             if (p.isCustomProperty === true) return;
             const propKey = String(p.key ?? '');
             const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+            // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
+            const quantitativeKeys = new Set(
+              (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
+                ?.map((tv) => tv.uncertaintyKey) ?? []
+            );
             if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
               (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+                const ucKey = unc['key'] as string | undefined;
+                // 定量評価キーはスキップ（定性評価のキーのみ書き込む）
+                if (!ucKey || quantitativeKeys.has(ucKey)) return;
                 // 定性評価選択値を書き込む
                 if (confidenceEntry?.value) {
                   unc.value = confidenceEntry.value;
@@ -2783,6 +2792,17 @@ export default function WorkRecordPanel({
                   unc.description = confidenceEntry.description;
                 }
               });
+            }
+            // フラットフィールドも同期して上書きする
+            // （rawTemplateItemsRef は保存後に更新されないため、古い値が残らないよう明示的に更新）
+            if (confidenceEntry?.value) {
+              p['qualitativeEval'] = confidenceEntry.value;
+            }
+            if (confidenceEntry?.description != null) {
+              p['qualitativeReason'] = confidenceEntry.description;
+            } else if (confidenceEntry !== undefined) {
+              // エントリは存在するが description が null/undefined の場合はクリア
+              p['qualitativeReason'] = null;
             }
           });
         }
@@ -2829,11 +2849,31 @@ export default function WorkRecordPanel({
       Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
       // 保存成功後に未保存フラグをリセット
       setIsDirty(false);
+      // 保存成功後: apiTransitions の WorkProperty を confidenceValuesRef の現在値で更新する
+      // これにより PropertyCard が再マウントされた際も定性評価選択・定性評価理由が保持される
+      setApiTransitions((prevTransitions) =>
+        prevTransitions.map((transition) => ({
+          ...transition,
+          templates: transition.templates.map((template) => ({
+            ...template,
+            properties: template.properties.map((prop) => {
+              const refKey = `${template.id}__${prop.key}`;
+              const entry = confidenceValuesRef.current.get(refKey);
+              if (!entry) return prop;
+              return {
+                ...prop,
+                ...(entry.value !== '' ? { defaultConfidence: entry.value } : {}),
+                ...(entry.description != null ? { qualitativeReason: entry.description } : {}),
+              };
+            }),
+          })),
+        }))
+      );
     } catch (err) {
       console.error('[WorkRecordPanel] handleSave error:', err);
       message.error(t('workRecord.saveContent'));
     }
-  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions]);
+  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions, setApiTransitions]);
 
   // ─── スキップ state ────────────────────────────────────────
   const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
@@ -2886,13 +2926,22 @@ export default function WorkRecordPanel({
                 }
               }
               // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
+              // ※ 定量評価（toleranceValues に含まれるキー）には書き込まない
               if (Array.isArray(baseData.properties)) {
                 (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
                   if (p.isCustomProperty === true) return;
                   const propKey = String(p.key ?? '');
                   const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+                  // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
+                  const quantitativeKeys = new Set(
+                    (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
+                      ?.map((tv) => tv.uncertaintyKey) ?? []
+                  );
                   if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
                     (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+                      const ucKey = unc['key'] as string | undefined;
+                      // 定量評価キーはスキップ（定性評価のキーのみ書き込む）
+                      if (!ucKey || quantitativeKeys.has(ucKey)) return;
                       // 定性評価選択値を書き込む
                       if (confidenceEntry?.value) {
                         unc.value = confidenceEntry.value;
@@ -2902,6 +2951,17 @@ export default function WorkRecordPanel({
                         unc.description = confidenceEntry.description;
                       }
                     });
+                  }
+                  // フラットフィールドも同期して上書きする
+                  // （rawTemplateItemsRef は保存後に更新されないため、古い値が残らないよう明示的に更新）
+                  if (confidenceEntry?.value) {
+                    p['qualitativeEval'] = confidenceEntry.value;
+                  }
+                  if (confidenceEntry?.description != null) {
+                    p['qualitativeReason'] = confidenceEntry.description;
+                  } else if (confidenceEntry !== undefined) {
+                    // エントリは存在するが description が null/undefined の場合はクリア
+                    p['qualitativeReason'] = null;
                   }
                 });
               }
@@ -2929,6 +2989,26 @@ export default function WorkRecordPanel({
               ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
               ...(qualitativeValues.length > 0 ? { qualitativeValues } : {}),
             });
+            // 保存成功後: apiTransitions の WorkProperty を confidenceValuesRef の現在値で更新する
+            // これにより PropertyCard が再マウントされた際も定性評価選択・定性評価理由が保持される
+            setApiTransitions((prevTransitions) =>
+              prevTransitions.map((transition) => ({
+                ...transition,
+                templates: transition.templates.map((template) => ({
+                  ...template,
+                  properties: template.properties.map((prop) => {
+                    const refKey = `${template.id}__${prop.key}`;
+                    const entry = confidenceValuesRef.current.get(refKey);
+                    if (!entry) return prop;
+                    return {
+                      ...prop,
+                      ...(entry.value !== '' ? { defaultConfidence: entry.value } : {}),
+                      ...(entry.description != null ? { qualitativeReason: entry.description } : {}),
+                    };
+                  }),
+                })),
+              }))
+            );
           } catch (err) {
             console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
             message.error(t('workRecord.saveContent'));
@@ -2966,7 +3046,7 @@ export default function WorkRecordPanel({
         Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
       }
     },
-    [projectId, methodId, tasks, skippedTransitionIds, t, uploadAllPendingInsertions, isDirty]
+    [projectId, methodId, tasks, skippedTransitionIds, t, uploadAllPendingInsertions, isDirty, setApiTransitions]
   );
 
   const handleSkip = useCallback(
