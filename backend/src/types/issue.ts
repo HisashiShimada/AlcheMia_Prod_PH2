@@ -131,13 +131,13 @@ export interface NewIssue {
   /** トランジションID（オプショナル、targetTypeがtransitionの場合必須） */
   transitionId?: string | null;
 
-  /** 問題タイトル（1-200文字） */
+  /** 問題タイトル（1-100文字） */
   issueTitle: string;
 
   /** 問題タイプ（数値） */
   issueType: number;
 
-  /** 問題内容（1-2000文字） */
+  /** 問題内容（1-1000文字） */
   issueContents: string;
 
   /** 問題報告者のユーザーID（UUID） */

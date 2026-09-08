@@ -1249,6 +1249,7 @@
       "issueTypePlaceholder": "問題タイプを選択",
       "contentRequired": "内容を入力してください",
       "contentMinLength": "内容は10文字以上で入力してください",
+      "contentMaxLength": "内容は1000文字以内で入力してください",
       "save": "保存",
       "cancel": "キャンセル"
     },

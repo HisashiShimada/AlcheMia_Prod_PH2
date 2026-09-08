@@ -116,7 +116,7 @@ router.post('/',
 | targetType | string | ○ | 対象種別 | `"project"`, `"task"`, `"transition"` のいずれか |
 | taskNo | integer | △ | タスク番号 | targetTypeが `"task"` または `"transition"` の場合必須、1以上の整数 |
 | transitionId | string | △ | トランジションID | targetTypeが `"transition"` の場合必須 |
-| title | string | ○ | 問題タイトル | 1-200文字 |
+| title | string | ○ | 問題タイトル | 1-100文字 |
 | description | string | ○ | 問題詳細 | 1-2000文字 |
 
 ### レスポンス
@@ -191,7 +191,7 @@ router.post('/',
 ### ビジネスロジック
 
 1. **バリデーション（issueService.validateIssueData）**
-   - `title` が1-200文字であることを確認
+   - `title` が1-100文字であることを確認
    - `description` が1-2000文字であることを確認
    - `issueType` が0以上の整数であることを確認
    - `issueType` が `code_master` テーブル（`code_division='issue_type'`）の `code_value` に存在することを確認

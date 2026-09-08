@@ -87,6 +87,20 @@ taskNumbers={taskDetails
 - **承認日時**: 2026-09-08 10:00
 - **承認者コメント**: 調査結果に基づき実装を承認
 
+## 追加修正（動作確認後）
+
+### 事象
+実装後の動作確認で「実験計画詳細指示ダイアログ」のメソッドIDドロップダウンが空、トランジションも空になった。
+
+### 追加原因
+`Promise.all` の仕様により、`getTaskRegistration` が失敗（権限エラー等）すると `getExperimentInstructions`・`getProjectMethods` の結果も破棄され、`instructions`・`methods` がすべて空になっていた。
+
+### 追加修正内容
+`Promise.all` → `Promise.allSettled` に変更。各APIの成否を個別に判定することで、`getTaskRegistration` の失敗が他データ取得を妨げないよう修正。
+
+- **修正ファイル**: `frontend/src/components/project/ExperimentInstructionTab.tsx`（fetchData 関数、458〜483行目）
+- **修正日時**: 2026-09-08
+
 ## 実施記録
 
 ### 実施日時
