@@ -1,0 +1,204 @@
+# タスク計画書: MAIMLバリデーション用語キー照合機能実装
+
+## メタデータ
+- **作成日時**: 2026-09-08
+- **タスクID**: 20260908_1000_MAIMLバリデーション用語キー照合機能実装
+- **優先度**: 高
+- **推定工数**: 3〜4時間
+
+---
+
+## タスク概要
+
+MAIMLファイルのバリデーション機能（`maimlParser.ts` の `analyzeMaiMLFile`）に
+**Phase 7: 用語キー照合バリデーション** を追加する。
+
+MAIMLファイル内の `<property>` タグおよび `<uncertainty>` タグの `key` 属性に
+`prefix:localName` 形式（例: `Alchemia:SampleId`、`time:timestamp`）の値が使われている場合、
+そのキーが当該組織の名前空間テーブル（`namespace_term`）に登録済みの用語かどうかを検証し、
+**未登録用語はエラーとして報告する**。
+
+---
+
+## 背景・調査結果
+
+### 現在の `analyzeMaiMLFile` フェーズ構成
+
+| Phase | 内容 | 実装状態 |
+|-------|------|----------|
+| Phase 1 | XML構文バリデーション | ✅ 実装済み |
+| Phase 2 | XMLパース | ✅ 実装済み |
+| Phase 3 | MAIMLの構造バリデーション | ✅ 実装済み |
+| Phase 4 | コンテンツ解析・統計収集 | ✅ 実装済み |
+| Phase 5 | 参照（ref属性）整合性チェック | ✅ 実装済み |
+| Phase 6 | ID重複チェック | ✅ 実装済み |
+| **Phase 7** | **用語キー照合バリデーション（今回追加）** | ❌ 未実装 |
+
+### property/uncertainty タグの key 属性仕様
+
+- `key` 属性には `prefix:localName` 形式の**修飾名（QName）**が使われる
+  - 例: `<property key="time:timestamp" xsi:type="dateTimeType">`
+  - 例: `<property key="Alchemia:SampleId" xsi:type="stringType">`
+  - 例: `<uncertainty key="Alchemia:UncertaintyStd" xsi:type="...">`
+- `prefix:` を持たない**プレーンな用語**（例: `key="Sample"`）は照合対象外とする
+
+### 用語照合に使う既存リソース
+
+- `namespaceTermRepository.findAllByOrganization(organizationId)` で組織全用語を一括取得可能
+- `NamespaceTermRow.qname` = `prefix:localName` 形式 → そのままキーとして比較可能
+- `is_active = false` の用語は非アクティブ → 非アクティブ用語のキーもエラーとする
+
+### バリデーション挿入ポイント
+
+- `analyzeMaiMLFile` は非同期（`async`）で `organizationId` を第1引数として受け取っている
+- Phase 6（ID重複チェック）の後に Phase 7 を追加する
+
+---
+
+## 目的と期待される成果
+
+- [ ] `<property key="prefix:localName">` のキーが用語テーブルに存在しない場合にエラーを追加する
+- [ ] `<uncertainty key="prefix:localName">` のキーが用語テーブルに存在しない場合にエラーを追加する
+- [ ] `prefix:` を持たないプレーンキーは照合対象外（スキップ）
+- [ ] `is_active = false` の用語（非アクティブ）は未登録扱いとしてエラーにする
+- [ ] `strict` モードではエラー、`lenient` モードでは警告として報告する
+- [ ] `organizationId` が空の場合はスキップ（リアルタイム検証など）
+- [ ] 既存のバリデーション（Phase 1〜6）の動作に影響を与えない
+
+---
+
+## 実装ステップ
+
+### Phase 1: SQL 新規追加（アクティブ用語のみ取得）
+
+- [ ] `backend/src/sql/queries/namespace_terms/findAllActiveByOrganization.sql` を新規作成
+  - `is_active = TRUE` の用語のみを返す（`qname` = `prefix || ':' || localname`）
+  - `findAllByOrganization.sql` をベースに `is_active = TRUE` 条件を追加
+
+### Phase 2: Repository 層追加
+
+- [ ] `backend/src/repositories/namespaceTermRepository.ts` に `findAllActiveByOrganization` 関数を追加
+  - `organizationId` を受け取り `NamespaceTermRow[]` を返す
+  - 既存の `findAllByOrganization` の実装パターンに準拠
+
+### Phase 3: maimlParser.ts に Phase 7 を追加
+
+#### 3-1. `errorTypes` に新エラー種別を追加
+```typescript
+TERM_NOT_REGISTERED: 'term_not_registered',
+```
+
+#### 3-2. `validatePropertyTermKeys` 関数を新規作成
+- **引数**: `parsedXML: any, registeredQNames: Set<string>, mode: ValidationMode`
+- **処理**:
+  1. `parsedXML` を再帰走査し `property` / `uncertainty` タグの `@_key` 属性を全収集
+  2. `prefix:localName` 形式のキーのみ照合（`:`を含まないキーはスキップ）
+  3. `registeredQNames` に存在しないキーをエラー（strict）または警告（lenient）に追加
+- **返値**: `{ errors: ErrorContent[], warnings: ErrorContent[] }`
+
+#### 3-3. `analyzeMaiMLFile` の Phase 7 追加箇所
+```typescript
+// Phase 7: 用語キー照合バリデーション（organizationIdがある場合のみ実行）
+if (organaizationId) {
+  const activeTerms = await namespaceTermRepository.findAllActiveByOrganization(organaizationId);
+  const registeredQNames = new Set(activeTerms.map(t => t.qname));
+  const termKeyValidation = validatePropertyTermKeys(parsedXML, registeredQNames, validationMode);
+  analysisResult.errors.push(...termKeyValidation.errors);
+  analysisResult.warnings.push(...termKeyValidation.warnings);
+}
+```
+
+---
+
+## 変更ファイル
+
+| # | ファイル | 変更種別 |
+|---|---------|---------|
+| 1 | `backend/src/sql/queries/namespace_terms/findAllActiveByOrganization.sql` | **新規** |
+| 2 | `backend/src/repositories/namespaceTermRepository.ts` | 修正（関数追加） |
+| 3 | `backend/src/utils/maimlParser.ts` | 修正（Phase 7 追加） |
+
+---
+
+## 設計詳細
+
+### strict/lenient モード対応
+
+| モード | 扱い |
+|--------|------|
+| `strict` | `errors` に追加（`isValid` は変更しない）|
+| `lenient` | `warnings` に追加（アップロード時はブロックしない） |
+
+> `isValid = false` にしない理由: 用語未登録は構造的バリデーション違反（uuid欠落等）より
+> 深刻度が低く、編集画面で修正可能なため。
+
+### エラーメッセージ形式（英語・既存規約準拠）
+
+```
+Unregistered term key "Alchemia:UnknownKey" used in property/uncertainty tag.
+Register this term in the namespace management screen before using it.
+```
+
+### `validatePropertyTermKeys` 走査ロジック概要
+
+fast-xml-parser のパース済みオブジェクトでは `property` / `uncertainty` タグの
+key属性は `@_key` として格納される。任意の階層に存在するため再帰走査が必要。
+
+```
+parsedXML（任意の深さ）
+  └─ property / uncertainty タグの @_key 属性を収集
+       ├─ "Sample"              → : なし → スキップ
+       ├─ "time:timestamp"      → : あり → registeredQNames で照合
+       └─ "Alchemia:UnknownKey" → : あり → 未登録 → エラー or 警告
+```
+
+---
+
+## 影響範囲
+
+### 直接影響
+- `validateMaiML` → `analyzeMaiMLFile` 呼び出し側すべて
+  - 編集画面保存時のバリデーション（`strict` モード）
+  - リアルタイムバリデーション（`skipAnalysisSave=true`）
+  - アップロード時バリデーション（`lenient` モード）
+
+### 間接影響
+- `maimlPublishWorker.ts` など `maimlParser.analyzeMaiMLFile` を呼ぶ処理
+- フロントエンド `ValidationPanel.tsx` に `term_not_registered` エラー種別が追加表示される
+
+---
+
+## リスクと対策
+
+| リスク | 影響度 | 発生確率 | 対策 |
+|--------|--------|----------|------|
+| `organizationId` が空の場合にDBクエリが失敗 | 高 | 低 | `organizationId` が空なら Phase 7 をスキップ |
+| 用語件数が多い場合にバリデーション速度が低下 | 中 | 中 | 全件を一度だけ取得し `Set` で O(1) 照合 |
+| `prefix:` なしのプレーンキーを誤ってエラーにする | 中 | 低 | `:` を含まないキーはスキップする条件を明示実装 |
+| 既存テストファイルへの影響 | 中 | 低 | 既存テスト `.maiml` ファイルは `prefix:` キーを使っていないため影響なし |
+
+---
+
+## テスト計画
+
+### ユニットテスト
+- [ ] `validatePropertyTermKeys` 関数の単体テスト
+  - ケース1: `prefix:` あり・登録済み用語 → エラーなし
+  - ケース2: `prefix:` あり・未登録用語（strict）→ エラーあり
+  - ケース3: `prefix:` あり・未登録用語（lenient）→ 警告あり
+  - ケース4: `prefix:` なしのプレーンキー → エラーなし（スキップ）
+  - ケース5: `uncertainty` タグの未登録キー → エラーあり
+
+### 手動テスト
+- [ ] 未登録用語キーを含むMAIMLを `strict` バリデーション → `term_not_registered` エラーが返ること
+- [ ] 同ファイルを `lenient` バリデーション → 警告が返ること（アップロード可）
+- [ ] 登録済み用語キーのみのMAIML → Phase 7 でエラーが追加されないこと
+- [ ] `prefix:` なしキーのみのMAIML → Phase 7 でエラーが追加されないこと
+
+---
+
+## 承認記録
+
+- **計画書提示日時**: 2026-09-08
+- **承認日時**: （承認後記入）
+- **承認者コメント**: （承認後記入）

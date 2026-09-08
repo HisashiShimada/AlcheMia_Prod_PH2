@@ -95,7 +95,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   orgGroupCds,
   targetScopeName,
 }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
   const [rows, setRows] = useState<PrefixRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -387,7 +387,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       .find((d) => d !== null);
 
     if (firstDuplicate) {
-      Modal.confirm({
+      modal.confirm({
         title: t('prefixManagement.warnTitle'),
         icon: <WarningOutlined style={{ color: '#faad14' }} />,
         content: t('prefixManagement.warnAlreadyRegistered', {
@@ -452,7 +452,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
   // ── 非アクティブ化（is_active = false に設定）
   const handleDeactivate = (record: PrefixRow) => {
-    Modal.confirm({
+    modal.confirm({
       title: t('prefixManagement.deactivateConfirm', { prefix: record.prefix }),
       content: t('prefixManagement.deactivateContent'),
       okText: t('prefixManagement.deactivateOk'),
@@ -474,7 +474,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
   // ── アクティブ化（is_active = true に設定）
   const handleActivate = (record: PrefixRow) => {
-    Modal.confirm({
+    modal.confirm({
       title: t('prefixManagement.activateConfirm', { prefix: record.prefix }),
       content: t('prefixManagement.activateContent'),
       okText: t('prefixManagement.activateOk'),
@@ -533,7 +533,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   // ── 一括非アクティブ化
   const handleBulkDeactivate = () => {
     if (selectedRowKeys.length === 0) return;
-    Modal.confirm({
+    modal.confirm({
       title: t('prefixManagement.bulkDeactivateConfirm', { count: String(selectedRowKeys.length) }),
       content: t('prefixManagement.bulkDeactivateContent'),
       okText: t('prefixManagement.bulkDeactivateOk'),
@@ -572,7 +572,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
   // ── 削除（DBから削除）
   const handleDelete = (record: PrefixRow) => {
-    Modal.confirm({
+    modal.confirm({
       title: t('prefixManagement.deleteConfirm', { prefix: record.prefix }),
       content: t('prefixManagement.deleteContent'),
       okText: t('prefixManagement.deleteOk'),

@@ -199,6 +199,24 @@ export async function findAllGlobal(
 }
 
 /**
+ * 組織に紐づくアクティブな用語のみを取得（MAIMLバリデーション用）
+ *
+ * is_active = TRUE の用語のみを返す。
+ * MAIMLファイル内の property / uncertainty タグの key 属性値が
+ * 登録済み用語かどうかを検証する Phase 7 バリデーションで使用する。
+ *
+ * @param organizationId - 組織ID
+ * @returns アクティブな用語一覧（qname = prefix:localName 形式）
+ */
+export async function findAllActiveByOrganization(
+  organizationId: string
+): Promise<NamespaceTermRow[]> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findAllActiveByOrganization.sql');
+  return pgp.any<NamespaceTermRow>(query, [organizationId]);
+}
+
+/**
  * 組織の名前空間宣言（uri）を取得
  *
  * XML ビューの xmlns 注入用。namespace テーブルから1件取得する。

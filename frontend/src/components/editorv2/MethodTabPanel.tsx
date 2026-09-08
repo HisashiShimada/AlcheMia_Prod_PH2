@@ -52,7 +52,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
   onEditMethodId,
   onDeleteMethod,
 }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMethodIndex, setEditingMethodIndex] = useState<number | null>(null);
@@ -156,7 +156,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
     }
     
     // 確認ダイアログ
-    Modal.confirm({
+    modal.confirm({
       title: t('editor.method.deleteTitle'),
       content: `${t('editor.method.deleteConfirm1')} "${method.methodId}" ${t('editor.method.deleteConfirm2')}`,
       okText: t('common.delete'),
