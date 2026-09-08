@@ -281,7 +281,6 @@ const TermManagement: React.FC<TermManagementProps> = ({
             added.push(created);
           } catch { failed.push(`${row.prefix}:${row.localName}`); }
         }
-        if (added.length > 0) setTerms((prev) => [...prev, ...added]);
         if (failed.length > 0) {
           message.warning(t('termManagement.registerFailure', {
             count: String(failed.length), names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : ''),
@@ -289,6 +288,8 @@ const TermManagement: React.FC<TermManagementProps> = ({
         } else {
           message.success(t('termManagement.registerSuccess', { count: String(added.length) }));
         }
+        // インポート後に DB から最新データを再取得してUIと同期させる
+        await fetchTerms();
       } catch {
         message.error(t('termManagement.fetchError'));
       } finally {

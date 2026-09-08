@@ -673,14 +673,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           }
         }
 
-        if (added.length > 0) {
-          setRows((prev) => [...prev, ...added]);
-        }
         if (failed.length > 0) {
           message.warning(t('prefixManagement.csvImportPartial', { saved: String(added.length), failCount: String(failed.length) }));
         } else {
           message.success(t('prefixManagement.csvImportSuccess', { count: String(added.length) }));
         }
+        // インポート後に DB から最新データを再取得してUIと同期させる
+        reloadNamespaces();
       } catch {
         message.error(t('prefixManagement.csvParseError'));
       } finally {
