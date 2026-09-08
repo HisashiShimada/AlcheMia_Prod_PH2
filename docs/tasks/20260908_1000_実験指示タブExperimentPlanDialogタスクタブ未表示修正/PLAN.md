@@ -104,9 +104,9 @@ taskNumbers={taskDetails
 - [x] Step 2: `ExperimentInstructionTab.tsx` 修正 — 完了
   - [x] `getTaskRegistration` を `projectApiService` から import 追加（53行目）
   - [x] `TaskRegistrationItem` 型を `taskRegistration` から import 追加（59行目）
-  - [x] `taskRegistrations` state を追加（431行目）
-  - [x] `fetchData` 内で `getTaskRegistration(projectId)` を並行取得し `taskRegistrations` にセット（461・465行目）
-  - [x] `ExperimentPlanDialog` の `taskNumbers` 生成ロジックを修正（1403〜1407行目）
+  - [x] `taskRegistrations` state を追加（429行目）
+  - [x] `fetchData` 内で `getTaskRegistration(projectId)` を並行取得し `taskRegistrations` にセット
+  - [x] `ExperimentPlanDialog` の `taskNumbers` 生成ロジックを修正（1398〜1403行目）
 - [x] Step 3: `ui_experiment_instruction_tab.md` 設計書を更新 — 完了
   - [x] State 定義に `taskRegistrations` を追加
   - [x] API 連携セクションにタスク登録情報取得を追加・データ取得フローを更新
