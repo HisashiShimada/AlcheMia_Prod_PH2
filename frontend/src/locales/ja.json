@@ -2892,6 +2892,7 @@
     "masterRequired": "「{name}」はマスタ登録が必要です",
     "masterRequiredDesc": "属性値がマスタに登録されていないため保存できません。システム管理者にお問い合わせください。",
     "placeholderAttrValueInput": "属性値を入力",
+    "placeholderKeySelect": "キーを選択（用語マップから検索）",
     "modalAddElement": "➕ 要素追加",
     "enterElementName": "要素名を入力してください",
     "invalidValue": "入力値が不正です",
