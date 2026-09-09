@@ -893,6 +893,7 @@
     "status_review_waiting": "タスク結果レビュー待ち",
     "status_completed": "プロジェクト完了",
     "status_error": "タスク異常終了",
+    "status_review_rejected": "レビュー差戻",
     "checked_in": "チェックイン済み",
     "checked_out": "チェックアウト済み",
     "checking_out": "チェックアウト中",

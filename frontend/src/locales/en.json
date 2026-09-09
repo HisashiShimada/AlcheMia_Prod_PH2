@@ -891,6 +891,7 @@
     "status_review_waiting": "Review Waiting",
     "status_completed": "Completed",
     "status_error": "Task Error",
+    "status_review_rejected": "Review Rejected",
     "checked_in": "Checked In",
     "checked_out": "Checked Out",
     "checking_out": "Checking Out",
