@@ -315,9 +315,9 @@
     "executeButton": "Execute",
     "cancelButton": "Cancel",
     "status": {
-      "waiting": "Waiting",
+      "pending": "Pending",
       "inProgress": "In Progress",
-      "running": "In Progress",
+      "forcedTerminated": "Forced Terminated",
       "reviewWaiting": "Review Waiting",
       "completed": "Completed",
       "ng": "NG"
