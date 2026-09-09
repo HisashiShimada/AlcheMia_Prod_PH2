@@ -95,6 +95,8 @@ export const E7010 = 'E7010'; // タスク未完了
 export const E7011 = 'E7011'; // 処理中
 export const E7012 = 'E7012'; // 非公開済み
 export const E7013 = 'E7013'; // 別MAIMLへの上書き禁止（同一MAIMLベースの変更のみ許可）
+export const E7014 = 'E7014'; // トランジション未登録
+export const E7015 = 'E7015'; // 実験計画未登録
 
 // ===== E9xxx: UNKNOWN =====
 export const E9999 = 'E9999'; // 予期しないエラー
@@ -114,7 +116,7 @@ export type ErrorCode =
   | typeof E6001 | typeof E6002 | typeof E6003 | typeof E6004 | typeof E6005 | typeof E6006
   | typeof E7001 | typeof E7002 | typeof E7003 | typeof E7004 | typeof E7005
   | typeof E7006 | typeof E7007 | typeof E7008 | typeof E7009 | typeof E7010
-  | typeof E7011 | typeof E7012 | typeof E7013
+  | typeof E7011 | typeof E7012 | typeof E7013 | typeof E7014 | typeof E7015
   | typeof E9999
   | string; // 未知のコードも受け入れる
 
@@ -247,6 +249,8 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   E7011: 'errors.E7011',
   E7012: 'errors.E7012',
   E7013: 'errors.E7013',
+  E7014: 'errors.E7014',
+  E7015: 'errors.E7015',
 
   // ===== E9xxx: UNKNOWN =====
   E9999: 'errors.E9999',
@@ -269,6 +273,8 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   CHECKOUT_INVALID_STATUS:      'errors.CHECKOUT_INVALID_STATUS',
   CHECKOUT_NO_TASKS:            'errors.CHECKOUT_NO_TASKS',
   CHECKOUT_UNSENT_INSTRUCTIONS: 'errors.CHECKOUT_UNSENT_INSTRUCTIONS',
+  CHECKOUT_NO_TRANSITIONS:      'errors.CHECKOUT_NO_TRANSITIONS',
+  CHECKOUT_NO_EXPERIMENT_PLAN:  'errors.CHECKOUT_NO_EXPERIMENT_PLAN',
   TASK_NOT_COMPLETED:           'errors.TASK_NOT_COMPLETED',
   BUSINESS_MAIML_FILE_EXISTS:   'errors.BUSINESS_MAIML_FILE_EXISTS',
   PROJECT_ALREADY_CHECKED_OUT:  'errors.PROJECT_ALREADY_CHECKED_OUT',

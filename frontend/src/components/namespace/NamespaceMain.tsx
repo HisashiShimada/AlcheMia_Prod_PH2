@@ -627,6 +627,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   externalSelectedNsKey,
   onNsKeyChange,
   viewOnly = false,
+  tabActivatedAt,
 }) => {
   const { message, modal } = App.useApp();
   const { t } = useLanguage();
@@ -1066,6 +1067,20 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // fetchTermsForCurrentNsKey / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalSelectedNsKey]);
+
+  // ──── tabActivatedAt 変化時に terms と dbPrefixes を強制再取得
+  // 外部（UncertaintyManagement 等）で用語管理タブへ切り替えた際にタイムスタンプを更新することで
+  // externalSelectedNsKey が変化しなくても terms・fetchPrefixes を再実行する。
+  // undefined の場合はスキップ（初回マウント時は externalSelectedNsKey の useEffect に任せる）。
+  useEffect(() => {
+    if (tabActivatedAt === undefined) return;
+
+    const nsKey = externalSelectedNsKey ?? selectedNsKey;
+    fetchTermsForCurrentNsKey(nsKey);
+    fetchPrefixesForCurrentNsKey(nsKey);
+  // fetchTermsForCurrentNsKey / fetchPrefixesForCurrentNsKey は依存
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabActivatedAt]);
 
   // ──── selectedNsKey（内部ツリー選択 state）が変化したときに用語を再フェッチ
   // externalSelectedNsKey が渡されていない場合（通常の namespace-management ページ）のみ動作する

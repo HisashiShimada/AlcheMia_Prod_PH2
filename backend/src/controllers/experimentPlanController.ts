@@ -63,7 +63,7 @@ export async function upsertExperimentPlan(
   try {
     const { organizationId, userId } = req.user!;
     const { projectId, methodId, taskNo: taskNoStr } = req.params;
-    const body = req.body as { plannedValues?: ExperimentPlanValues; templates?: TemplateDef[] };
+    const body = req.body as { plannedValues?: ExperimentPlanValues; templates?: TemplateDef[]; transitions?: Array<{ id: string; name: string }> };
 
     logger.info('[experimentPlan] upsertExperimentPlan', {
       organizationId,
@@ -82,6 +82,7 @@ export async function upsertExperimentPlan(
       plannedValues: body.plannedValues!,
       userId,
       templates: body.templates,
+      transitions: body.transitions,
     });
 
     res.json({ success: true, data: result });

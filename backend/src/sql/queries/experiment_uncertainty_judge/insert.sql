@@ -6,7 +6,7 @@
 --   $3  method_id
 --   $4  task_no
 --   $5  transition_id
---   $6  place_id
+--   $6  template_id
 --   $7  property_key
 --   $8  uncertainty_key
 --   $9  uncertainty_version
@@ -23,7 +23,7 @@ INSERT INTO experiment_uncertainty_judge (
     method_id,
     task_no,
     transition_id,
-    place_id,
+    template_id,
     property_key,
     uncertainty_key,
     uncertainty_version,
