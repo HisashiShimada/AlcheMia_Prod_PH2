@@ -89,6 +89,13 @@ interface UncertaintyCriteriaSelectorPanelProps {
   targetProperty: TargetProperty | null;
   /** 付与確定時コールバック */
   onAssign: (payload: AssignPayload) => void;
+  /**
+   * プロジェクトが属する組織グループCD（任意）。
+   * 新規基準作成ダイアログのKey属性設定プルダウンのスコープ絞り込みに使用する。
+   * 指定時: そのグループ＋上位グループスコープ＋個人スコープの用語のみ表示
+   * 未指定時: 個人スコープのみにフォールバック
+   */
+  organizationGroupCd?: string | null;
 }
 
 // ============================================================================
@@ -107,6 +114,7 @@ interface UncertaintyCriteriaSelectorPanelProps {
 export default function UncertaintyCriteriaSelectorPanel({
   targetProperty,
   onAssign,
+  organizationGroupCd,
 }: UncertaintyCriteriaSelectorPanelProps) {
   const { message } = App.useApp();
   const { t } = useLanguage();
@@ -841,6 +849,7 @@ export default function UncertaintyCriteriaSelectorPanel({
       <UncertaintyCreateModal
         open={createModalOpen}
         allCriteria={[]}
+        organizationGroupCd={organizationGroupCd}
         onClose={() => setCreateModalOpen(false)}
       />
     </div>
