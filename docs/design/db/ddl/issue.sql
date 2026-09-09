@@ -24,17 +24,17 @@ CREATE TABLE issue (
     
     -- 報告・完了情報
     issue_reporter_id VARCHAR(50),
-    issue_report_at TIMESTAMP,
+    issue_report_at TIMESTAMPTZ,
     issue_completer_id VARCHAR(50),
-    issue_complate_at TIMESTAMP,
+    issue_complate_at TIMESTAMPTZ,
     
     -- 監査証跡
     create_user_id VARCHAR(50),
     update_user_id VARCHAR(50),
     
     -- タイムスタンプ
-    create_at TIMESTAMP,
-    update_at TIMESTAMP,
+    create_at TIMESTAMPTZ,
+    update_at TIMESTAMPTZ,
     
     -- 制約
     CONSTRAINT issue_pkey PRIMARY KEY (organization_id, project_id, issue_id)

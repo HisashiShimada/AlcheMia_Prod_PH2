@@ -31,14 +31,14 @@ CREATE TABLE experiment_instruction_detail (
     uncertainty_key             CHARACTER VARYING(50),  -- FK→uncertainty_criteria（未付与時はNULL）
     uncertainty_assigned_value  CHARACTER VARYING,      -- 定量:±0.02 / 定性:確か 等（未付与時はNULL）
     uncertainty_assigned_by     CHARACTER VARYING(50),  -- FK→organization_user（未付与時はNULL）
-    uncertainty_assigned_at     TIMESTAMP,              -- 未付与時はNULL
+    uncertainty_assigned_at     TIMESTAMPTZ,              -- 未付与時はNULL
     uncertainty_comment         TEXT,                   -- 未付与時はNULL
 
     -- 監査証跡
     create_user_id      VARCHAR(50),
-    create_at           TIMESTAMP,
+    create_at           TIMESTAMPTZ,
     update_user_id      VARCHAR(50),
-    update_at           TIMESTAMP,
+    update_at           TIMESTAMPTZ,
 
     -- 主キー制約
     CONSTRAINT experiment_instruction_detail_PKC PRIMARY KEY (

@@ -17,9 +17,9 @@ CREATE TABLE namespace_term (
   , display_name    VARCHAR(255)
   , description     TEXT
   , has_directive_term BOOLEAN    NOT NULL DEFAULT FALSE
-  , create_at       TIMESTAMP
+  , create_at       TIMESTAMPTZ
   , create_user_id  VARCHAR(50)
-  , update_at       TIMESTAMP
+  , update_at       TIMESTAMPTZ
   , update_user_id  VARCHAR(50)
   , CONSTRAINT namespace_term_PKC PRIMARY KEY (organization_id, namespace_id, prefix, localname)
 ) ;

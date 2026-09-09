@@ -30,8 +30,8 @@ CREATE TABLE creator (
     update_user_id VARCHAR(50),
     
     -- タイムスタンプ
-    create_at TIMESTAMP,
-    update_at TIMESTAMP,
+    create_at TIMESTAMPTZ,
+    update_at TIMESTAMPTZ,
     
     -- 制約
     CONSTRAINT creator_PKC PRIMARY KEY (organization_id, creator_uuid)

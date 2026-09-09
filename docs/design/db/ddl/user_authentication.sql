@@ -19,8 +19,8 @@ CREATE TABLE user_authentication (
     update_user_id VARCHAR(50),
     
     -- タイムスタンプ
-    create_at TIMESTAMP,
-    update_at TIMESTAMP,
+    create_at TIMESTAMPTZ,
+    update_at TIMESTAMPTZ,
     
     -- 制約
     CONSTRAINT user_authentication_PKC PRIMARY KEY (user_id, organization_id)

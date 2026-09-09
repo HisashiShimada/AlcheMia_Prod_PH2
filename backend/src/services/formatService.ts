@@ -1,6 +1,7 @@
 import { getStorageService } from './storageService';
 import { FormatFolder, FormatFile } from '../types/format';
 import { AppError, E1006, E1007, E1008, E1009, E4006, E6002, E6004, E6005, E6006 } from '../enums/errorCodes';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * フォーマットフォルダ一覧を取得
@@ -96,8 +97,8 @@ export async function getFormatFolders(
           fileType,
           category,
           organizationGroup: '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: toJSTIsoString(new Date()),
+          updatedAt: toJSTIsoString(new Date()),
           tags: [category, folderName],
         };
       })
@@ -199,7 +200,7 @@ export async function getFormatFiles(
             name: subFolderName,
             path: subFolderFullPath,
             size: 0,
-            lastModified: new Date().toISOString(),
+            lastModified: toJSTIsoString(new Date()),
             type: 'folder',
             isFolder: true,
             fileCount,
@@ -233,7 +234,7 @@ export async function getFormatFiles(
             name: subFolderName,
             path: subFolderFullPath,
             size: 0,
-            lastModified: new Date().toISOString(),
+            lastModified: toJSTIsoString(new Date()),
             type: 'folder',
             isFolder: true,
             fileCount,
@@ -251,8 +252,8 @@ export async function getFormatFiles(
             path: item.key,
             size: item.size || 0,
             lastModified: item.lastModified 
-              ? (typeof item.lastModified === 'string' ? item.lastModified : new Date(item.lastModified).toISOString())
-              : new Date().toISOString(),
+              ? (typeof item.lastModified === 'string' ? item.lastModified : toJSTIsoString(new Date(item.lastModified)))
+              : toJSTIsoString(new Date()),
             type: fileExtension,
             isFolder: false,
           });
@@ -347,7 +348,7 @@ export async function createFormatFolder(
       folder_name: folderName,
       folder_path: fullPath,
       organization_group_cd: organizationGroupCd,
-      created_at: new Date().toISOString(),
+      created_at: toJSTIsoString(new Date()),
     };
   } catch (error) {
     console.error('[formatService] Failed to create format folder:', error);
@@ -463,7 +464,7 @@ export async function createFormatSubfolder(
       folder_name: subfolderName,
       folder_path: folderPath,
       full_swift_path: fullSwiftPath,
-      created_at: new Date().toISOString(),
+      created_at: toJSTIsoString(new Date()),
     };
   } catch (error) {
     console.error('[formatService] Failed to create format subfolder:', error);
@@ -547,7 +548,7 @@ export async function createFormatFile(
       fileName: fullFileName,
       fileType,
       size: fileSize,
-      createdAt: new Date().toISOString(),
+      createdAt: toJSTIsoString(new Date()),
     };
   } catch (error) {
     console.error('[formatService] Failed to create format file:', error);
@@ -618,7 +619,7 @@ export async function updateFormatFile(
     return {
       filePath,
       size: fileSize,
-      updatedAt: new Date().toISOString(),
+      updatedAt: toJSTIsoString(new Date()),
     };
   } catch (error) {
     console.error('[formatService] Failed to update format file:', error);
