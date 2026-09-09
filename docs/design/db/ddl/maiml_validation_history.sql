@@ -41,7 +41,7 @@ CREATE TABLE maiml_validation_history (
     arcs_validated INTEGER,
     
     -- タイムスタンプ
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- インデックス作成

@@ -26,9 +26,9 @@ CREATE TABLE project_task (
   , attempts_count numeric(3,0)
   , worker_linked_flg BOOLEAN
   , create_user_id character varying(50)
-  , create_at timestamp
+  , create_at TIMESTAMPTZ
   , update_user_id character varying(50)
-  , update_at timestamp
+  , update_at TIMESTAMPTZ
   , CONSTRAINT project_task_PKC PRIMARY KEY (organization_id,project_id,method_id,experiment_order)
 ) ;
 

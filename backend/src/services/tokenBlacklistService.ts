@@ -12,6 +12,7 @@
 import type { Result, ServiceError } from '../types/auth';
 import { RedisConnectionService } from './redisConnectionService';
 import { logError } from '../utils/logger';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * アクセストークンブラックリストサービスクラス
@@ -178,7 +179,7 @@ export class TokenBlacklistService {
             if (timestamp && parseInt(timestamp, 10) < cutoffTime) {
               // トークンIDを抽出（プレフィックスを除去）
               const tokenId = key.replace(this.keyPrefix, '');
-              const addedAt = new Date(parseInt(timestamp, 10) * 1000).toISOString();
+              const addedAt = toJSTIsoString(new Date(parseInt(timestamp, 10) * 1000));
               
               await client.del(key);
               deletedCount++;

@@ -13,7 +13,7 @@ CREATE TABLE organization_group_user (
   , organization_group_cd VARCHAR(50) NOT NULL
   , user_id VARCHAR(50) NOT NULL
   , create_user_id VARCHAR(50)
-  , create_at TIMESTAMP
+  , create_at TIMESTAMPTZ
   , CONSTRAINT organization_group_user_PKC PRIMARY KEY (organization_id, organization_group_cd, user_id)
 ) ;
  

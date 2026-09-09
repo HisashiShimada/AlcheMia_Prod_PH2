@@ -28,11 +28,11 @@ CREATE TABLE project_instruction (
   , instruction_status numeric(2,0)
   , instructions text
   , instruction_user_id character varying(50)
-  , instruction_date timestamp
+  , instruction_date TIMESTAMPTZ
   , create_user_id character varying(50)
-  , create_at timestamp
+  , create_at TIMESTAMPTZ
   , update_user_id character varying(50)
-  , update_at timestamp
+  , update_at TIMESTAMPTZ
   , CONSTRAINT project_instruction_PKC PRIMARY KEY (organization_id,project_id,experiment_instruction_id)
 ) ;
 

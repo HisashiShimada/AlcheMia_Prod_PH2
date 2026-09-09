@@ -18,6 +18,7 @@ import type {
   WorkerAccessibleProject,
   WorkerProjectPagination,
 } from '../types/workerProject';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * データベースエラークラス
@@ -178,8 +179,8 @@ export class WorkerProjectService implements IWorkerProjectService {
         description: project.description || '',
         projectStatus: project.project_status,
         useDeemedProgress: project.use_deemed_progress ?? true,
-        createdAt: new Date(project.create_at).toISOString(),
-        updatedAt: new Date(project.update_at).toISOString(),
+        createdAt: toJSTIsoString(new Date(project.create_at)),
+        updatedAt: toJSTIsoString(new Date(project.update_at)),
       }));
 
       // ページネーション情報

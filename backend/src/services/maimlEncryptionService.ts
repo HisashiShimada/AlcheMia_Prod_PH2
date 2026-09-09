@@ -33,6 +33,7 @@ import {
   ALGORITHM_URI_MAP,
 } from '../types/encryptionTypes';
 import * as testKeyLoader from '../utils/testKeyLoader';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 // ---------------------------------------------------------------------------
 // 簡易鍵ストア（プロセス内インメモリ）
@@ -86,7 +87,7 @@ export async function generateKey(
         keyId,
         keyBuffer,
         algorithm: policy.algorithm,
-        createdAt: new Date().toISOString(),
+        createdAt: toJSTIsoString(new Date()),
       };
       keyStore.set(keyId, entry);
       return entry;
@@ -100,7 +101,7 @@ export async function generateKey(
         keyId,
         keyBuffer,
         algorithm: policy.algorithm,
-        createdAt: new Date().toISOString(),
+        createdAt: toJSTIsoString(new Date()),
       };
       keyStore.set(keyId, entry);
       return entry;
@@ -154,7 +155,7 @@ export async function retrieveKeyForDecryption(
         keyId: fixedKeyId,
         keyBuffer,
         algorithm: policy.algorithm,
-        createdAt: new Date().toISOString(),
+        createdAt: toJSTIsoString(new Date()),
       };
       keyStore.set(fixedKeyId, entry);
       return entry;
@@ -241,7 +242,7 @@ export function encryptElement(
 ): CipherResult {
   const algorithmUri = ALGORITHM_URI_MAP[policy.algorithm];
   const encryptionId = `enc-${uuidv4()}`;
-  const encryptedAt = new Date().toISOString();
+  const encryptedAt = toJSTIsoString(new Date());
 
   switch (policy.algorithm) {
     case 'aes-256-cbc': {

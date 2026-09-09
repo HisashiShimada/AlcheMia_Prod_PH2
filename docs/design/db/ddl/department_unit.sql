@@ -23,9 +23,9 @@ CREATE TABLE department_unit (
   , description         TEXT
   , is_active           BOOLEAN       NOT NULL DEFAULT TRUE
   , create_user_id      VARCHAR(50)
-  , create_at           TIMESTAMP
+  , create_at           TIMESTAMPTZ
   , update_user_id      VARCHAR(50)
-  , update_at           TIMESTAMP
+  , update_at           TIMESTAMPTZ
   , CONSTRAINT department_unit_PKC PRIMARY KEY (organization_id, department_unit_id)
 ) ;
 

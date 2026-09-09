@@ -15,6 +15,7 @@ import { getPgp } from '../database/db';
 import { logger } from '../utils/logger';
 import { loadSqlFile } from '../sql/loader';
 import { TaskStatusEnum, ProjectStatusEnum } from '../enums/codeMaster.enum';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * TaskStatusEnumの型定義
@@ -602,8 +603,8 @@ export class TaskService {
       assign_user_id: record.assign_user_id,
       assign_user_name: record.assign_user_name,
       progress_rate: record.progress_rate,
-      created_at: record.created_at ? record.created_at.toISOString() : '',
-      updated_at: record.updated_at ? record.updated_at.toISOString() : '',
+      created_at: record.created_at ? toJSTIsoString(record.created_at) : '',
+      updated_at: record.updated_at ? toJSTIsoString(record.updated_at) : '',
     };
   }
 }

@@ -17,6 +17,7 @@ import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { getUseDeemedProgress } from '../repositories/organizationRepository';
 import { TransitionStatusEnum } from '../types/transitionData';
 import type { TransitionStatus } from '../types/transitionData';
+import { toJSTIsoString } from '../utils/dateUtils';
 import { logger } from '../utils/logger';
 import type { Pool, PoolClient } from 'pg';
 import type { Property, Content } from '../types/maiml-unified';
@@ -537,7 +538,7 @@ export async function getTemplateData(
           data: enrichedPs as unknown as Record<string, unknown>,
           recordedBy: dbRecord.update_user_id ?? null,
           recordedAt: dbRecord.update_at instanceof Date
-            ? dbRecord.update_at.toISOString()
+            ? toJSTIsoString(dbRecord.update_at)
             : (dbRecord.update_at != null ? String(dbRecord.update_at) : null),
         } as TemplateDataItem;
       } else {

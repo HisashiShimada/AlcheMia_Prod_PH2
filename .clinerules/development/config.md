@@ -88,6 +88,71 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を作
 
 ---
 
+### タイムスタンプ処理規約（Timestamp Policy）
+
+**すべてのタイムスタンプ処理は以下のルールに従うこと。**
+
+#### 基本方針
+
+| 操作 | ルール |
+|------|--------|
+| **DBへの書き込み** | 変換不要。`NOW()` や `new Date()` を UTC のままDBに格納する |
+| **APIレスポンスへの変換** | 必ず `toJSTIsoString()` または `toISOStringJST()` を使用する |
+| **`.toISOString()` の直接使用** | **禁止**（UTC文字列のまま返ることになる） |
+
+#### 正しい使用例
+
+```typescript
+// ✅ DBから取得した日時をAPIレスポンスに返す場合
+import { toJSTIsoString } from '../utils/dateUtils';
+
+createdAt: toJSTIsoString(row.create_at)
+updatedAt: row.update_at ? toJSTIsoString(row.update_at) : ''
+
+// ✅ 現在時刻をAPIレスポンスに返す場合
+timestamp: toJSTIsoString(new Date())
+```
+
+#### 禁止例
+
+```typescript
+// ❌ 禁止: .toISOString() を直接使用
+createdAt: row.create_at.toISOString()     // UTCのまま返る
+timestamp: new Date().toISOString()         // UTCのまま返る
+
+// ❌ 禁止: DBへの書き込み時に JST変換
+create_at: toJSTIsoString(new Date())       // DBへの挿入値は変換不要
+```
+
+#### 変換不要な例外ケース
+
+以下はUTCのまま維持すること：
+
+- S3 署名付き URL の有効期限（UTCが仕様）
+- X.509 証明書の有効期限（notBefore / notAfter）
+- MaiML XML ファイル内コンテンツの日時（`'edit-timestamp'` 等）
+- MaiMLイベントログに格納する日時（`sentAt` 等）
+- DB更新用の比較タイムスタンプ（楽観的ロック）
+
+#### 使用可能な関数一覧
+
+| 関数 | 用途 | 出力例 |
+|------|------|--------|
+| `toJSTIsoString(date)` | ISO8601形式でJST変換 | `"2026-08-31T12:00:00.000+09:00"` |
+| `toISOStringJST(date)` | 同上（null/undefined対応あり） | `"2026-08-31T12:00:00.000+09:00"` |
+| `formatDateTimeJST(date)` | YYYYMMDDhhmmss形式 | `"20260831120000"` |
+| `toDisplayStringJST(date)` | 表示用 "YYYY-MM-DD HH:mm:ss" 形式 | `"2026-08-31 12:00:00"` |
+| `toDateStringJST(date)` | 日付のみ "YYYY-MM-DD" 形式 | `"2026-08-31"` |
+| `formatJST(date, format)` | 汎用フォーマット（dayjs形式） | `"2026/08/31"` 等 |
+| `getNowJST()` | 現在JST時刻をYYYYMMDDhhmmss形式 | `"20260831120000"` |
+
+#### DBカラム型
+
+- **すべてのタイムスタンプカラムは `TIMESTAMPTZ`（TIMESTAMP WITH TIME ZONE）を使用する**
+- `TIMESTAMP WITHOUT TIME ZONE` の新規作成は禁止
+
+---
+
 ### インラインオブジェクト引数禁止（No Inline Object Arguments）
 
 **関数・メソッドの引数にオブジェクトリテラルをインラインで渡すことを禁止する。**
