@@ -410,6 +410,199 @@ export async function insertNewVersion(
 }
 
 // ============================================================================
+// エクスポート用複数キー詳細取得
+// ============================================================================
+
+/**
+ * エクスポート用に複数の uncertainty_key の全バージョン詳細を一括取得する
+ *
+ * @remarks
+ * - 指定した uncertainty_key の全バージョン（全 is_Invalid）を返す
+ * - intuition_selector の選択肢も含む（LEFT JOIN で1レコードが複数行になる）
+ * - 組織 ID でフィルタリングし、マルチテナント分離を維持する
+ *
+ * @param organizationId - 組織ID
+ * @param uncertaintyKeys - 取得する uncertainty_key の配列
+ * @returns エクスポート用の詳細行配列（intuition_selector は複数行で返る）
+ */
+export async function findByUncertaintyKeysForExport(
+  organizationId: string,
+  uncertaintyKeys: string[]
+): Promise<ExportDetailRow[]> {
+  if (uncertaintyKeys.length === 0) return [];
+
+  const pgp = getPgp();
+
+  const sqlQuery = await loadSqlFile('uncertainty_criteria/findByUncertaintyKeys.sql');
+  const rows = await pgp.manyOrNone<ExportDetailRow>(sqlQuery, [organizationId, uncertaintyKeys]);
+
+  return rows;
+}
+
+/**
+ * エクスポート用の詳細行型（intuition_selector を含む）
+ */
+export interface ExportDetailRow {
+  uncertaintyKey: string;
+  uncertaintyName: string;
+  nameSpaceId: string;
+  version: number;
+  evaluationMethod: number;
+  isInvalid: boolean;
+  inheritanceUncertaintyKey: string | null;
+  xsiType: string | null;
+  units: string | null;
+  scaleFactor: string | null;
+  formatString: string | null;
+  toleranceUpper: number | null;
+  toleranceLower: number | null;
+  description: string | null;
+  displayOrder: number | null;
+  selectorValue: string | null;
+  displayColor: string | null;
+}
+
+// ============================================================================
+// インポート用バルクINSERT
+// ============================================================================
+
+/**
+ * インポート用バルクINSERT リクエストの1件型
+ */
+export interface BulkInsertCriteriaItem {
+  /** 名前空間ID */
+  nameSpaceId: string;
+  /** 不確かさ基準Key */
+  uncertaintyKey: string;
+  /** 不確かさ基準名 */
+  uncertaintyName: string;
+  /** 評価方式（1: 定量 / 2: 定性） */
+  evaluationMethod: number;
+  /** 無効フラグ */
+  isInvalid: boolean;
+  /** 継承元不確かさ基準Key（NULL許容） */
+  inheritanceUncertaintyKey: string | null;
+  /** xsi:type（定量のみ / NULL許容） */
+  xsiType: string | null;
+  /** 単位（定量のみ / NULL許容） */
+  units: string | null;
+  /** スケールファクター（定量のみ / NULL許容） */
+  scaleFactor: string | null;
+  /** フォーマット文字列（定量のみ / NULL許容） */
+  formatString: string | null;
+  /** 許容上限値（NULL許容） */
+  toleranceUpper: number | null;
+  /** 許容下限値（NULL許容） */
+  toleranceLower: number | null;
+  /** 説明（NULL許容） */
+  description: string | null;
+  /** 作成ユーザーID */
+  createUserId: string;
+  /** 定性評価の選択肢（定量の場合は空配列） */
+  qualitativeOptions: Array<{
+    displayOrder: number;
+    value: string;
+    displayColor: string;
+  }>;
+}
+
+/**
+ * インポート用バルクINSERT レスポンス型
+ */
+export interface BulkInsertCriteriaResponse {
+  /** 挿入に成功した件数 */
+  insertedCount: number;
+  /** スキップされた件数（重複キー・バージョン衝突） */
+  skippedCount: number;
+}
+
+/**
+ * 不確かさ基準を複数件インポートする（バルクINSERT）
+ *
+ * @remarks
+ * - 各アイテムを個別トランザクションで insertNewVersion と同一ロジックで INSERT
+ * - 重複エラーが発生した場合はスキップしてカウントする
+ * - 全体はひとつのトランザクションで実行する
+ *
+ * @param organizationId - 組織ID
+ * @param items - インポートするデータの配列
+ * @returns 挿入成功件数とスキップ件数
+ */
+export async function bulkInsertCriteria(
+  organizationId: string,
+  items: BulkInsertCriteriaItem[]
+): Promise<BulkInsertCriteriaResponse> {
+  if (items.length === 0) return { insertedCount: 0, skippedCount: 0 };
+
+  const pgp = getPgp();
+
+  const insertCriteriaSql  = await loadSqlFile('uncertainty_criteria/insertNewVersion.sql');
+  const insertSelectorSql  = await loadSqlFile('uncertainty_criteria/insertIntuitionSelector.sql');
+  const invalidatePrevSql  = await loadSqlFile('uncertainty_criteria/invalidatePreviousVersions.sql');
+
+  let insertedCount = 0;
+  let skippedCount  = 0;
+
+  await pgp.tx(async (t) => {
+    for (const item of items) {
+      try {
+        // 新バージョン INSERT（MAX(version)+1 で採番）
+        const criteriaRow = await t.one(insertCriteriaSql, [
+          organizationId,
+          item.nameSpaceId,
+          item.uncertaintyKey,
+          item.uncertaintyName,
+          item.evaluationMethod,
+          item.isInvalid,
+          item.inheritanceUncertaintyKey ?? null,
+          item.xsiType ?? null,
+          item.units ?? null,
+          item.scaleFactor ?? null,
+          item.formatString ?? null,
+          item.toleranceUpper !== undefined ? item.toleranceUpper : null,
+          item.toleranceLower !== undefined ? item.toleranceLower : null,
+          item.description ?? null,
+          item.createUserId,
+        ]);
+
+        const newVersion = criteriaRow.version;
+
+        // 旧バージョンを無効化
+        await t.none(invalidatePrevSql, [
+          organizationId,
+          item.nameSpaceId,
+          item.uncertaintyKey,
+          newVersion,
+        ]);
+
+        // 定性評価の場合は intuition_selector に選択肢を INSERT
+        if (item.evaluationMethod === 2 && item.qualitativeOptions.length > 0) {
+          for (const opt of item.qualitativeOptions) {
+            await t.none(insertSelectorSql, [
+              organizationId,
+              item.nameSpaceId,
+              item.uncertaintyKey,
+              newVersion,
+              opt.displayOrder,
+              opt.value,
+              opt.displayColor,
+              item.createUserId,
+            ]);
+          }
+        }
+
+        insertedCount++;
+      } catch {
+        // 重複などのエラーはスキップ
+        skippedCount++;
+      }
+    }
+  });
+
+  return { insertedCount, skippedCount };
+}
+
+// ============================================================================
 // 複数キー一括取得（experimentInstructionService 用）
 // ============================================================================
 

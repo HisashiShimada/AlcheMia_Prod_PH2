@@ -4950,15 +4950,17 @@
     "statusChangeFailed": "ステータス変更に失敗しました: {detail}"
   },
   "uncertaintyExport": {
-    "alertMessage": "エクスポート設定を選択してください",
+    "alertMessage": "{count}件をエクスポートします",
     "btnCancel": "キャンセル",
     "btnDownload": "エクスポート",
+    "exportError": "エクスポートに失敗しました",
+    "exportSuccess": "エクスポートが完了しました",
     "formatLabel": "フォーマット",
+    "noSelection": "エクスポートする基準を選択してください",
     "optionIncludeDesc": "説明を含める",
     "optionIncludeExtends": "継承情報を含める",
     "optionIncludeHistory": "履歴を含める",
     "optionsLabel": "オプション",
-    "startDemo": "デモを開始",
     "title": "不確かさ基準エクスポート"
   },
   "uncertaintyImport": {
@@ -4970,12 +4972,14 @@
     "dropHint": "または、ここにファイルをドロップ",
     "dropText": "ファイルを選択またはドラッグ＆ドロップ",
     "formatLabel": "ファイル形式",
+    "importError": "インポートに失敗しました",
+    "importSuccess": "{inserted}件インポートしました（スキップ: {skipped}件）",
+    "noFileSelected": "インポートするファイルを選択してください",
     "scopeLabel": "スコープ",
     "scopeOptionCompany": "会社",
     "scopeOptionMaterial": "材料",
     "scopeOptionMeasurement": "測定",
     "scopeOptionPersonal": "個人",
-    "startDemo": "デモを開始",
     "title": "不確かさ基準インポート"
   },
   "workflowSelectorDialog": {

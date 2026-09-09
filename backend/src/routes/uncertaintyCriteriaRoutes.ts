@@ -10,12 +10,30 @@
 
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
+import multer from 'multer';
 import * as uncertaintyCriteriaController from '../controllers/uncertaintyCriteriaController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
+
+// インポート用 multer 設定（CSV/JSON ファイルをメモリストレージで受け取る）
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['text/csv', 'application/json', 'application/octet-stream'];
+    const isAllowed = allowed.some((t) => file.mimetype.startsWith(t))
+      || file.originalname.endsWith('.csv')
+      || file.originalname.endsWith('.json');
+    if (isAllowed) {
+      cb(null, true);
+    } else {
+      cb(new Error('CSV または JSON ファイルのみアップロード可能です'));
+    }
+  },
+});
 
 /**
  * 不確かさ基準一覧取得
@@ -53,6 +71,47 @@ router.get(
   tenantIsolation,
   handleValidationErrors,
   uncertaintyCriteriaController.getForSelector
+);
+
+/**
+ * 不確かさ基準エクスポート
+ * GET /api/v1/uncertainty-criteria/export
+ *
+ * @remarks
+ * /:uncertaintyKey より前に定義することでパスの衝突を回避する。
+ * クエリ: uncertaintyKeys（複数可）, format（xml|json）, includeDesc, includeExtends, includeHistory
+ */
+router.get(
+  '/export',
+  authMiddleware,
+  tenantIsolation,
+  [
+    query('uncertaintyKeys')
+      .notEmpty()
+      .withMessage('uncertaintyKeys is required'),
+    query('format')
+      .optional()
+      .isIn(['xml', 'json'])
+      .withMessage('format must be xml or json'),
+  ],
+  handleValidationErrors,
+  uncertaintyCriteriaController.exportCriteria
+);
+
+/**
+ * 不確かさ基準インポート
+ * POST /api/v1/uncertainty-criteria/import
+ *
+ * @remarks
+ * multipart/form-data: file（CSV/JSON）, format, nameSpaceId
+ */
+router.post(
+  '/import',
+  authMiddleware,
+  tenantIsolation,
+  importUpload.single('file'),
+  handleValidationErrors,
+  uncertaintyCriteriaController.importCriteria
 );
 
 /**

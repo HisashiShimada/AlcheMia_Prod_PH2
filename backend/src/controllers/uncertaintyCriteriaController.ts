@@ -14,7 +14,11 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as uncertaintyCriteriaService from '../services/uncertaintyCriteriaService';
-import type { InsertNewVersionRequest } from '../services/uncertaintyCriteriaService';
+import type {
+  InsertNewVersionRequest,
+  ExportOptions,
+  ImportOptions,
+} from '../services/uncertaintyCriteriaService';
 import { findNamespaceIdByScopeKey } from '../repositories/namespaceTermRepository';
 
 /**
@@ -160,6 +164,100 @@ export async function createNewVersion(
 
     res.status(201).json({ version: result.version });
   } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * 不確かさ基準エクスポート
+ * GET /api/v1/uncertainty-criteria/export
+ *
+ * @remarks
+ * クエリパラメータで対象の uncertaintyKey[] と形式（format）を受け取り、
+ * ファイルコンテンツをダウンロードレスポンスとして返す。
+ */
+export async function exportCriteria(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId  = (req as any).organizationId as string;
+    const rawKeys         = req.query.uncertaintyKeys;
+    const format          = (req.query.format as string) ?? 'xml';
+    const includeDesc     = req.query.includeDesc !== 'false';
+    const includeExtends  = req.query.includeExtends !== 'false';
+    const includeHistory  = req.query.includeHistory === 'true';
+
+    const uncertaintyKeys: string[] = Array.isArray(rawKeys)
+      ? (rawKeys as string[])
+      : rawKeys ? [rawKeys as string] : [];
+
+    if (uncertaintyKeys.length === 0) {
+      res.status(400).json({ error: { code: 'E1003', message: 'uncertaintyKeys is required' } });
+      return;
+    }
+
+    const exportOptions: ExportOptions = {
+      uncertaintyKeys,
+      format,
+      includeDesc,
+      includeExtends,
+      includeHistory,
+    };
+
+    const result = await uncertaintyCriteriaService.exportCriteria(organizationId, exportOptions);
+
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
+    res.send(result.content);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * 不確かさ基準インポート
+ * POST /api/v1/uncertainty-criteria/import
+ *
+ * @remarks
+ * multipart/form-data でファイルを受け取り、CSV または JSON を解析して DB に INSERT する。
+ * req.file は multer (memoryStorage) によってセットされる。
+ */
+export async function importCriteria(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = (req as any).organizationId as string;
+    const userId         = (req as any).user?.userId as string | undefined;
+
+    if (!req.file) {
+      res.status(400).json({ error: { code: 'E1003', message: 'ファイルが必要です' } });
+      return;
+    }
+
+    const format      = (req.body.format as string) ?? 'csv';
+    const nameSpaceId = (req.body.nameSpaceId as string) ?? '';
+
+    const fileContent = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+
+    const importOptions: ImportOptions = {
+      fileContent,
+      format,
+      createUserId: userId ?? 'system',
+      nameSpaceId,
+    };
+
+    const result = await uncertaintyCriteriaService.importCriteria(organizationId, importOptions);
+
+    res.json({ success: true, insertedCount: result.insertedCount, skippedCount: result.skippedCount });
+  } catch (error: any) {
+    if (error.message?.includes('CSVのヘッダー') || error.message?.includes('JSON')) {
+      res.status(400).json({ error: { code: 'E1004', message: error.message } });
+      return;
+    }
     next(error);
   }
 }

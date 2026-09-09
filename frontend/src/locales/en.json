@@ -4948,15 +4948,17 @@
     "statusChangeFailed": "Status change failed: {detail}"
   },
   "uncertaintyExport": {
-    "alertMessage": "Please select export settings",
+    "alertMessage": "Export {count} item(s)",
     "btnCancel": "Cancel",
     "btnDownload": "Export",
+    "exportError": "Export failed",
+    "exportSuccess": "Export completed",
     "formatLabel": "Format",
+    "noSelection": "Please select criteria to export",
     "optionIncludeDesc": "Include description",
     "optionIncludeExtends": "Include inheritance info",
     "optionIncludeHistory": "Include history",
     "optionsLabel": "Options",
-    "startDemo": "Start Demo",
     "title": "Uncertainty Criteria Export"
   },
   "uncertaintyImport": {
@@ -4968,12 +4970,14 @@
     "dropHint": "Or drop a file here",
     "dropText": "Select or drag & drop a file",
     "formatLabel": "File Format",
+    "importError": "Import failed",
+    "importSuccess": "Imported {inserted} records (Skipped: {skipped})",
+    "noFileSelected": "Please select a file to import",
     "scopeLabel": "Scope",
     "scopeOptionCompany": "Company",
     "scopeOptionMaterial": "Material",
     "scopeOptionMeasurement": "Measurement",
     "scopeOptionPersonal": "Personal",
-    "startDemo": "Start Demo",
     "title": "Uncertainty Criteria Import"
   },
   "workflowSelectorDialog": {

@@ -333,3 +333,100 @@ export async function saveUncertaintyCriteriaNewVersion(
 
   return response.data;
 }
+
+// ─────────────────────────────────────────────────────────────
+// エクスポート / インポート API
+// ─────────────────────────────────────────────────────────────
+
+/** エクスポートオプション（フロントエンド用） */
+export interface ExportUncertaintyCriteriaOptions {
+  /** エクスポート対象の uncertaintyKey の配列 */
+  uncertaintyKeys: string[];
+  /** エクスポート形式（'XML' | 'JSON'） */
+  format: string;
+  /** 説明を含めるか */
+  includeDesc: boolean;
+  /** 継承情報を含めるか */
+  includeExtends: boolean;
+  /** 全バージョン（履歴）を含めるか */
+  includeHistory: boolean;
+}
+
+/** インポートレスポンス型 */
+export interface ImportUncertaintyCriteriaResponse {
+  success: boolean;
+  insertedCount: number;
+  skippedCount: number;
+}
+
+/**
+ * 選択した不確かさ基準をエクスポートしてブラウザにダウンロードさせる
+ *
+ * @remarks
+ * GET /api/v1/uncertainty-criteria/export
+ *
+ * @param options - エクスポートオプション
+ */
+export async function exportUncertaintyCriteria(
+  options: ExportUncertaintyCriteriaOptions
+): Promise<void> {
+  const client = createApiClient();
+
+  const params = new URLSearchParams();
+  for (const key of options.uncertaintyKeys) {
+    params.append('uncertaintyKeys', key);
+  }
+  params.set('format',         options.format.toLowerCase());
+  params.set('includeDesc',    String(options.includeDesc));
+  params.set('includeExtends', String(options.includeExtends));
+  params.set('includeHistory', String(options.includeHistory));
+
+  const response = await client.get('/uncertainty-criteria/export', {
+    params,
+    responseType: 'blob',
+  });
+
+  const fileName = options.format.toLowerCase() === 'json'
+    ? 'uncertainty-criteria.json'
+    : 'uncertainty-criteria.xml';
+
+  const url  = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href  = url;
+  link.setAttribute('download', fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+/**
+ * ファイルをアップロードして不確かさ基準をインポートする
+ *
+ * @remarks
+ * POST /api/v1/uncertainty-criteria/import
+ * multipart/form-data で CSV または JSON ファイルと nameSpaceId を送信する。
+ *
+ * @param file - アップロードするファイル
+ * @param format - ファイル形式（'CSV' | 'JSON'）
+ * @param nameSpaceId - 取り込み先の名前空間ID
+ */
+export async function importUncertaintyCriteria(
+  file: File,
+  format: string
+): Promise<ImportUncertaintyCriteriaResponse> {
+  const client = createApiClient();
+
+  const formData = new FormData();
+  formData.append('file',   file);
+  formData.append('format', format.toLowerCase());
+
+  const response = await client.post<ImportUncertaintyCriteriaResponse>(
+    '/uncertainty-criteria/import',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+
+  return response.data;
+}
+
