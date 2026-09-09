@@ -39,7 +39,7 @@
 | **4-3** | チェックアウト/チェックイン | 要件書#4/#5、`ui_project_management.md`（REVIEW_REJECTED(6)追加） | 11件 | 手動 | 6 | 0 | 5 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 10件 | 手動 | 8 | 0 | 2 |
 | **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | 手動 | 5 | 0 | 2 |
-| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 36件 | 手動 | 0 | 0 | 36 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 36件 | 手動 | 2 | 0 | 34 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 3件 | 手動 | 3 | 0 | 0 |
 | **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 31 | 1 | 17 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | 手動 | 9 | 1 | 0 |
@@ -52,7 +52,7 @@
 | **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | 0 | 0 | 4 |
 | **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 0 | 0 | 16 |
 | **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 16 | 2 | 17 |
-| **合計** | - | - | **357件** | - | **132** | **6** | **219** |
+| **合計** | - | - | **355件** | - | **137** | **8** | **210** |
 
 ### スコープ外
 
@@ -110,11 +110,11 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-1-40 | プロジェクトのステータスが TASK_PENDING(1)/TASK_IN_PROGRESS(2)/REVIEW_WAITING(3)/REVIEW_REJECTED(6) のいずれかの場合、ファイル操作ツールバーに「強制終了」ボタンが活性状態で表示されること | 表示確認 | `ui_project_management.md` §2.2.4（2026-09-09 追加）、`ProjectStatus.REVIEW_REJECTED=6` | - | - | |
-| 4-1-41 | プロジェクトのステータスが上記以外（PLANNING(0)/COMPLETED(4)/ERROR(5) など）の場合、「強制終了」ボタンが非活性であること | 表示確認 | `ui_project_management.md` §2.2.4（2026-09-09 追加） | - | - | |
-| 4-1-42 | チェックアウト中（`isProjectCheckedOut=true`）の場合、「強制終了」ボタンが非活性であること | 表示確認 | `ui_project_management.md` §2.2.4（2026-09-09 追加） | - | - | |
-| 4-1-43 | 「強制終了」ボタンをクリックすると確認ダイアログが表示され、「OK」を選択するとプロジェクトのステータスが ERROR(5) に変更されること | 正常系 | `ui_project_management.md` §2.2.4（2026-09-09 追加）、`forceTerminateProject` API | PATCH `/api/v1/projects/:projectId/force-terminate` | - | i18nキー: `projectManagement.forceTerminate.confirmTitle` / `confirmContent` / `okText` |
-| 4-1-44 | 「強制終了」ボタンクリック後の確認ダイアログで「キャンセル」を選択するとプロジェクトのステータスが変更されないこと | 正常系 | `ui_project_management.md` §2.2.4（2026-09-09 追加） | - | - | |
+| 4-1-40 | プロジェクトのステータスが TASK_PENDING(1)/TASK_IN_PROGRESS(2)/REVIEW_WAITING(3)/REVIEW_REJECTED(6) のいずれかの場合、ファイル操作ツールバーに「強制終了」ボタンが活性状態で表示されること | 表示確認 | `ui_project_management.md` §2.2.4（2026-09-09 追加）、`ProjectStatus.REVIEW_REJECTED=6` | - | OK | |
+| 4-1-41 | プロジェクトのステータスが上記以外（PLANNING(0)/COMPLETED(4)/ERROR(5) など）の場合、「強制終了」ボタンが非活性であること | 表示確認 | `ui_project_management.md` §2.2.4（2026-09-09 追加） | - | OK | |
+| 4-1-42 | チェックアウト中（`isProjectCheckedOut=true`）の場合、「強制終了」ボタンが非活性であること | 表示確認 | `ui_project_management.md` §2.2.4（2026-09-09 追加） | - | OK | |
+| 4-1-43 | 「強制終了」ボタンをクリックすると確認ダイアログが表示され、「OK」を選択するとプロジェクトのステータスが ERROR(5) に変更されること | 正常系 | `ui_project_management.md` §2.2.4（2026-09-09 追加）、`forceTerminateProject` API | PATCH `/api/v1/projects/:projectId/force-terminate` | OK | i18nキー: `projectManagement.forceTerminate.confirmTitle` / `confirmContent` / `okText` |
+| 4-1-44 | 「強制終了」ボタンクリック後の確認ダイアログで「キャンセル」を選択するとプロジェクトのステータスが変更されないこと | 正常系 | `ui_project_management.md` §2.2.4（2026-09-09 追加） | - | OK | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -278,7 +278,7 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 4-3-11 | プロジェクトがステータス REVIEW_REJECTED(6) の場合、プロジェクト一覧に「レビュー差戻」として表示されること | 表示確認 | `ui_project_management.md` §8.2（2026-09-09 追加）、`ProjectStatus.REVIEW_REJECTED=6` | GET `/api/v1/projects` | - | NGタスクのみ残りかつ追加タスクなしでチェックアウトした場合に発生するステータス |
-| 4-3-12 | REVIEW_REJECTED(6) のプロジェクトに対して強制終了ボタンが活性状態で表示されること | 表示確認 | `ui_project_management.md` §2.2.4（2026-09-09 追加）、§8.2 status=6 | - | - | 強制終了の活性条件: status が 1/2/3/6 かつチェックアウト中でない |
+| 4-3-12 | REVIEW_REJECTED(6) のプロジェクトに対して強制終了ボタンが活性状態で表示されること | 表示確認 | `ui_project_management.md` §2.2.4（2026-09-09 追加）、§8.2 status=6 | - | OK | 強制終了の活性条件: status が 1/2/3/6 かつチェックアウト中でない |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -374,13 +374,13 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-6-1 | 「進捗確認」タブ（key: `'3'`）でプロジェクト全体の進捗が表示されること | 表示確認 | 要件書#7、`ui_experiment_admin_menu.md` §2.2.2 タブ3 | GET `/api/v1/projects` | - | `ProgressMonitoring` コンポーネント。旧「4-6-1: 進捗確認タブでプロジェクト一覧が表示されること」を踏襲 |
+| 4-6-1 | 「進捗確認」タブ（key: `'3'`）でプロジェクト全体の進捗が表示されること | 表示確認 | 要件書#7、`ui_experiment_admin_menu.md` §2.2.2 タブ3 | GET `/api/v1/projects` | OK | `ProgressMonitoring` コンポーネント。旧「4-6-1: 進捗確認タブでプロジェクト一覧が表示されること」を踏襲 |
 
 #### 4-6-B: 実験指示タブ（task_results）
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-6-3 | 「実験指示」タブ（key: `'task_results'`）でフラットテーブルが表示され、タスクNo・ステータス・メソッド名・トランジション名等の列が存在すること | 表示確認 | `ui_experiment_instruction_tab.md` §2.1・§6（v3.1.0） | GET `/api/v1/projects/:projectId/experiment-instructions` | - | 固定列: `taskNumber`・`propKey`。旧「タスク統計件数表示」を実態に合わせて修正 |
+| 4-6-3 | 「実験指示」タブ（key: `'task_results'`）でフラットテーブルが表示され、タスクNo・ステータス・メソッド名・トランジション名等の列が存在すること | 表示確認 | `ui_experiment_instruction_tab.md` §2.1・§6（v3.1.0） | GET `/api/v1/projects/:projectId/experiment-instructions` | OK | 固定列: `taskNumber`・`propKey`。旧「タスク統計件数表示」を実態に合わせて修正 |
 | 4-6-4 | 「実験指示」タブで「承認処理」ボタンが活性化され、一括承認ダイアログから承認を実行できること | 正常系 | `ui_experiment_instruction_tab.md` §2.2・§8.3承認フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/approve` | - | `reviewWaitingTasks.length > 0` かつ `isEditable=true` の場合に活性。承認後 `fetchData()` が呼ばれて一覧が更新されること |
 | 4-6-5 | 「実験指示」タブでレビュー待ちタスクに対してNG記録（NG理由入力）ができること | 正常系 | `ui_experiment_instruction_tab.md` §8.4 NG記録フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/ng` | - | NG理由が空の場合は warning が表示されること。NG記録後に一覧が更新されること |
 | 4-6-6 | 「実験指示」タブで列カスタマイズドロップダウンから表示列を切り替えられること | 正常系 | `ui_experiment_instruction_tab.md` §1.3 主要機能3（2026-09-09: 列構成変更・旧 uncertaintyCriteriaName 等廃止→定性/定量分離列・experimentUser 追加） | - | - | 切替可能列: `qualitativeCriteriaName` / `qualitativeAssignedValue` / `quantitativeCriteriaName` / `quantitativeTolerance` / `quantitativeRecordedValue` / `quantitativeJudgeResult` / `experimentUser` 等 |
