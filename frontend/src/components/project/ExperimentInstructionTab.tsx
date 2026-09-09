@@ -93,11 +93,11 @@ export interface ExperimentInstructionTabProps {
 
 /** タスクステータス数値 → 表示設定（ラベルは useLanguage で上書きすること） */
 const TASK_STATUS_CONFIG: Partial<Record<number, { labelKey: string; color: string }>> & { null: { labelKey: string; color: string } } = {
-  [TaskStatus.PENDING]:           { labelKey: 'experimentInstruction.status.waiting',       color: 'default'    },
+  [TaskStatus.PENDING]:           { labelKey: 'experimentInstruction.status.pending',       color: 'default'    },
   [TaskStatus.IN_PROGRESS]:       { labelKey: 'experimentInstruction.status.inProgress',    color: 'processing' },
   [TaskStatus.REVIEW_WAITING]:    { labelKey: 'experimentInstruction.status.reviewWaiting', color: 'warning'    },
   [TaskStatus.COMPLETED]:         { labelKey: 'experimentInstruction.status.completed',     color: 'success'    },
-  [TaskStatus.FORCED_TERMINATED]: { labelKey: 'experimentInstruction.status.running',       color: 'error'      },
+  [TaskStatus.FORCED_TERMINATED]: { labelKey: 'experimentInstruction.status.forcedTerminated',       color: 'error'      },
   [TaskStatus.REVIEW_NG]:         { labelKey: 'experimentInstruction.status.ng',            color: 'error'      },
   null:                           { labelKey: 'experimentInstruction.status.waiting',       color: 'default'    },
 };

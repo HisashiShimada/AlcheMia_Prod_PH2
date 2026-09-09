@@ -317,9 +317,9 @@
     "executeButton": "実行",
     "cancelButton": "キャンセル",
     "status": {
-      "waiting": "待機中",
-      "inProgress": "進行中",
-      "running": "実行中",
+      "pending": "実行待ち",
+      "inProgress": "実行中",
+      "forcedTerminated": "異常終了",
       "reviewWaiting": "レビュー待ち",
       "completed": "完了",
       "ng": "NG"
