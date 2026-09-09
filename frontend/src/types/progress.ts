@@ -299,6 +299,13 @@ export interface ProgressOverviewTabProps {
    * WorkRecordPanel 側が progressRows のステータスを見て編集/閲覧モードを自己判定する。
    */
   onGoToWork: (taskNo: number, transitionId: string) => void;
+  /**
+   * プロジェクトが記録操作可能な状態かどうか。
+   * false の場合はリスト・フロー図どちらの記録ボタンも非活性になる。
+   * 省略時は true（活性）として扱う。
+   * isRecordViewableStatus() で算出した値を渡すこと。
+   */
+  isProjectRecordable?: boolean;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

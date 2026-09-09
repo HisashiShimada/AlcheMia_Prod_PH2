@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { App, Modal, Button, Space, Checkbox, Typography, Alert } from 'antd';
+import { App, Modal, Button, Space, Checkbox, Alert } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-const { Text } = Typography;
+import {
+  exportUncertaintyCriteria,
+} from '@/services/uncertaintyCriteriaApiService';
+import type { ExportUncertaintyCriteriaOptions } from '@/services/uncertaintyCriteriaApiService';
 
 /**
  * UncertaintyExportModalのProps型定義
@@ -12,6 +14,8 @@ const { Text } = Typography;
 interface UncertaintyExportModalProps {
   open: boolean;
   selectedCount: number;
+  /** エクスポート対象の uncertaintyKey 配列 */
+  selectedKeys: string[];
   onClose: () => void;
 }
 
@@ -23,6 +27,7 @@ type ExportFormat = 'XML' | 'JSON';
 export default function UncertaintyExportModal({
   open,
   selectedCount,
+  selectedKeys,
   onClose,
 }: UncertaintyExportModalProps) {
   const { message } = App.useApp();
@@ -31,10 +36,32 @@ export default function UncertaintyExportModal({
   const [includeDesc, setIncludeDesc] = useState(true);
   const [includeExtends, setIncludeExtends] = useState(true);
   const [includeHistory, setIncludeHistory] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleExport = () => {
-    message.success(t('uncertaintyExport.startDemo'));
-    onClose();
+  const handleExport = async () => {
+    if (selectedKeys.length === 0) {
+      message.warning(t('uncertaintyExport.noSelection'));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const options: ExportUncertaintyCriteriaOptions = {
+        uncertaintyKeys: selectedKeys,
+        format:          exportFormat,
+        includeDesc,
+        includeExtends,
+        includeHistory,
+      };
+
+      await exportUncertaintyCriteria(options);
+      message.success(t('uncertaintyExport.exportSuccess'));
+      onClose();
+    } catch {
+      message.error(t('uncertaintyExport.exportError'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,7 +73,7 @@ export default function UncertaintyExportModal({
       footer={
         <Space>
           <Button onClick={onClose}>{t('uncertaintyExport.btnCancel')}</Button>
-          <Button type="primary" onClick={handleExport}>
+          <Button type="primary" onClick={handleExport} loading={loading}>
             {t('uncertaintyExport.btnDownload')}
           </Button>
         </Space>
@@ -56,11 +83,7 @@ export default function UncertaintyExportModal({
         <Alert
           type="info"
           showIcon={false}
-          message={
-            <Text>
-              <Text strong>{selectedCount}</Text> {t('uncertaintyExport.alertMessage', { count: String(selectedCount) })}
-            </Text>
-          }
+          message={t('uncertaintyExport.alertMessage', { count: String(selectedCount) })}
           style={{ background: '#e6f0ff', borderColor: '#91caff', color: '#2c5282' }}
         />
 

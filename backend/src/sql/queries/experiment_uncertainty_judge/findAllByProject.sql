@@ -8,14 +8,14 @@
 --   $2  project_id
 --   $3  method_id
 
-SELECT DISTINCT ON (task_no, transition_id, place_id, property_key, uncertainty_key)
+SELECT DISTINCT ON (task_no, transition_id, template_id, property_key, uncertainty_key)
     judge_seq               AS "judgeSeq",
     organization_id         AS "organizationId",
     project_id              AS "projectId",
     method_id               AS "methodId",
     task_no                 AS "taskNo",
     transition_id           AS "transitionId",
-    place_id                AS "placeId",
+    template_id             AS "templateId",
     property_key            AS "propertyKey",
     uncertainty_key         AS "uncertaintyKey",
     uncertainty_version     AS "uncertaintyVersion",
@@ -34,7 +34,7 @@ WHERE organization_id = $1
 ORDER BY
     task_no ASC,
     transition_id ASC,
-    place_id ASC,
+    template_id ASC,
     property_key ASC,
     uncertainty_key ASC,
     judge_seq DESC

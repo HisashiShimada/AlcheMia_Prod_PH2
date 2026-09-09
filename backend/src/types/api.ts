@@ -729,6 +729,10 @@ export interface InstructionTemplate {
   fields: InstructionField[];
   /** template_data の place_id（訂正時にバックエンドへ渡すために必要） */
   placeId: string | null;
+  /** トランジションID（experiment_instruction_detail.transition_id から取得） */
+  transitionId: string | null;
+  /** トランジション表示名（experiment_instruction_detail.transition_name から取得。未設定時はtransitionIdで代替） */
+  transitionName: string | null;
 }
 
 /**
@@ -818,10 +822,16 @@ export interface UpsertExperimentPlanInput {
   userId: string;
   /**
    * ExperimentPlanDialog から渡されるテンプレート定義一覧。
-   * planned_values の fieldKey から template_name / xsi_type を解決するために使用する。
+   * planned_values の fieldKey から template_id / template_name / xsi_type を解決するために使用する。
    * 省略された場合は experiment_instruction_detail の upsert をスキップする。
    */
   templates?: TemplateDef[];
+  /**
+   * ExperimentPlanDialog から渡されるトランジション定義一覧。
+   * planned_values の transitionId から transition_name を解決するために使用する。
+   * 省略された場合は transition_name が null になる。
+   */
+  transitions?: Array<{ id: string; name: string }>;
 }
 
 // ============================================================

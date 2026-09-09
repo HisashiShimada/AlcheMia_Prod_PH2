@@ -6,9 +6,9 @@
 - **ファイルパス**: `frontend/src/components/project/ExperimentInstructionTab.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-06-22
-- **最終更新日**: 2026-09-01
+- **最終更新日**: 2026-09-09
 - **担当者**: Development Team
-- **バージョン**: 3.0.0
+- **バージョン**: 3.1.0
 
 ---
 
@@ -34,13 +34,14 @@
 
 1. **フラットテーブル表示**: `FlatRow[]` 形式でフィールド単位にフラット化して表示
 2. **フィルターバー**: タスク番号・メソッドID・トランジション・テンプレート・Key でフィルタリング
-3. **列カスタマイズ**: 表示/非表示を切替可能な列構成（Dropdown）
+3. **列カスタマイズ**: 表示/非表示を切替可能な列構成（Dropdown）。固定列（`taskNumber`・`propKey`）は常時表示
 4. **承認処理ダイアログ（一括処理）**: レビュー待ちタスクを選択して承認またはNG記録
 5. **単体承認モーダル**: テーブル行の操作列から承認確認
 6. **単体NGモーダル**: テーブル行の操作列からNG理由入力・記録
 7. **実験指示編集**: `ExperimentPlanDialog` を開く（「実験指示を編集」ボタン）
 8. **ペトリネットビューア**: `ViewRendererDialog` で MAiML ファイルを表示（フローティング）
 9. **記録値訂正**: レビュー待ちタスクの実績値（actual）をインライン編集して一括保存（「訂正」ボタン）
+10. **不確かさ判定詳細ダイアログ**: `UncertaintyJudgeDetailDialog` で定量評価の判定詳細を表示（2026-09-09 追加）
 
 ---
 
@@ -118,6 +119,13 @@ export interface ExperimentInstructionTabProps {
   isProjectCompleted?: boolean;
   /** チェックアウト中フラグ。true の場合は変更系ボタンを非活性にする */
   isCheckoutLocked?: boolean;
+  /** MAIMLバリデーションエラーがある場合 true。true の場合は変更系ボタンを非活性にする */
+  maimlHasErrors?: boolean;
+  /**
+   * プロジェクトが属する組織グループCD（任意）。
+   * TemplateInputPanel の用語キー選択モーダルで使用する用語スコープ絞り込みに使用する。（2026-09-09 追加）
+   */
+  organizationGroupCd?: string;
 }
 ```
 
@@ -128,6 +136,8 @@ export interface ExperimentInstructionTabProps {
 | `isEditable` | `boolean?` | `true` | 変更系ボタン（編集・承認処理）の活性制御 |
 | `isProjectCompleted` | `boolean?` | `false` | プロジェクト完了時は変更系ボタンを無効化 |
 | `isCheckoutLocked` | `boolean?` | `false` | チェックアウト中は変更系ボタンを無効化 |
+| `maimlHasErrors` | `boolean?` | `false` | MAIMLバリデーションエラー有無 |
+| `organizationGroupCd` | `string?` | — | 組織グループCD（用語スコープ絞り込み用）（2026-09-09 追加）|
 
 ---
 
@@ -148,12 +158,18 @@ export interface ExperimentInstructionTabProps {
 | `bulkSelectedTaskKey` | `string \| null` | `null` | 一括ダイアログ選択中タスクキー（`methodId__taskNumber`）|
 | `bulkSelectedAction` | `'approve' \| 'ng'` | `'approve'` | 一括ダイアログの操作選択 |
 | `bulkSelectedNgReason` | `string` | `''` | 一括ダイアログのNG理由 |
+| `isCorrectionMode` | `boolean` | `false` | 訂正モード中フラグ（2026-09-09 追加）|
+| `pendingCorrections` | `Map<string, string>` | `new Map()` | 訂正値の一時保持（キー: rowKey、値: 訂正後 actual）（2026-09-09 追加）|
+| `correctionLoading` | `boolean` | `false` | 訂正保存 API 呼び出し中フラグ（2026-09-09 追加）|
 | `planDialogOpen` | `boolean` | `false` | ExperimentPlanDialog 表示状態 |
 | `planDialogMethodId` | `string` | `''` | ExperimentPlanDialog に渡すメソッドID |
 | `taskRegistrations` | `TaskRegistrationItem[]` | `[]` | タスク登録情報（`project_task` ベース）。ExperimentPlanDialog の `taskNumbers` 算出に使用 |
 | `visibleColumnKeys` | `string[]` | `ALL_COLUMN_KEYS` | 表示中の列キー一覧 |
 | `columnDropdownOpen` | `boolean` | `false` | 列選択ドロップダウンの開閉状態 |
-| `viewerDialogs` | `{ id, file, zIndex }[]` | `[]` | フローティングビューア一覧 |
+| `viewerDialogs` | `{ id, file, fileContent, zIndex }[]` | `[]` | フローティングビューア一覧 |
+| `petriNetViewerLoading` | `boolean` | `false` | ペトリネットビューア読み込み中フラグ |
+| `judgeDetailOpen` | `boolean` | `false` | 不確かさ判定詳細ダイアログ表示状態（2026-09-09 追加）|
+| `judgeDetailRow` | `FlatRow \| null` | `null` | 判定詳細ダイアログの対象行（2026-09-09 追加）|
 
 ---
 
@@ -181,12 +197,19 @@ interface FlatRow {
   actual: number | string | null;           // 実績値（個別）
   actualAverage: number | null;             // 実績値平均（同一グループ）
   unit: string;
-  uncertaintyCriteriaName: string | null;
-  uncertaintyCriteriaType: 'qualitative' | 'quantitative' | null;
-  uncertaintyAssignedValue: string | null;
-  uncertaintyAssignedBy: string | null;
-  uncertaintyAssignedAt: string | null;
-  uncertaintyComment: string | null;
+  /**
+   * 定量評価: 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。
+   * 0件 = 未判定、1件以上 = 判定済み（複数件の場合はダイアログ表示）（2026-09-09 追加）
+   */
+  uncertaintyJudges: UncertaintyJudgeSummary[];
+  /** 定性評価: 不確かさ基準名（2026-09-09 追加） */
+  qualitativeCriteriaName: string | null;
+  /** 定性評価: 付与値（確か / 曖昧 / 不確か 等）（2026-09-09 追加） */
+  qualitativeAssignedValue: string | null;
+  /** 実験記録者ユーザID（project_task_detail.experiment_user_id）（2026-09-09 追加） */
+  experimentUserId: string | null;
+  /** 実験終了日時（project_task_detail.experiment_end_at, ISO文字列）（2026-09-09 追加） */
+  experimentEndAt: string | null;
 }
 ```
 
@@ -215,6 +238,8 @@ interface FilterState {
 
 ### 6.2. 切替可能列（デフォルト全表示）
 
+> ⚠️ **[2026-09-09 更新]**: 旧来の `uncertaintyCriteriaName` 等の不確かさ列を廃止し、定性・定量を分離した列構成に変更。`experimentUser`（実験記録者）列を追加。
+
 | カラムキー | i18n キー | 幅 | 説明 |
 |-----------|----------|-----|------|
 | `taskStatus` | `experimentInstructionTab.col.taskStatus*` | 110px | Tag（色付き）|
@@ -224,14 +249,16 @@ interface FilterState {
 | `xsiType` | `xsi:type`（固定）| 75px | Tag（色付き）|
 | `expected` | `experimentInstructionTab.col.expected` | 100px | 右寄せ。単位付き |
 | `expectedAverage` | `experimentInstructionTab.col.expectedAverage` | 120px | 右寄せ。同一グループ平均 |
-| `actual` | `experimentInstructionTab.col.actual` | 100px | 右寄せ。未入力時「記録なし」|
+| `actual` | `experimentInstructionTab.col.actual` | 100px | 右寄せ。訂正モード時インライン Input |
 | `actualAverage` | `experimentInstructionTab.col.actualAverage` | 120px | 右寄せ。同一グループ平均 |
 | `diff` | `experimentInstructionTab.col.diff` | 85px | 実績-想定の差分（赤/青色分け）|
-| `uncertaintyCriteriaName` | `experimentInstructionTab.col.uncertaintyCriteriaName` | 200px | 定性/定量 Tag付き |
-| `uncertaintyAssignedValue` | `experimentInstructionTab.col.uncertaintyAssignedValue` | 140px | 不確かさ付与値 |
-| `uncertaintyAssignedBy` | `experimentInstructionTab.col.uncertaintyAssignedBy` | 140px | 付与者名 |
-| `uncertaintyAssignedAt` | `experimentInstructionTab.col.uncertaintyAssignedAt` | 160px | 付与日時 |
-| `uncertaintyComment` | `experimentInstructionTab.col.uncertaintyComment` | 220px | Tooltip付き |
+| `qualitativeCriteriaName` | `experimentInstructionTab.col.qualitativeCriteriaName` | 160px | 定性評価の基準名（2026-09-09 追加）|
+| `qualitativeAssignedValue` | `experimentInstructionTab.col.qualitativeAssignedValue` | 120px | 定性評価の付与値（2026-09-09 追加）|
+| `quantitativeCriteriaName` | `experimentInstructionTab.col.quantitativeCriteriaName` | 180px | 定量評価の基準名（2026-09-09 追加）|
+| `quantitativeTolerance` | `experimentInstructionTab.col.quantitativeTolerance` | 140px | 定量評価の許容誤差（2026-09-09 追加）|
+| `quantitativeRecordedValue` | `experimentInstructionTab.col.quantitativeRecordedValue` | 110px | 定量評価の計測値（2026-09-09 追加）|
+| `quantitativeJudgeResult` | `experimentInstructionTab.col.quantitativeJudgeResult` | 140px | 定量判定結果 Tag＋件数ボタン（2026-09-09 追加）|
+| `experimentUser` | `experimentInstructionTab.col.experimentUser` | 160px | 実験記録者ID・実験終了日時（2026-09-09 追加）|
 
 ### 6.3. タスクステータス設定
 
@@ -433,8 +460,9 @@ setCorrectionLoading(false)
 
 | コンポーネント | Props | 説明 |
 |------------|-------|------|
-| `ExperimentPlanDialog` | `open`, `projectId`, `methodId`, `taskNumbers`, `allowMethodSelection`, `methodOptions`, `onMethodChange`, `onClose`, `onSave` | 実験計画指示編集ダイアログ |
+| `ExperimentPlanDialog` | `open`, `projectId`, `methodId`, `taskNumbers`, `allowMethodSelection`, `methodOptions`, `onMethodChange`, `onClose`, `onSave`, `organizationGroupCd` | 実験計画指示編集ダイアログ |
 | `ViewRendererDialog` | `id`, `contentType`, `file`, `zIndex`, `onClose`, `onFocus` | ペトリネットビューア（フローティング、複数起動可）|
+| `UncertaintyJudgeDetailDialog` | `open`, `projectId`, `methodId`, `methodName`, `taskNumber`, `transitionId`, `transitionName`, `templateName`, `propKey`, `propLabel`, `xsiType`, `expected`, `actual`, `unit`, `onClose` | 不確かさ判定詳細ダイアログ（2026-09-09 追加）|
 
 ---
 
@@ -486,4 +514,8 @@ setCorrectionLoading(false)
 | 2026-06-22 | 初版作成 | Cline |
 | 2026-08-20 | アーキテクチャ変更に合わせて全面改訂（フラットテーブル化・不確かさ列・フィルターバー・一括承認ダイアログ・ペトリネットビューア追加） | Cline |
 | 2026-09-01 | 記録値訂正機能追加（訂正モード UI・訂正フロー・API仕様・i18nキー・event_log記録）、承認/NG に event_log 記録を追加、ツールバー構成更新 | Cline |
+<<<<<<< Updated upstream
 | 2026-09-08 | タスクタブ未表示バグ修正（`taskRegistrations` state 追加・`getTaskRegistration` 並行取得・`taskNumbers` 算出ロジック修正）、`Promise.allSettled` 対応（`getTaskRegistration` 失敗時の他API結果保護） | Cline |
+=======
+| 2026-09-09 | Props に `organizationGroupCd` 追加・`UncertaintyJudgeDetailDialog` 連携追加・列構成を定性/定量分離に全面更新（旧 `uncertaintyCriteriaName` 等廃止・新列6種追加）・FlatRow 型更新（`uncertaintyJudges`/`qualitativeCriteriaName`/`qualitativeAssignedValue`/`experimentUserId`/`experimentEndAt` 追加）・State 更新（`isCorrectionMode`/`pendingCorrections`/`correctionLoading`/`judgeDetailOpen`/`judgeDetailRow` 追加）・バージョン 3.1.0 | Cline |
+>>>>>>> Stashed changes
