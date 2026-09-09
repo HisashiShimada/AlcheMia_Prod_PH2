@@ -45,15 +45,16 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   const { t } = useLanguage();
   const { token } = theme.useToken();
   
-  const getStatusChipColor = (status: number): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
-    // status: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
+  const getStatusChipColor = (status: number): string => {
+    // status: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了, 6=レビュー差戻
     switch (status) {
-      case ProjectStatus.PLANNING: return 'default';
-      case ProjectStatus.TASK_PENDING: return 'info';
-      case ProjectStatus.TASK_IN_PROGRESS: return 'primary';
-      case ProjectStatus.REVIEW_WAITING: return 'warning';
-      case ProjectStatus.COMPLETED: return 'success';
-      case ProjectStatus.ERROR: return 'error';
+      case ProjectStatus.PLANNING:         return 'default';
+      case ProjectStatus.TASK_PENDING:     return 'blue';
+      case ProjectStatus.TASK_IN_PROGRESS: return 'cyan';
+      case ProjectStatus.REVIEW_WAITING:   return 'purple';
+      case ProjectStatus.COMPLETED:        return 'success';
+      case ProjectStatus.ERROR:            return 'error';
+      case ProjectStatus.REVIEW_REJECTED:  return 'orange';
       default: return 'default';
     }
   };
@@ -61,12 +62,13 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   /** プロジェクトステータス数値から翻訳済みラベルを返す */
   const getStatusLabel = (status: number): string => {
     switch (status) {
-      case ProjectStatus.PLANNING: return t('projectManagement.status_planning');
-      case ProjectStatus.TASK_PENDING: return t('projectManagement.status_pending');
+      case ProjectStatus.PLANNING:         return t('projectManagement.status_planning');
+      case ProjectStatus.TASK_PENDING:     return t('projectManagement.status_pending');
       case ProjectStatus.TASK_IN_PROGRESS: return t('projectManagement.status_in_progress');
-      case ProjectStatus.REVIEW_WAITING: return t('projectManagement.status_review_waiting');
-      case ProjectStatus.COMPLETED: return t('projectManagement.status_completed');
-      case ProjectStatus.ERROR: return t('projectManagement.status_error');
+      case ProjectStatus.REVIEW_WAITING:   return t('projectManagement.status_review_waiting');
+      case ProjectStatus.COMPLETED:        return t('projectManagement.status_completed');
+      case ProjectStatus.ERROR:            return t('projectManagement.status_error');
+      case ProjectStatus.REVIEW_REJECTED:  return t('projectManagement.status_review_rejected');
       default: return String(status);
     }
   };
@@ -161,7 +163,7 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
               <Space size="small" wrap>
                 {project.status !== undefined && (
                   <Tag
-                    color={getStatusChipColor(project.status) === 'primary' ? 'cyan' : getStatusChipColor(project.status)}
+                    color={getStatusChipColor(project.status)}
                     style={{ fontSize: token.fontSizeSM, margin: 0 }}
                   >
                     {getStatusLabel(project.status)}
