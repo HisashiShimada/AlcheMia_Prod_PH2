@@ -1752,7 +1752,7 @@ const PlanB: React.FC<PlanProps> = ({
    * このステータスに基づいて各ボタンの活性/非活性を決定する。
    *
    * 制御条件:
-   * - 'preparing'（準備状態）   : 指示確認=活性, 開始=活性, 終了=非活性, 異常終了=非活性
+   * - 'preparing'（準備状態）   : 指示確認=活性, 開始=非活性, 終了=非活性, 異常終了=非活性
    * - 'ready'（準備完了状態）   : 指示確認=非活性, 開始=活性, 終了=非活性, 異常終了=非活性
    * - 'in_progress'（動作状態） : 指示確認=非活性, 開始=非活性, 終了=活性, 異常終了=活性
    * - 'on_hold'（休止状態）      : 指示確認=非活性, 開始=活性, 終了=非活性, 異常終了=非活性
@@ -1764,7 +1764,7 @@ const PlanB: React.FC<PlanProps> = ({
   const currentStatus = currentProgressRow?.status;
 
   const confirmInstructionDisabled = currentStatus !== 'preparing';
-  const startDisabled = !(currentStatus === 'preparing' || currentStatus === 'ready' || currentStatus === 'on_hold');
+  const startDisabled = !(currentStatus === 'ready' || currentStatus === 'on_hold');
   const endDisabled = currentStatus !== 'in_progress';
   const forceEndDisabled = currentStatus !== 'in_progress';
 

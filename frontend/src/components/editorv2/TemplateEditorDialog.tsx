@@ -1712,7 +1712,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           {/* XMLエラー表示 */}
           {xmlErrors.length > 0 && (
             <Alert
-              message={t('template.xmlErrorsAlert', { count: String(xmlErrors.length) })}
+              title={t('template.xmlErrorsAlert', { count: String(xmlErrors.length) })}
               description={
                 <div>
                   {xmlErrors.map((error, index) => (
@@ -1733,7 +1733,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           {/* 未保存変更の警告 */}
           {hasUnsyncedXmlChanges && (
             <Alert
-              message={t('template.xmlUnsavedAlert')}
+              title={t('template.xmlUnsavedAlert')}
               description={t('template.xmlUnsavedDesc')}
               type="warning"
               showIcon
@@ -2245,7 +2245,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         onOk={handleAddProperty}
         okButtonProps={{ disabled: !newPropertyKey }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           {/* 用語選択（showSearch付きSelect） */}
           <Select
             showSearch
