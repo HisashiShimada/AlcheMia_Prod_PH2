@@ -115,7 +115,9 @@ function SortableRow({
         <ColorPicker
           size="small"
           value={option.color}
-          onChange={(_, hex) => onUpdate(option.id, 'color', hex)}
+          disabledAlpha
+          disabledFormat
+          onChange={(color) => onUpdate(option.id, 'color', color.toHexString())}
         />
         <Text style={{ fontSize: 11, fontFamily: 'monospace', color: '#555', width: 70 }}>
           {option.color.toUpperCase()}

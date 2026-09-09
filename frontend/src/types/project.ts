@@ -218,6 +218,8 @@ export interface WorkerProject {
   projectStatus: number;
   useDeemedProgress?: boolean;
   description: string;
+  /** 所属グループCD。不確かさ基準のKey属性設定スコープ絞り込みに使用 */
+  organizationGroupCd?: string | null;
   createdAt: string;
   updatedAt: string;
 }

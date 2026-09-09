@@ -12,7 +12,7 @@ SELECT
     COUNT(*) FILTER (WHERE judge_result = '良好')     AS "good",
     COUNT(*) FILTER (WHERE judge_result = '不良')     AS "bad"
 FROM (
-    SELECT DISTINCT ON (method_id, task_no, transition_id, place_id, property_key, uncertainty_key)
+    SELECT DISTINCT ON (method_id, task_no, transition_id, template_id, property_key, uncertainty_key)
         judge_result
     FROM experiment_uncertainty_judge
     WHERE organization_id = $1
@@ -21,7 +21,7 @@ FROM (
         method_id       ASC,
         task_no         ASC,
         transition_id   ASC,
-        place_id        ASC,
+        template_id     ASC,
         property_key    ASC,
         uncertainty_key ASC,
         judge_seq       DESC

@@ -56,6 +56,7 @@ import type {
   ProjectMethod,
   UncertaintyJudgeSummary,
 } from '@/types/experimentInstruction';
+import { TaskStatus } from '@/constants/codeMaster';
 import type { TaskRegistrationItem } from '@/types/taskRegistration';
 import type { FileData } from '@/types/editor';
 
@@ -90,14 +91,15 @@ export interface ExperimentInstructionTabProps {
 // 定数
 // ─────────────────────────────────────────────────────────────
 
-/** タスクステータスコード → 表示設定（ラベルは useLanguage で上書きすること） */
-const TASK_STATUS_CONFIG: Record<string, { labelKey: string; color: string }> = {
-  '01': { labelKey: 'experimentInstruction.status.waiting',       color: 'default'    },
-  '02': { labelKey: 'experimentInstruction.status.inProgress',    color: 'processing' },
-  '03': { labelKey: 'experimentInstruction.status.running',       color: 'processing' },
-  '04': { labelKey: 'experimentInstruction.status.reviewWaiting', color: 'warning'    },
-  '05': { labelKey: 'experimentInstruction.status.completed',     color: 'success'    },
-  '06': { labelKey: 'experimentInstruction.status.ng',            color: 'error'      },
+/** タスクステータス数値 → 表示設定（ラベルは useLanguage で上書きすること） */
+const TASK_STATUS_CONFIG: Partial<Record<number, { labelKey: string; color: string }>> & { null: { labelKey: string; color: string } } = {
+  [TaskStatus.PENDING]:           { labelKey: 'experimentInstruction.status.pending',       color: 'default'    },
+  [TaskStatus.IN_PROGRESS]:       { labelKey: 'experimentInstruction.status.inProgress',    color: 'processing' },
+  [TaskStatus.REVIEW_WAITING]:    { labelKey: 'experimentInstruction.status.reviewWaiting', color: 'warning'    },
+  [TaskStatus.COMPLETED]:         { labelKey: 'experimentInstruction.status.completed',     color: 'success'    },
+  [TaskStatus.FORCED_TERMINATED]: { labelKey: 'experimentInstruction.status.forcedTerminated',       color: 'error'      },
+  [TaskStatus.REVIEW_NG]:         { labelKey: 'experimentInstruction.status.ng',            color: 'error'      },
+  null:                           { labelKey: 'experimentInstruction.status.waiting',       color: 'default'    },
 };
 
 /** xsi:type → Tag カラー */
@@ -124,7 +126,7 @@ interface FlatRow {
   methodId: string;
   methodName: string;
   taskNumber: number;
-  taskStatus: string;
+  taskStatus: number | null;
   transitionId: string;
   transitionName: string;
   templateName: string;
@@ -221,15 +223,6 @@ function uniq<T>(arr: T[]): T[] {
 }
 
 /**
- * task_status 数値 → 2桁ゼロ埋め文字列（表示・比較用）
- * null / undefined の場合は '00' を返す
- */
-function toTaskStatusStr(status: number | null | undefined): string {
-  if (status == null) return '00';
-  return String(status).padStart(2, '0');
-}
-
-/**
  * 同一 methodId/templateId/propKey グループの数値平均を計算する
  * 文字列型や全 null の場合は null を返す
  */
@@ -266,7 +259,6 @@ function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
   const rows: FlatRow[] = [];
   methods.forEach((method) => {
     method.tasks.forEach((task) => {
-      const taskStatusStr = toTaskStatusStr(task.taskStatus);
       task.templates.forEach((tmpl) => {
         tmpl.fields.forEach((field, idx) => {
           rows.push({
@@ -274,9 +266,9 @@ function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
             methodId:      method.methodId,
             methodName:    method.methodId,
             taskNumber:    task.taskNo,
-            taskStatus:    taskStatusStr,
-            transitionId:  '',
-            transitionName: '',
+            taskStatus:    task.taskStatus,
+            transitionId:  tmpl.transitionId ?? '',
+            transitionName: tmpl.transitionName ?? tmpl.transitionId ?? '',
             templateName:  tmpl.templateName ?? tmpl.templateId,
             placeId:       tmpl.placeId ?? tmpl.templateId,
             templateType:  tmpl.templateType,
@@ -517,9 +509,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
    */
   const reviewWaitingTasks = useMemo(() => {
     const seen = new Set<string>();
-    const result: { methodId: string; methodName: string; taskNumber: number; taskStatus: string }[] = [];
+    const result: { methodId: string; methodName: string; taskNumber: number; taskStatus: number | null }[] = [];
     allRows.forEach((r) => {
-      if (r.taskStatus !== '04') return;
+      if (r.taskStatus !== TaskStatus.REVIEW_WAITING) return;
       const key = `${r.methodId}__${r.taskNumber}`;
       if (seen.has(key)) return;
       seen.add(key);
@@ -801,9 +793,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       dataIndex: 'taskStatus',
       width: 110,
       align: 'center' as const,
-      render: (v: string) => {
-        const cfg = TASK_STATUS_CONFIG[v] ?? { labelKey: '', color: 'default' };
-        return <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.labelKey ? t(cfg.labelKey) : v}</Tag>;
+      render: (v: number | null) => {
+        const cfg = TASK_STATUS_CONFIG[v as number] ?? TASK_STATUS_CONFIG.null;
+        return <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.labelKey ? t(cfg.labelKey) : String(v ?? '—')}</Tag>;
       },
     },
     {
@@ -887,7 +879,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       width: 100,
       align: 'right' as const,
       render: (_: unknown, r: FlatRow) => {
-        if (isCorrectionMode && r.taskStatus === '04') {
+        if (isCorrectionMode && r.taskStatus === TaskStatus.REVIEW_WAITING) {
           const currentValue = pendingCorrections.has(r.rowKey)
             ? pendingCorrections.get(r.rowKey)!
             : (r.actual !== null ? String(r.actual) : '');
@@ -1262,7 +1254,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             bordered
             scroll={{ x: scrollX, y: 'calc(100vh - 360px)' }}
             style={{ fontSize: 12 }}
-            rowClassName={(r) => r.taskStatus === '04' ? 'row-review-waiting' : ''}
+            rowClassName={(r) => r.taskStatus === TaskStatus.REVIEW_WAITING ? 'row-review-waiting' : ''}
           />
         )}
       </div>

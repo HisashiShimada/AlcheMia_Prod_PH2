@@ -92,6 +92,18 @@ router.post(
       .optional()
       .isArray()
       .withMessage('qualitativeOptions must be an array'),
+    body('qualitativeOptions.*.displayOrder')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('qualitativeOptions[].displayOrder must be a positive integer'),
+    body('qualitativeOptions.*.value')
+      .optional()
+      .isString()
+      .withMessage('qualitativeOptions[].value must be a string'),
+    body('qualitativeOptions.*.displayColor')
+      .optional()
+      .matches(/^#[0-9A-Fa-f]{6}$/)
+      .withMessage('qualitativeOptions[].displayColor must be in #RRGGBB format'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.createNewVersion

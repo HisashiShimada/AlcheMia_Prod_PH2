@@ -9,7 +9,7 @@
 --   $3  method_id
 --   $4  task_no
 --   $5  transition_id
---   $6  place_id
+--   $6  template_id
 --   $7  property_key
 --   $8  uncertainty_key
 
@@ -20,7 +20,7 @@ SELECT
     method_id               AS "methodId",
     task_no                 AS "taskNo",
     transition_id           AS "transitionId",
-    place_id                AS "placeId",
+    template_id             AS "templateId",
     property_key            AS "propertyKey",
     uncertainty_key         AS "uncertaintyKey",
     uncertainty_version     AS "uncertaintyVersion",
@@ -38,7 +38,7 @@ WHERE organization_id  = $1
   AND method_id        = $3
   AND task_no          = $4
   AND transition_id    = $5
-  AND place_id         = $6
+  AND template_id      = $6
   AND property_key     = $7
   AND uncertainty_key  = $8
 ORDER BY judge_seq DESC

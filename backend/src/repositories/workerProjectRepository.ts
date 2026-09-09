@@ -19,6 +19,7 @@ export interface WorkerAccessibleProjectRow {
   project_name: string;
   description: string | null;
   project_status: number;
+  organization_group_cd: string | null; // 所属グループCD（不確かさ基準スコープ絞り込み用）
   use_deemed_progress: boolean; // みなし進捗使用フラグ（organization.use_deemed_progress）
   create_at: Date;
   update_at: Date;

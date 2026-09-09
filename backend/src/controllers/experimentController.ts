@@ -143,14 +143,14 @@ export const saveBatchData = async (
     /** 不確かさ判定入力値（省略可） */
     const rawUncertaintyValues = req.body.uncertaintyValues as Array<{
       propertyKey: string;
-      placeId: string;
+      templateId: string;
       uncertaintyKey: string;
       value: number;
     }> | undefined;
     /** 定性評価値（省略可） */
     const rawQualitativeValues = req.body.qualitativeValues as Array<{
       propKey: string;
-      placeId: string;
+      templateId: string;
       value: string;
       uncertaintyKey?: string | null;
       nameSpaceId?: string | null;

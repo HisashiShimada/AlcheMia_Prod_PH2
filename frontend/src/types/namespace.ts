@@ -369,6 +369,13 @@ export interface PrefixManagementProps {
    * ShareScopeModal の確認メッセージに使用する
    */
   targetScopeName?: string;
+  /**
+   * Prefix管理タブがアクティブになったタイムスタンプ（ms）。
+   * 外部（UncertaintyManagement 等）でタブへ切り替えた際に Date.now() をセットすることで、
+   * PrefixManagement 内の Prefix 一覧を強制再取得させる。
+   * undefined の場合はスキップ（初回マウント時は selectedNsKey の useEffect に任せる）。
+   */
+  tabActivatedAt?: number;
 }
 
 /**
@@ -513,6 +520,13 @@ export interface NamespaceMainProps {
   onNsKeyChange?: (key: string | null) => void;
   /** trueのとき閲覧モード（検索・フィルター以外のボタンを非活性） */
   viewOnly?: boolean;
+  /**
+   * 用語管理タブがアクティブになったタイムスタンプ（ms）。
+   * 外部（UncertaintyManagement 等）で用語管理タブへ切り替えた際に Date.now() をセットすることで、
+   * NamespaceMain 内の terms と dbPrefixes を強制再取得させる。
+   * undefined の場合はスキップ（初回マウント時は externalSelectedNsKey の useEffect に任せる）。
+   */
+  tabActivatedAt?: number;
 }
 
 // ──────────────────────────────────────────────

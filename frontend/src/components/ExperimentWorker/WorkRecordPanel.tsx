@@ -1752,7 +1752,7 @@ const PlanB: React.FC<PlanProps> = ({
    * このステータスに基づいて各ボタンの活性/非活性を決定する。
    *
    * 制御条件:
-   * - 'preparing'（準備状態）   : 指示確認=活性, 開始=活性, 終了=非活性, 異常終了=非活性
+   * - 'preparing'（準備状態）   : 指示確認=活性, 開始=非活性, 終了=非活性, 異常終了=非活性
    * - 'ready'（準備完了状態）   : 指示確認=非活性, 開始=活性, 終了=非活性, 異常終了=非活性
    * - 'in_progress'（動作状態） : 指示確認=非活性, 開始=非活性, 終了=活性, 異常終了=活性
    * - 'on_hold'（休止状態）      : 指示確認=非活性, 開始=活性, 終了=非活性, 異常終了=非活性
@@ -1764,7 +1764,7 @@ const PlanB: React.FC<PlanProps> = ({
   const currentStatus = currentProgressRow?.status;
 
   const confirmInstructionDisabled = currentStatus !== 'preparing';
-  const startDisabled = !(currentStatus === 'preparing' || currentStatus === 'ready' || currentStatus === 'on_hold');
+  const startDisabled = !(currentStatus === 'ready' || currentStatus === 'on_hold');
   const endDisabled = currentStatus !== 'in_progress';
   const forceEndDisabled = currentStatus !== 'in_progress';
 
@@ -2107,6 +2107,11 @@ interface WorkRecordPanelProps {
   /** プロジェクト指示「確認」ボタン押下コールバック */
   onConfirmInstruction?: () => void;
   /**
+   * プロジェクトが属する組織グループCD（任意）。
+   * 不確かさ基準新規作成ダイアログのKey属性設定プルダウンのスコープ絞り込みに使用する。
+   */
+  organizationGroupCd?: string | null;
+  /**
    * 「開始」ボタン押下コールバック（準備完了→動作状態）
    * displayKey の taskNo / transitionId を受け取る。
    */
@@ -2240,6 +2245,7 @@ export default function WorkRecordPanel({
   initialTransitionId,
   allWorkerInstructions,
   onConfirmInstruction,
+  organizationGroupCd,
   onStart,
   onEnd,
   onForceEnd,
@@ -2266,11 +2272,11 @@ export default function WorkRecordPanel({
 
   /**
    * 定性評価値を保持する Ref。
-   * キー: `${placeId}__${propKey}`  値: { placeId, propKey, value }
+   * キー: `${templateId}__${propKey}`  値: { templateId, propKey, value }
    * PropertyCard の confidence ボタン選択時に onConfidenceChange コールバック経由で更新され、
    * handleSave / handleSaveAndNext 時に saveBatchExperimentData へ渡す qualitativeValues を構築する。
    */
-  const confidenceValuesRef = React.useRef<Map<string, { placeId: string; propKey: string; value: string; description?: string | null }>>(new Map());
+  const confidenceValuesRef = React.useRef<Map<string, { templateId: string; propKey: string; value: string; description?: string | null }>>(new Map());
 
   /**
    * 直近の保存で得られた不確かさ判定結果マップ。
@@ -2774,7 +2780,7 @@ export default function WorkRecordPanel({
           (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
             if (p.isCustomProperty === true) return;
             const propKey = String(p.key ?? '');
-            const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+            const confidenceEntry = confidenceValuesRef.current.get(`${item.templateId}__${propKey}`);
             // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
             const quantitativeKeys = new Set(
               (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
@@ -2819,12 +2825,12 @@ export default function WorkRecordPanel({
       // uncertaintyValues: Ref から構築（uncertaintyKey・value が揃っているもののみ送信）
       const uncertaintyValues = Array.from(uncertaintyValuesRef.current.entries()).flatMap(
         ([key, entries]) => {
-          const placeId = key.split('__')[0];
+          const templateId = key.split('__')[0];
           return entries
             .filter((e) => e.uncertaintyKey && e.value && !isNaN(Number(e.value)))
             .map((e) => ({
               propertyKey:    e.propKey,
-              placeId,
+              templateId,
               uncertaintyKey: e.uncertaintyKey,
               value:          Number(e.value),
             }));
@@ -2933,7 +2939,7 @@ export default function WorkRecordPanel({
                 (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
                   if (p.isCustomProperty === true) return;
                   const propKey = String(p.key ?? '');
-                  const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+                  const confidenceEntry = confidenceValuesRef.current.get(`${item.templateId}__${propKey}`);
                   // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
                   const quantitativeKeys = new Set(
                     (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
@@ -2976,11 +2982,11 @@ export default function WorkRecordPanel({
             });
             const uncertaintyValues = Array.from(uncertaintyValuesRef.current.entries()).flatMap(
               ([key, entries]) => {
-                const placeId = key.split('__')[0];
+                const templateId = key.split('__')[0];
                 return entries
                   .filter((e) => e.uncertaintyKey && e.value && !isNaN(Number(e.value)))
                   .map((e) => ({
-                    propertyKey: e.propKey, placeId,
+                    propertyKey: e.propKey, templateId,
                     uncertaintyKey: e.uncertaintyKey, value: Number(e.value),
                   }));
               }
@@ -3518,24 +3524,24 @@ export default function WorkRecordPanel({
         uncertaintyValuesRef.current.set(placeId, entries);
       }
     },
-    onConfidenceChange: (placeId: string, propKey: string, value: string | null) => {
+    onConfidenceChange: (templateId: string, propKey: string, value: string | null) => {
       // PropertyCard の confidence 選択が変化するたびに Ref を更新する
-      // キーは `${placeId}__${propKey}`
-      const key = `${placeId}__${propKey}`;
+      // キーは `${templateId}__${propKey}`
+      const key = `${templateId}__${propKey}`;
       if (value === null) {
         confidenceValuesRef.current.delete(key);
       } else {
         const existing = confidenceValuesRef.current.get(key);
-        confidenceValuesRef.current.set(key, { placeId, propKey, value, description: existing?.description ?? null });
+        confidenceValuesRef.current.set(key, { templateId, propKey, value, description: existing?.description ?? null });
       }
     },
-    onQualitativeReasonChange: (placeId: string, propKey: string, value: string | null) => {
-      const key = `${placeId}__${propKey}`;
+    onQualitativeReasonChange: (templateId: string, propKey: string, value: string | null) => {
+      const key = `${templateId}__${propKey}`;
       const existing = confidenceValuesRef.current.get(key);
       if (existing) {
         confidenceValuesRef.current.set(key, { ...existing, description: value ?? null });
       } else if (value !== null) {
-        confidenceValuesRef.current.set(key, { placeId, propKey, value: '', description: value });
+        confidenceValuesRef.current.set(key, { templateId, propKey, value: '', description: value });
       }
     },
     lastJudgeResultMap,
