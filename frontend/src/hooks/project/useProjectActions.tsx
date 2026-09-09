@@ -91,6 +91,8 @@ export const useProjectActions = ({
           case 'CHECKOUT_NO_MAIML_FILE': message.error(t('project.checkoutErrorNoMaiml')); break;
           case 'CHECKOUT_INVALID_STATUS': message.error(t('project.checkoutErrorInvalidStatus', { status: errorDetails?.currentStatusName || t('common.unknown') })); break;
           case 'CHECKOUT_NO_TASKS': message.error(t('project.checkoutErrorNoTasks')); break;
+          case 'CHECKOUT_NO_TRANSITIONS': message.error(t('project.checkoutErrorNoTransitions')); break;
+          case 'CHECKOUT_NO_EXPERIMENT_PLAN': message.error(t('project.checkoutErrorNoExperimentPlan')); break;
           case 'PROJECT_ALREADY_CHECKED_OUT': message.warning(t('project.checkoutWarningAlreadyCheckedOut', { user: errorDetails?.checkedOutBy || t('common.otherUser') })); break;
           case 'RESOURCE_NOT_FOUND': message.error(t('project.notFound')); break;
           default: message.error(errorMessage);

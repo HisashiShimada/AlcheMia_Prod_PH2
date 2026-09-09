@@ -618,6 +618,31 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
   // --- 保存処理（全タスク一括保存: 実API接続）---
 
+  /**
+   * 保存ボタン非活性フラグ
+   * - トランジションが存在しない場合
+   * - Placeあり かつ 対応テンプレートなし のトランジションが1件でもある場合
+   * ※ Placeなし（フォールバック）は制御対象外
+   */
+  const saveDisabled = useMemo(() => {
+    const dialogTransitions = dialogData?.transitions ?? [];
+    if (dialogTransitions.length === 0) return true;
+    const allTemplates = dialogData?.templates ?? [];
+    for (const trans of dialogTransitions) {
+      const allPlaceIds = [
+        ...(trans.inputPlaceIds ?? []),
+        ...(trans.outputPlaceIds ?? []),
+      ];
+      if (allPlaceIds.length === 0) continue; // Placeなし = フォールバック → 制御対象外
+      const placeIdSet = new Set(allPlaceIds);
+      const matched = allTemplates.filter((tmpl) =>
+        tmpl.placeIds?.some((pid) => placeIdSet.has(pid))
+      );
+      if (matched.length === 0) return true; // Placeあり かつ テンプレートなし
+    }
+    return false;
+  }, [dialogData]);
+
   const handleSave = useCallback(async () => {
     try {
       setIsSaving(true);
@@ -759,12 +784,23 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
           key="save"
           type="primary"
           loading={isSaving}
-          disabled={disabled || !isRightPanelActive}
+          disabled={disabled || saveDisabled}
           onClick={handleSave}
           data-testid="experiment-plan-dialog-save-button"
         >
-          保存
+          {t('common.save')}
         </Button>,
+        saveDisabled && !disabled ? (
+          <Text
+            key="save-disabled-reason"
+            type="warning"
+            style={{ fontSize: 11, alignSelf: 'center' }}
+          >
+            {(dialogData?.transitions ?? []).length === 0
+              ? t('experimentPlanDialog.saveDisabledNoTransitions')
+              : t('experimentPlanDialog.saveDisabledNoTemplates')}
+          </Text>
+        ) : null,
       ]}
     >
       {/* ====== メソッドID選択UI（allowMethodSelection=true 時のみ表示）====== */}

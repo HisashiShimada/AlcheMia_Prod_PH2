@@ -394,9 +394,9 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       }
 
       if (!hasUnsent && !hasExperimentPlan) {
-        // 指示も実験計画もない場合は警告を表示するが、保存処理は続行する
-        // （returnしないことでDBへの保存を確実に行い、チェックアウト時のエラーを防ぐ）
-        message.warning(t('taskRegistration.messages.requireInstruction'));
+        // 指示も実験計画もない場合はエラーを表示して保存を中断する
+        message.error(t('taskRegistration.messages.requireInstruction'));
+        return;
       }
       
       // 送信用: 新規追加した指示のみをフィルタリング

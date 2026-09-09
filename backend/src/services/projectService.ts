@@ -645,6 +645,52 @@ export class ProjectService {
         };
       }
 
+      // バリデーション4: トランジション存在チェック（transition_data 実績行が1件以上あること）
+      const transitionDataRepository = new TransitionDataRepository();
+      const transitionCount = await transitionDataRepository.countByProject(
+        client,
+        organizationId,
+        projectId
+      );
+      if (transitionCount === 0) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          error: {
+            code: 'CHECKOUT_NO_TRANSITIONS',
+            message: 'トランジションが登録されていません。タスク登録でトランジションを含むMAIMLを設定してください',
+            details: {
+              projectId,
+              projectName: project.project_name,
+              transitionCount: 0,
+            },
+          },
+        };
+      }
+
+      // バリデーション5: 実験計画存在チェック（planned_values が登録されているか確認）
+      const experimentPlansForValidation = await experimentPlanRepository.findByProject(
+        organizationId,
+        projectId
+      );
+      const hasValidPlan = experimentPlansForValidation.some(
+        (p) => p.planned_values != null
+      );
+      if (!hasValidPlan) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          error: {
+            code: 'CHECKOUT_NO_EXPERIMENT_PLAN',
+            message: '実験計画が登録されていません。実験計画ダイアログで計画を保存してからチェックアウトしてください',
+            details: {
+              projectId,
+              projectName: project.project_name,
+            },
+          },
+        };
+      }
+
       // チェックアウト状態確認
       if (project.checkout_status === CheckoutStatusEnum.CHECKED_OUT) {
         // 既にチェックアウト中
@@ -719,7 +765,6 @@ export class ProjectService {
 
       // transition_data: prerequisite_transition_ids = '{}' のトランジションを「2: 準備状態」に更新
       // prerequisite_transition_ids が設定されているトランジションは「1: 初期状態」のまま据え置く
-      const transitionDataRepository = new TransitionDataRepository();
       await transitionDataRepository.updateStatusForCheckout(client, organizationId, projectId, userId);
 
       console.log(`[DEBUG] checkout - Updated transition_data status to PREPARING for prerequisite-less transitions`);
