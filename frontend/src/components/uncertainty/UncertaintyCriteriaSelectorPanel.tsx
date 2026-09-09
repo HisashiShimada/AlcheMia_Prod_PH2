@@ -213,7 +213,7 @@ export default function UncertaintyCriteriaSelectorPanel({
         if (filter.evalType !== 'all' && c.evalType !== filter.evalType) return false;
         if (filter.section !== 'all' && !c.targetSections.includes(filter.section as never)) return false;
         if (filter.tag !== 'all' && c.targetTag !== filter.tag) return false;
-        if (ns && !c.key.toLowerCase().includes(ns)) return false;
+        if (ns && !c.key.toLowerCase().includes(ns) && !c.name.toLowerCase().includes(ns)) return false;
         if (filter.evalType === 'quantitative' && filter.typeMatch === 'match') {
           if (c.typeMatches.length === 0) return false;
           if (!c.typeMatches.some((t) => t.toLowerCase() === nodeType)) return false;

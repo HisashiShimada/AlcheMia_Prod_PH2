@@ -71,6 +71,10 @@ export interface UncertaintyCriteriaRow {
   toleranceLower: number | null;
   /** 説明 */
   description: string | null;
+  /** namespace.scope_key（organization_group_cd または user_id） */
+  scopeKey: string | null;
+  /** スコープ表示名（organization_group.organization_group_name または organization_user.user_name） */
+  scopeName: string | null;
 }
 
 /**

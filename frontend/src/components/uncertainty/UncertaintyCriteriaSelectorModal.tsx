@@ -314,8 +314,8 @@ export default function UncertaintyCriteriaSelectorModal({
         if (filter.section !== 'all' && !c.targetSections.includes(filter.section as never)) return false;
         // タグ種類フィルタ
         if (filter.tag !== 'all' && c.targetTag !== filter.tag) return false;
-        // 名前空間フィルタ（keyの部分一致）
-        if (ns && !c.key.toLowerCase().includes(ns)) return false;
+        // 名前空間フィルタ（keyまたはnameの部分一致）
+        if (ns && !c.key.toLowerCase().includes(ns) && !c.name.toLowerCase().includes(ns)) return false;
         // 型マッチフィルタ（定量のみ）
         if (filter.evalType === 'quantitative' && filter.typeMatch === 'match') {
           if (c.typeMatches.length === 0) return false;
