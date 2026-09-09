@@ -645,6 +645,8 @@ export interface ExperimentInstructionDetail {
   transition_name?: string | null;
   /** テンプレート表示ラベル: MAIMLの template.name/label（非主キー、表示用） */
   template_name?: string | null;
+  /** place_id: template_data.place_id（findByProject での LEFT JOIN で取得。訂正処理で使用） */
+  place_id?: string | null;
   /** xsi:type: FloatValue / IntegerValue / StringValue */
   xsi_type?: string | null;
   /** 想定値: 管理者が設定した指示値（未設定時はNULL） */

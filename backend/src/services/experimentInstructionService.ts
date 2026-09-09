@@ -202,7 +202,7 @@ export async function getExperimentInstructions(
           templateId,
           templateName:   firstDetail.template_name ?? null,
           templateType:   'condition',
-          placeId:        null,
+          placeId:        firstDetail.place_id ?? null,
           transitionId:   firstDetail.transition_id ?? null,
           transitionName: firstDetail.transition_name ?? firstDetail.transition_id ?? null,
           fields,
