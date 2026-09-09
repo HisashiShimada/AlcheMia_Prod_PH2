@@ -3,8 +3,8 @@
  * 実験指示 Service 層
  *
  * @remarks
- * - getExperimentInstructions: template_data + project_task_detail を結合し
- *   ネスト形式（methods → tasks → templates）で返す
+ * - getExperimentInstructions: experiment_instruction_detail を主軸として
+ *   ネスト形式（methods → tasks → templates → fields）で返す
  * - getProjectMethods: project_task の distinct method_id 一覧を返す
  * - approveTask: task_status=2（レビュー待ち）→ 3（完了）に更新
  * - recordNg: task_status=2（レビュー待ち）→ 5（NG）に更新
@@ -61,66 +61,23 @@ export type {
 };
 
 // ──────────────────────────────────────────────
-// 内部ユーティリティ
-// ──────────────────────────────────────────────
-
-/** property の content.value を安全に取り出す */
-function extractActualValue(prop: any): string | null {
-  if (!prop || !prop.content) return null;
-  const content = prop.content;
-  if (typeof content === 'object') {
-    return content.value != null ? String(content.value) : null;
-  }
-  return null;
-}
-
-/** property の units を安全に取り出す */
-function extractUnit(prop: any): string | null {
-  if (!prop || !prop.content) return null;
-  return prop.content.units ?? null;
-}
-
-/** property の xsiType を安全に取り出す */
-function extractXsiType(prop: any): string | null {
-  if (!prop || !prop.content) return null;
-  return prop.content.xsiType ?? null;
-}
-
-/** property の displayName/label を取り出す */
-function extractLabel(prop: any, fallbackKey: string): string {
-  return prop?.displayName ?? prop?.label ?? fallbackKey;
-}
-
-/**
- * TemplateDataRow の property_set から InstructionField[] に変換
- */
-function buildFields(row: TemplateDataRow): InstructionField[] {
-  const ps = row.property_set;
-  if (!ps || !Array.isArray(ps.properties)) return [];
-
-  return ps.properties.map((prop: any) => ({
-    key: prop.key ?? '',
-    label: extractLabel(prop, prop.key ?? ''),
-    xsiType: extractXsiType(prop),
-    plannedValue: null, // Phase 5 で experiment_plan と結合して埋める
-    actualValue: extractActualValue(prop),
-    unit: extractUnit(prop),
-  }));
-}
-
-// ──────────────────────────────────────────────
 // Service メソッド
 // ──────────────────────────────────────────────
-
-const templateDataRepo = new TemplateDataRepository();
 
 /**
  * 実験指示一覧を取得（ネスト形式）
  *
  * @remarks
- * template_data と project_task_detail を取得し、
- * methods → tasks → templates のネスト構造に変換して返す。
- * plannedValue は現時点では null（Phase 5 で experiment_plan と結合する）。
+ * experiment_instruction_detail を主軸として
+ * methods → tasks → templates → fields のネスト構造を構築する。
+ *
+ * 各フィールドの値は experiment_instruction_detail のカラムから直接取得する：
+ *   - key / xsi_type / expected_value / actual_value
+ *   - transition_id / transition_name / template_id / template_name
+ *   - uncertainty_key / uncertainty_assigned_value（定性評価）
+ *
+ * タスクステータス等は project_task_detail から補完する。
+ * 定量評価（experiment_uncertainty_judge）は将来対応。
  */
 export async function getExperimentInstructions(
   organizationId: string,
@@ -131,14 +88,10 @@ export async function getExperimentInstructions(
     projectId,
   });
 
-  // template_data（実績値）/ project_task_detail（ステータス・記録者情報）/ experiment_instruction_detail（定性評価）を並行取得
-  const [templateRows, taskDetails, instructionDetails] = await Promise.all([
-    templateDataRepo.findByProject(organizationId, projectId),
+  // experiment_instruction_detail と project_task_detail を並行取得
+  const [instructionDetails, taskDetails] = await Promise.all([
+    experimentInstructionDetailRepository.findByProject(organizationId, projectId),
     projectTaskDetailRepo.findByProject(organizationId, projectId),
-    experimentInstructionDetailRepository.findByProject(organizationId, projectId).catch((e) => {
-      logger.warn('[experimentInstructionService] instruction_detail 取得失敗（スキップ）', { error: String(e) });
-      return [];
-    }),
   ]);
 
   // task_detail を (methodId, taskNo) をキーにした Map に変換
@@ -147,55 +100,29 @@ export async function getExperimentInstructions(
     taskDetailMap.set(`${td.method_id}__${td.task_no}`, td);
   }
 
-  // instruction_detail を (methodId, taskNo, templateName, propKey) をキーにした Map に変換
-  // キー: `${methodId}__${taskNo}__${templateName}__${propKey}`
-  const instructionDetailMap = new Map<string, { uncertaintyKey: string | null; uncertaintyAssignedValue: string | null }>();
-  for (const detail of instructionDetails) {
-    const key = `${detail.method_id}__${detail.task_no}__${detail.template_name}__${detail.prop_key}`;
-    // 同一キーが複数ある場合は最新（後勝ち）を使用
-    instructionDetailMap.set(key, {
-      uncertaintyKey: detail.uncertainty_key ?? null,
-      uncertaintyAssignedValue: detail.uncertainty_assigned_value ?? null,
-    });
-  }
-
-  // templateRows を methodId → taskNo → rows[] にグループ化
-  const methodMap = new Map<string, Map<number, TemplateDataRow[]>>();
-  for (const row of templateRows) {
-    if (!methodMap.has(row.method_id)) {
-      methodMap.set(row.method_id, new Map());
-    }
-    const taskMap = methodMap.get(row.method_id)!;
-    if (!taskMap.has(row.task_no)) {
-      taskMap.set(row.task_no, []);
-    }
-    taskMap.get(row.task_no)!.push(row);
-  }
-
-  // experiment_uncertainty_judge から最新判定を全件取得
-  // キー: `${methodId}__${taskNo}__${placeId}__${propKey}` → UncertaintyJudgeSummary[]
-  const judgeMap = new Map<string, UncertaintyJudgeSummary[]>();
-
-  // uncertainty_key → criteriaName のマップ（定量・定性両方で使用）
+  // uncertainty_key → criteriaName のマップ（定性評価で使用）
   const criteriaNameMap = new Map<string, string>();
 
+  // experiment_uncertainty_judge から最新判定を全件取得（定量評価）
+  // キー: `${methodId}__${taskNo}__${templateId}__${propertyKey}` → UncertaintyJudgeSummary[]
+  const judgeMap = new Map<string, UncertaintyJudgeSummary[]>();
+
   try {
-    const judgeRepo = new ExperimentUncertaintyJudgeRepository();
-    // methodId が複数ある可能性があるため、全 methodId で取得
-    const allMethodIds = Array.from(methodMap.keys());
     const allUncertaintyKeys = new Set<string>();
+    const allMethodIds = new Set(instructionDetails.map((d) => d.method_id));
+    const judgeRepo = new ExperimentUncertaintyJudgeRepository();
 
     for (const methodId of allMethodIds) {
       const judgeRows = await judgeRepo.findAllByProject(organizationId, projectId, methodId);
       for (const jr of judgeRows) {
-        const key = `${methodId}__${jr.taskNo}__${jr.placeId}__${jr.propertyKey}`;
+        const key = `${methodId}__${jr.taskNo}__${jr.templateId}__${jr.propertyKey}`;
         if (!judgeMap.has(key)) judgeMap.set(key, []);
         judgeMap.get(key)!.push({
           instructionKey: jr.uncertaintyKey,
           toleranceUpper: jr.toleranceUpper,
           toleranceLower: jr.toleranceLower,
-          judgeResult: jr.judgeResult,
-          recordedValue: jr.recordedValue,
+          judgeResult:    jr.judgeResult,
+          recordedValue:  jr.recordedValue,
         });
         allUncertaintyKeys.add(jr.uncertaintyKey);
       }
@@ -203,95 +130,103 @@ export async function getExperimentInstructions(
 
     // 定性評価の uncertaintyKey も criteriaName 解決対象に追加
     for (const detail of instructionDetails) {
-      if (detail.uncertainty_key) {
-        allUncertaintyKeys.add(detail.uncertainty_key);
-      }
+      if (detail.uncertainty_key) allUncertaintyKeys.add(detail.uncertainty_key);
     }
 
-    // uncertainty_criteria から criteriaName（uncertainty_name）を一括取得
+    // uncertainty_criteria から criteriaName を一括取得
     if (allUncertaintyKeys.size > 0) {
-      try {
-        const criteriaRows = await uncertaintyCriteriaRepository.findByKeys(
-          organizationId,
-          Array.from(allUncertaintyKeys)
-        );
-        for (const cr of criteriaRows) {
-          if (cr.uncertainty_name) {
-            criteriaNameMap.set(cr.key, cr.uncertainty_name);
-          }
+      const criteriaRows = await uncertaintyCriteriaRepository.findByKeys(
+        organizationId,
+        Array.from(allUncertaintyKeys)
+      );
+      for (const cr of criteriaRows) {
+        if (cr.uncertainty_name) criteriaNameMap.set(cr.key, cr.uncertainty_name);
+      }
+      // criteriaName を judgeMap の各エントリに反映
+      for (const [, judges] of judgeMap) {
+        for (const j of judges) {
+          const name = criteriaNameMap.get(j.instructionKey);
+          if (name) (j as UncertaintyJudgeSummary & { criteriaName?: string }).criteriaName = name;
         }
-        // criteriaName を judgeMap の各エントリに反映
-        for (const [, judges] of judgeMap) {
-          for (const j of judges) {
-            const name = criteriaNameMap.get(j.instructionKey);
-            if (name) {
-              (j as UncertaintyJudgeSummary & { criteriaName?: string }).criteriaName = name;
-            }
-          }
-        }
-      } catch (criteriaErr) {
-        logger.warn('[experimentInstructionService] criteriaName 取得失敗（スキップ）', {
-          error: String(criteriaErr),
-        });
       }
     }
   } catch (e) {
-    logger.warn('[experimentInstructionService] judge 情報取得失敗（スキップ）', { error: String(e) });
+    logger.warn('[experimentInstructionService] judge/criteria 情報取得失敗（スキップ）', { error: String(e) });
+  }
+
+  // instructionDetails を methodId → taskNo → templateId → details[] にグループ化
+  const methodMap = new Map<string, Map<number, Map<string, typeof instructionDetails[0][]>>>();
+  for (const detail of instructionDetails) {
+    if (!detail.template_id) continue; // template_id が null の旧データはスキップ
+    if (!methodMap.has(detail.method_id)) methodMap.set(detail.method_id, new Map());
+    const taskMap = methodMap.get(detail.method_id)!;
+    if (!taskMap.has(detail.task_no)) taskMap.set(detail.task_no, new Map());
+    const templateMap = taskMap.get(detail.task_no)!;
+    if (!templateMap.has(detail.template_id)) templateMap.set(detail.template_id, []);
+    templateMap.get(detail.template_id)!.push(detail);
   }
 
   // ネスト形式に変換
   const methods: InstructionMethod[] = [];
   for (const [methodId, taskMap] of methodMap) {
     const tasks: InstructionTask[] = [];
-    for (const [taskNo, rows] of taskMap) {
+    for (const [taskNo, templateMap] of taskMap) {
       const td = taskDetailMap.get(`${methodId}__${taskNo}`);
-      const templateName = rows[0]?.property_set?.templateName ?? null;
-      const templates: InstructionTemplate[] = rows.map((row) => ({
-        templateId: row.place_id,
-        templateName: row.property_set?.templateName ?? null,
-        templateType: row.property_set?.templateType ?? 'condition',
-        placeId: row.place_id,
-        fields: buildFields(row).map((field) => {
-          const judgeKey = `${methodId}__${taskNo}__${row.place_id}__${field.key}`;
+      const templates: InstructionTemplate[] = [];
+
+      for (const [templateId, details] of templateMap) {
+        const firstDetail = details[0];
+        const fields: InstructionField[] = details.map((detail) => {
+          const qualitativeCriteriaName = detail.uncertainty_key
+            ? (criteriaNameMap.get(detail.uncertainty_key) ?? detail.uncertainty_key)
+            : null;
+
+          // 定量評価: (methodId, taskNo, templateId, propKey) でマップ検索
+          const judgeKey = `${methodId}__${taskNo}__${templateId}__${detail.prop_key}`;
           const judges = judgeMap.get(judgeKey);
 
-          // 定性評価情報を instruction_detail から取得
-          // template_name は property_set.templateName と対応する
-          const rowTemplateName = row.property_set?.templateName ?? '';
-          const detailKey = `${methodId}__${taskNo}__${rowTemplateName}__${field.key}`;
-          const detail = instructionDetailMap.get(detailKey);
-          const qualitativeCriteriaName = detail?.uncertaintyKey
-            ? (criteriaNameMap.get(detail.uncertaintyKey) ?? detail.uncertaintyKey)
-            : null;
-          const qualitativeAssignedValue = detail?.uncertaintyAssignedValue ?? null;
-
-          const enriched: InstructionField = {
-            ...field,
+          return {
+            key:          detail.prop_key,
+            label:        detail.prop_key,
+            xsiType:      detail.xsi_type ?? null,
+            plannedValue: detail.expected_value ?? null,
+            actualValue:  detail.actual_value ?? null,
+            unit:         null,
             ...(judges && judges.length > 0 ? { uncertaintyJudges: judges } : {}),
             qualitativeCriteriaName,
-            qualitativeAssignedValue,
+            qualitativeAssignedValue: detail.uncertainty_assigned_value ?? null,
           };
-          return enriched;
-        }),
-      }));
+        });
+
+        templates.push({
+          templateId,
+          templateName:   firstDetail.template_name ?? null,
+          templateType:   'condition',
+          placeId:        null,
+          transitionId:   firstDetail.transition_id ?? null,
+          transitionName: firstDetail.transition_name ?? firstDetail.transition_id ?? null,
+          fields,
+        });
+      }
+
       tasks.push({
         taskNo,
-        taskStatus: td?.task_status ?? null,
-        reviewedAt: td?.reviewed_at ? td.reviewed_at.toISOString() : null,
-        reviewUserId: td?.review_user_id ?? null,
-        reviewResult: td?.review_result ?? null,
+        taskStatus:       td?.task_status ?? null,
+        reviewedAt:       td?.reviewed_at ? td.reviewed_at.toISOString() : null,
+        reviewUserId:     td?.review_user_id ?? null,
+        reviewResult:     td?.review_result ?? null,
         templates,
         experimentUserId: td?.experiment_user_id ?? null,
-        experimentEndAt: td?.experiment_end_at ? td.experiment_end_at.toISOString() : null,
+        experimentEndAt:  td?.experiment_end_at ? td.experiment_end_at.toISOString() : null,
       });
     }
-    // taskNo 昇順
     tasks.sort((a, b) => a.taskNo - b.taskNo);
     methods.push({ methodId, tasks });
   }
 
   return { methods };
 }
+
 
 /**
  * プロジェクトのメソッドID一覧を取得

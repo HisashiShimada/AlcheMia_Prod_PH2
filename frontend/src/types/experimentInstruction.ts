@@ -94,6 +94,10 @@ export interface InstructionTemplateResponse {
   fields: InstructionFieldResponse[];
   /** template_data の place_id（訂正時にバックエンドへ渡すために必要） */
   placeId: string | null;
+  /** トランジションID（experiment_instruction_detail.transition_id から取得） */
+  transitionId: string | null;
+  /** トランジション表示名（experiment_instruction_detail.transition_name から取得。未設定時はtransitionIdで代替） */
+  transitionName: string | null;
 }
 
 /** 1 タスクの実験指示情報 */

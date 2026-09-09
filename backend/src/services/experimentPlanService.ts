@@ -27,21 +27,29 @@ function buildInstructionDetailRows(
   taskNo: number,
   plannedValues: ExperimentPlanValues,
   templates: TemplateDef[],
-  userId: string
+  userId: string,
+  transitions: Array<{ id: string; name: string }>
 ): Array<{
   organizationId: string; projectId: string; methodId: string; taskNo: number;
-  transitionId: string; templateName: string; propKey: string;
+  transitionId: string; templateId: string; propKey: string;
   xsiType: string | null; expectedValue: string | null; userId: string;
+  transitionName: string | null; templateName: string | null;
 }> {
-  const fieldKeyMap = new Map<string, { templateName: string; xsiType: string | null }>();
+  const fieldKeyMap = new Map<string, { templateId: string; templateName: string; xsiType: string | null }>();
   for (const tmpl of templates) {
     for (const field of tmpl.fields) {
       const xsiType = field.xsiType ?? null;
-      fieldKeyMap.set(`${tmpl.id}_${field.key}`, { templateName: tmpl.label, xsiType });
+      fieldKeyMap.set(`${tmpl.id}_${field.key}`, { templateId: tmpl.id, templateName: tmpl.label, xsiType });
       if (!fieldKeyMap.has(field.key)) {
-        fieldKeyMap.set(field.key, { templateName: tmpl.label, xsiType });
+        fieldKeyMap.set(field.key, { templateId: tmpl.id, templateName: tmpl.label, xsiType });
       }
     }
+  }
+
+  // transitionId → transitionName のマップ
+  const transitionNameMap = new Map<string, string>();
+  for (const t of transitions) {
+    transitionNameMap.set(t.id, t.name);
   }
 
   const rows: ReturnType<typeof buildInstructionDetailRows> = [];
@@ -49,6 +57,8 @@ function buildInstructionDetailRows(
   for (const [transitionId, fieldMap] of Object.entries(plannedValues)) {
     if (transitionId === '__meta__') continue;
     if (!fieldMap || typeof fieldMap !== 'object') continue;
+
+    const transitionName = transitionNameMap.get(transitionId) ?? null;
 
     for (const [fieldKey, value] of Object.entries(fieldMap as Record<string, unknown>)) {
       if (RESERVED_KEYS.has(fieldKey)) continue;
@@ -58,14 +68,22 @@ function buildInstructionDetailRows(
       const meta = fieldKeyMap.get(fieldKey);
       if (!meta) continue;
 
-      const propKey = fieldKey.includes('_')
-        ? fieldKey.slice(fieldKey.indexOf('_') + 1)
+      // fieldKey は `{templateId}_{field.key}` 形式で来るので templateId プレフィックスを除去して propKey を取得する
+      // templateId 自体に '_' が含まれる場合があるため indexOf ではなく templateId の長さで切り取る
+      const prefix = `${meta.templateId}_`;
+      const propKey = fieldKey.startsWith(prefix)
+        ? fieldKey.slice(prefix.length)
         : fieldKey;
 
       rows.push({
         organizationId, projectId, methodId, taskNo, transitionId,
-        templateName: meta.templateName, propKey,
-        xsiType: meta.xsiType, expectedValue: String(value), userId,
+        templateId: meta.templateId,
+        templateName: meta.templateName,
+        propKey,
+        xsiType: meta.xsiType,
+        expectedValue: String(value),
+        userId,
+        transitionName,
       });
     }
   }
@@ -144,7 +162,8 @@ export async function upsertExperimentPlan(
           input.taskNo,
           input.plannedValues,
           input.templates,
-          input.userId
+          input.userId,
+          input.transitions ?? []
         );
         if (detailRows.length > 0) {
           await experimentInstructionDetailRepository.upsertFromPlan(client, detailRows);

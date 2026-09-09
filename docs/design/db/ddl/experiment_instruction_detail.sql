@@ -16,8 +16,12 @@ CREATE TABLE experiment_instruction_detail (
     method_id           CHARACTER VARYING       NOT NULL,
     task_no             NUMERIC(3,0)            NOT NULL,
     transition_id       CHARACTER VARYING       NOT NULL,
-    template_name       CHARACTER VARYING       NOT NULL,
+    template_id         CHARACTER VARYING       NOT NULL,    -- 主キー6番目: MAIMLの template.id
     prop_key            CHARACTER VARYING       NOT NULL,
+
+    -- トランジション・テンプレート表示情報
+    transition_name     CHARACTER VARYING,                   -- MAIMLから取得したトランジション表示名（未設定時はNULL）
+    template_name       CHARACTER VARYING,                   -- テンプレート表示ラベル（非主キー、表示用）
 
     -- MAIMLプロパティ情報
     xsi_type            CHARACTER VARYING(50),      -- FloatValue / IntegerValue / StringValue
@@ -47,7 +51,7 @@ CREATE TABLE experiment_instruction_detail (
         method_id,
         task_no,
         transition_id,
-        template_name,
+        template_id,
         prop_key
     )
 );
@@ -79,8 +83,10 @@ COMMENT ON COLUMN experiment_instruction_detail.project_id IS 'プロジェク�
 COMMENT ON COLUMN experiment_instruction_detail.method_id IS 'メソッドID（主キー3）';
 COMMENT ON COLUMN experiment_instruction_detail.task_no IS 'タスク連番（主キー4）';
 COMMENT ON COLUMN experiment_instruction_detail.transition_id IS 'トランジションID（主キー5）';
-COMMENT ON COLUMN experiment_instruction_detail.template_name IS 'テンプレート名（主キー6）';
+COMMENT ON COLUMN experiment_instruction_detail.template_id IS 'テンプレートID（主キー6）: MAIMLの template.id';
 COMMENT ON COLUMN experiment_instruction_detail.prop_key IS 'MAIMLプロパティキー（主キー7）:例: ns1:Temperature';
+COMMENT ON COLUMN experiment_instruction_detail.transition_name IS 'トランジション表示名: MAIMLから取得したトランジションのname属性（未設定時はNULL）';
+COMMENT ON COLUMN experiment_instruction_detail.template_name IS 'テンプレート表示ラベル: MAIMLの template.name/label（非主キー、表示用）';
 COMMENT ON COLUMN experiment_instruction_detail.xsi_type IS 'xsi:type:FloatValue / IntegerValue / StringValue';
 COMMENT ON COLUMN experiment_instruction_detail.expected_value IS '想定値:管理者が設定した指示値（未設定時はNULL）';
 COMMENT ON COLUMN experiment_instruction_detail.actual_value IS '実績値:作業者が記録した値（未記録時はNULL）';

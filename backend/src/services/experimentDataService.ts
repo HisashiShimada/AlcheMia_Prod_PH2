@@ -84,7 +84,7 @@ export class ExperimentDataService {
     uncertaintyValues?: UncertaintyValueInput[],
     qualitativeValues?: Array<{
       propKey: string;
-      placeId: string;
+      templateId: string;
       value: string;
       uncertaintyKey?: string | null;
       nameSpaceId?: string | null;
@@ -254,28 +254,34 @@ export class ExperimentDataService {
     savedRecords: TemplateDataRow[],
     uncertaintyValues: UncertaintyValueInput[] | undefined,
     qualitativeValues: Array<{
-      propKey: string; placeId: string; value: string;
+      propKey: string; templateId: string; value: string;
       uncertaintyKey?: string | null; nameSpaceId?: string | null;
     }> | undefined,
     updateUserId: string
   ): Promise<void> {
-    // placeId → 定量不確かさ情報マップ（propKey → 最新1件）
+    // templateId → 定量不確かさ情報マップ（propKey → 最新1件）
     const quantMap = new Map<string, UncertaintyValueInput>();
     for (const uv of (uncertaintyValues ?? [])) {
-      quantMap.set(`${uv.placeId}__${uv.propertyKey}`, uv);
+      quantMap.set(`${uv.templateId}__${uv.propertyKey}`, uv);
     }
 
-    // placeId → 定性評価マップ（propKey → 値）
+    // templateId → 定性評価マップ（propKey → 値）
     const qualMap = new Map<string, { value: string; uncertaintyKey?: string | null; nameSpaceId?: string | null }>();
     for (const qv of (qualitativeValues ?? [])) {
-      qualMap.set(`${qv.placeId}__${qv.propKey}`, qv);
+      qualMap.set(`${qv.templateId}__${qv.propKey}`, qv);
     }
 
     for (const row of savedRecords) {
       const ps = row.property_set;
       if (!ps) continue;
-      const templateName = ps.templateName ?? ps.templateId ?? '';
-      if (!templateName) continue;
+      const templateId = ps.templateId ?? '';
+      // template_id が空の場合はスキップ（主キーとして必須）
+      if (!templateId) {
+        logger.warn('[ExperimentDataService] templateId が空のためinstruction_detail更新をスキップ', {
+          organizationId, projectId, methodId, taskNo, placeId: row.place_id,
+        });
+        continue;
+      }
 
       for (const prop of (ps.properties ?? [])) {
         const propKey = (prop as unknown as Record<string, unknown>)['key'] as string | undefined;
@@ -288,7 +294,7 @@ export class ExperimentDataService {
           return v != null ? String(v) : null;
         })();
 
-        const mapKey = `${row.place_id}__${propKey}`;
+        const mapKey = `${templateId}__${propKey}`;
         const quant = quantMap.get(mapKey);
         const qual = qualMap.get(mapKey);
 
@@ -298,7 +304,7 @@ export class ExperimentDataService {
           methodId,
           taskNo,
           transitionId,
-          templateName,
+          templateId,
           propKey,
           actualValue,
           nameSpaceId: qual?.nameSpaceId ?? quant ? null : null,
@@ -1150,7 +1156,7 @@ export async function saveBatchData(
   uncertaintyValues?: UncertaintyValueInput[],
   qualitativeValues?: Array<{
     propKey: string;
-    placeId: string;
+    templateId: string;
     value: string;
     uncertaintyKey?: string | null;
     nameSpaceId?: string | null;

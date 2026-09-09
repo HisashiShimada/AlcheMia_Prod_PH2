@@ -25,7 +25,7 @@ export interface ExperimentUncertaintyJudgeRow {
   methodId: string;
   taskNo: number;
   transitionId: string;
-  placeId: string;
+  templateId: string;
   propertyKey: string;
   uncertaintyKey: string;
   uncertaintyVersion: number;
@@ -48,7 +48,7 @@ export interface InsertUncertaintyJudgeRequest {
   methodId: string;
   taskNo: number;
   transitionId: string;
-  placeId: string;
+  templateId: string;
   propertyKey: string;
   uncertaintyKey: string;
   uncertaintyVersion: number;
@@ -79,7 +79,7 @@ export class ExperimentUncertaintyJudgeRepository {
         data.methodId,                         // $3
         data.taskNo,                           // $4
         data.transitionId,                     // $5
-        data.placeId,                          // $6
+        data.templateId,                       // $6
         data.propertyKey,                      // $7
         data.uncertaintyKey,                   // $8
         data.uncertaintyVersion,               // $9
@@ -108,7 +108,7 @@ export class ExperimentUncertaintyJudgeRepository {
    * @param methodId - メソッドID
    * @param taskNo - タスク番号
    * @param transitionId - トランジションID
-   * @param placeId - Place ID
+   * @param templateId - Template ID（MAIMLの template.id）
    * @param propertyKey - プロパティKey
    * @param uncertaintyKey - 不確かさ基準Key
    * @returns 最新判定結果（見つからない場合は null）
@@ -120,7 +120,7 @@ export class ExperimentUncertaintyJudgeRepository {
     methodId: string,
     taskNo: number,
     transitionId: string,
-    placeId: string,
+    templateId: string,
     propertyKey: string,
     uncertaintyKey: string
   ): Promise<ExperimentUncertaintyJudgeRow | null> {
@@ -133,7 +133,7 @@ export class ExperimentUncertaintyJudgeRepository {
         methodId,
         taskNo,
         transitionId,
-        placeId,
+        templateId,
         propertyKey,
         uncertaintyKey,
       ];

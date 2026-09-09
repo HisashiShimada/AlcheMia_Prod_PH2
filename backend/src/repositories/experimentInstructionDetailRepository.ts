@@ -24,7 +24,7 @@ const PRIMARY_KEYS: (keyof ExperimentInstructionDetail)[] = [
   'method_id',
   'task_no',
   'transition_id',
-  'template_name',
+  'template_id',
   'prop_key',
 ];
 
@@ -89,7 +89,7 @@ export async function update(
 /**
  * ExperimentPlanDialog 保存時に一括 UPSERT する（トランザクション内用）
  *
- * 既存レコードがある場合は expected_value / xsi_type のみ更新する。
+ * 既存レコードがある場合は expected_value / xsi_type / transition_name / template_name のみ更新する。
  * actual_value や不確かさ情報は上書きしない。
  */
 export async function upsertFromPlan(
@@ -100,11 +100,13 @@ export async function upsertFromPlan(
     methodId: string;
     taskNo: number;
     transitionId: string;
-    templateName: string;
+    templateId: string;
     propKey: string;
     xsiType: string | null;
     expectedValue: string | null;
     userId: string;
+    transitionName: string | null;
+    templateName: string | null;
   }>
 ): Promise<void> {
   if (rows.length === 0) return;
@@ -118,11 +120,13 @@ export async function upsertFromPlan(
       row.methodId,         // $3
       row.taskNo,           // $4
       row.transitionId,     // $5
-      row.templateName,     // $6
+      row.templateId,       // $6
       row.propKey,          // $7
       row.xsiType,          // $8
       row.expectedValue,    // $9
       row.userId,           // $10 (create_user_id / update_user_id)
+      row.transitionName,   // $11
+      row.templateName,     // $12
     ]);
   }
 }
@@ -137,7 +141,7 @@ export async function updateActualAndUncertainty(params: {
   methodId: string;
   taskNo: number;
   transitionId: string;
-  templateName: string;
+  templateId: string;
   propKey: string;
   actualValue: string | null;
   nameSpaceId: string | null;
@@ -158,7 +162,7 @@ export async function updateActualAndUncertainty(params: {
     params.methodId,                 // $3
     params.taskNo,                   // $4
     params.transitionId,             // $5
-    params.templateName,             // $6
+    params.templateId,               // $6
     params.propKey,                  // $7
     params.actualValue,              // $8
     params.nameSpaceId,              // $9

@@ -129,10 +129,10 @@ export class MaimlWriterService {
         const judgeRows = await judgeRepo.findAllByProject(organizationId, projectId, methodId);
         if (judgeRows.length === 0) continue;
 
-        // (placeId, propertyKey) ごとに集約
+        // (templateId, propertyKey) ごとに集約
         const judgeMap = new Map<string, '良好' | '不良'>();
         for (const jr of judgeRows) {
-          const mapKey = `${jr.placeId}__${jr.propertyKey}`;
+          const mapKey = `${jr.templateId}__${jr.propertyKey}`;
           const current = judgeMap.get(mapKey);
           if (current === '不良') continue;
           judgeMap.set(mapKey, jr.judgeResult === '不良' ? '不良' : '良好');
@@ -144,11 +144,14 @@ export class MaimlWriterService {
           const ps = row.property_set as Record<string, unknown> | null;
           if (!ps || !Array.isArray(ps['properties'])) continue;
 
+          const templateId = ps['templateId'] as string | undefined;
+          if (!templateId) continue;
+
           const properties = ps['properties'] as Array<Record<string, unknown>>;
           for (const prop of properties) {
             const propKey = prop['key'] as string | undefined;
             if (!propKey) continue;
-            const aggregatedResult = judgeMap.get(`${row.place_id}__${propKey}`);
+            const aggregatedResult = judgeMap.get(`${templateId}__${propKey}`);
             if (!aggregatedResult) continue;
 
             // uncertainties 配列の最初の定量評価 uncertainty に集約結果を設定
