@@ -1,8 +1,10 @@
 # 実験指示タブ UI設計書
 
 > [!WARNING]
-> **このドキュメントは現在のバージョンが古く、今後修正が予定されています。**
+> **このドキュメントは旧バージョンの情報であり、廃止予定です。**
+> 最新の実験指示タブ仕様は [`ui_experiment_instruction_tab.md`](../ui_experiment_instruction_tab.md) を参照してください。
 > テスト仕様書作成の参考資料には含めないでください。
+> （2026-09-09 更新: 廃止案内を追記）
 
 ## メタデータ
 - **画面名**: 実験指示タブ
@@ -202,3 +204,4 @@ interface ExperimentInstructionTabProps {
 |-----------|------|---------|
 | 1.0.0 | 2026-08-14 | 初版作成（ソースを `UncertaintyApprovalTab.tsx` と誤認）|
 | 1.1.0 | 2026-08-17 | 画面名を「実験指示タブ」に修正。ソースを `ExperimentInstructionTab.tsx` に訂正。承認・NG操作は「承認処理」ダイアログに統一。画面レイアウト・Props・フィルタ・ツールバー・テーブル列を実装に合わせて全面更新 |
+| — | 2026-09-09 | `[!WARNING]` ブロックを廃止予定案内に更新（最新仕様は `ui_experiment_instruction_tab.md` 参照）|

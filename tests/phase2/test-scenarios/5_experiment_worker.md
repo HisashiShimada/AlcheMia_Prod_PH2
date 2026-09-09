@@ -1,6 +1,7 @@
 # 実験作業者 シナリオテスト対象一覧
 
 > **作成日**: 2026-03-10
+> **最終更新日**: 2026-09-09（UI設計書2026-09-09更新分を反映：コメント保存API連携済みに修正・WorkRecordPanel PropCard新機能対応・API実装状況更新）
 > **最終更新日**: 2026-08-27（参照設計書バージョン更新: ui_progress_overview_tab.md v3.1.0・ui_work_record_panel.md v3.2.0・ui_issue_management_modal.md v1.5.0・ui_project_selection_modal.md v1.2.0・ui_experiment_comment_dialog.md v1.1.0 / 5-1グループ見直し: MethodTaskSelectionModal 廃止に伴い9件→4件に縮小）
 > **最終更新日**: 2026-08-20（設計書リデザイン対応）
 > **参照元**: `docs/20260310_0940_ロール別業務内容一覧.md`（要求仕様書ベース）
@@ -10,6 +11,11 @@
 > - フェーズ２新機能として以下のシナリオグループを追加（既存 5-1〜5-5 は変更なし・内容流用）
 >   - **5-6: 作業記録パネル（WorkRecordPanel）**（`docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md` 2026-06-22）
 >     - 指示確認（InstructionCollapse）・テンプレート選択・プロパティ入力・保存/スキップ/保存して次へ・コメント記録・カスタム Insertion/Content 操作
+> - 2026-09-09 UI設計書更新に伴う追加・修正
+>   - **5-6-15** コメント保存の対応APIを修正（`saveTransitionComment` API連携済みに更新）
+>   - **5-6-23** 根拠・備考を最新設計書（v3.3.0）に合わせて修正
+>   - **5-6-24〜5-6-27** PropertyCard の新機能（定性評価説明・定性評価理由入力欄・判定結果バッジ・quantitativeUncertainties プリセット表示）シナリオを追加
+>   - スコープ表・フェーズ注記・API実装状況表・参照ドキュメント表を最新化
 
 ---
 
@@ -34,10 +40,10 @@
 | **5-1** | プロジェクト選択 | 要件書#1、追加機能A、`ui_project_selection_modal.md`（v1.2.0）| 4件 | Playwright自動 | 4 | 0 | 0 |
 | **5-2** | 実験記録（トランジション記録） | **廃止**（2026-08-27） | 0件 | — | 0 | 0 | 0 |
 | **5-3** | 問題報告・ステータス変更 | 要件書（なし）、追加機能D/E/F/G | 18件 | Playwright自動 | 17 | 0 | 1 |
-| **5-4** | プロジェクト指示確認（WorkRecordPanel内）| 要件書#8、`ui_work_record_panel.md`（v3.2.0）| 3件 | Playwright自動 | 0 | 0 | 3 |
-| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K、`docs/改善仕様調査/No.23/result.md`（No.23対応）、`ui_progress_overview_tab.md`（**v3.0.0**）※フェーズB移行完了・`preparing`/`ready`ステータス追加 | 28件 | Playwright自動 | 20 | 0 | 8 | ⚠️ 実施不可
-| **5-6** | 作業記録パネル（WorkRecordPanel） | `docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md`。API接続済み・カテゴリ別グループ表示・状態記録ダイアログ・指示確認フロー（preparing→ready→in_progress）・状態プルダウン活性化・is_recorded管理・スキップ制御・承認依頼条件 | 23件 | Playwright自動 + 手動 | - | - | 23 |
-| **合計** | - | - | **76件** | - | **41** | **0** | **35** |
+| **5-4** | プロジェクト指示確認（WorkRecordPanel内）| 要件書#8、`ui_work_record_panel.md`（v3.3.0）| 3件 | Playwright自動 | 0 | 0 | 3 |
+| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K、`docs/改善仕様調査/No.23/result.md`（No.23対応）、`ui_progress_overview_tab.md`（**v3.1.0** / 2026-09-09: 変更履歴重複削除のみ・機能変更なし）| 28件 | Playwright自動 | 20 | 0 | 8 | ⚠️ 実施不可
+| **5-6** | 作業記録パネル（WorkRecordPanel） | `docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md`（**v3.3.0** / 2026-09-09: PropertyCard新機能追加・API連携状況更新）。API接続済み・カテゴリ別グループ表示・状態記録ダイアログ・指示確認フロー（preparing→ready→in_progress）・状態プルダウン活性化・is_recorded管理・スキップ制御・承認依頼条件 | 27件 | Playwright自動 + 手動 | - | - | 27 |
+| **合計** | - | - | **80件** | - | **41** | **0** | **39** |
 
 ### スコープ外
 
@@ -251,9 +257,9 @@
 ### 5-6: 作業記録パネル（WorkRecordPanel） ※フェーズ２追加
 
 > 📌 **フェーズ２新機能**: `docs/requirement/phase2/02_experiment_instruction_workerUI/` の要件（F-01〜F-09）に基づき追加。
-> UI設計書: `docs/design/ui/experiment_worker/ui_work_record_panel.md`（2026-06-22 / 最終更新: 2026-08-19）
-> コンポーネント: `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx`
-> **フェーズ注記**: フェーズA（現時点）はモックデータで動作。フェーズBで実APIデータに差し替え予定。
+> UI設計書: `docs/design/ui/experiment_worker/ui_work_record_panel.md`（**v3.3.0** / 最終更新: **2026-09-09**）
+> コンポーネント: `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx`（3,730行）
+> **実装状況**: フェーズB完了・実APIデータで動作。モックデータ（`INITIAL_TASKS` 等）は全て削除済み。S3ファイルアップロード以外の全APIは連携済み。
 
 #### 5-6-A: 画面表示・指示確認
 
@@ -288,7 +294,7 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 5-6-15 | 「コメント」ボタンをクリックすると `ExperimentCommentDialog` が開き、コメントを記録できること | 正常系 | `ui_work_record_panel.md` §1.2（コメント記録（ExperimentCommentDialog））、要件 F-07-01 | POST `/api/v1/experiments/…/data` | - | `ui_experiment_comment_dialog.md` 参照 |
+| 5-6-15 | 「コメント」ボタンをクリックすると `ExperimentCommentDialog` が開き、コメントを記録できること | 正常系 | `ui_work_record_panel.md` §1.2（コメント記録（ExperimentCommentDialog））、`ui_experiment_comment_dialog.md`（**v1.2.0** / 2026-09-09: API連携済みに更新）、要件 F-07-01 | PATCH `/api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status` | - | `saveTransitionComment` API でコメントを保存する。成功時 `modal.success`・失敗時 `message.error` が表示されること。`projectId` または `methodId` が未設定の場合は `console.warn` のみで処理中断 |
 | 5-6-16 | カスタム Insertion（ファイル添付）を追加できること | 正常系 | `ui_work_record_panel.md` §1.2（カスタム Insertion（ファイル添付）追加・削除） | POST `/api/v1/files/upload` | - | |
 | 5-6-17 | 追加したカスタム Insertion（ファイル添付）を削除できること | 正常系 | `ui_work_record_panel.md` §1.2（カスタム Insertion（ファイル添付）追加・削除） | DELETE `/api/v1/files/…` | - | |
 | 5-6-18 | カスタム Content（DataGrid）を追加・編集・削除できること | 正常系 | `ui_work_record_panel.md` §1.2（カスタム Content（DataGrid）追加・削除） | POST `/api/v1/experiments/…/data` | - | |
@@ -301,7 +307,16 @@
 | 5-6-20 | `in_progress`（動作状態）のトランジションが選択中のとき「スキップ」ボタンが disabled であること | 表示確認 | `ui_work_record_panel.md` §6.1（v3.1.0） | - | - | バグ修正確認: in_progress時はスキップ不可 |
 | 5-6-21 | `ready`（準備完了）のトランジションが選択中のとき「スキップ」ボタンが活性であること | 表示確認 | `ui_work_record_panel.md` §6.1（v3.1.0） | - | - | |
 | 5-6-22 | トランジション一覧の表示順が `in_progress` > `ready` > `preparing`（同一ステータス内は `order` 昇順）であること | 表示確認 | `ui_work_record_panel.md` §10.2 #10（v3.1.0） | - | - | 複数のトランジションが各ステータスに混在するテストデータで確認する |
-| 5-6-23 | 定性評価プロパティカードの `description`（qualitativeNote）が確信度ラベルの右隣に表示されること | 表示確認 | `ui_work_record_panel.md` §2.2（PropertyCard）、§3.0.1 注釈 | - | - | description が存在する定性評価プロパティで確認する |
+| 5-6-23 | 定性評価プロパティカードの確信度ボタン選択肢（`qualitativeOptions`）が `intuition_selector` テーブル由来の値で表示され、`confidenceOptionsWithColor` がある場合はボタン色に反映されること | 表示確認 | `ui_work_record_panel.md` §4（WorkProperty型定義）、§5.3（確信度）（v3.3.0） | - | - | `display_color` フィールドが存在する選択肢でボタン色が変化することを確認する |
+
+> ⚠️ **[2026-09-09 追加]** PropertyCard 新機能対応シナリオ（`ui_work_record_panel.md` v3.3.0 §2.2・§4）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 5-6-24 | 定性評価プロパティカードに定性評価説明（`description`/`qualitativeNote`）が常時表示されること（値がない場合は空欄） | 表示確認 | `ui_work_record_panel.md` §2.2（PropertyCard・2026-09-09 追加）、§4 `WorkProperty.description` | - | - | 説明文字列が設定されたテンプレートと未設定テンプレートの両方で確認する |
+| 5-6-25 | 定性評価プロパティカードに定性評価理由（`qualitativeReason`）の入力欄が表示され、テキスト入力できること | 正常系 | `ui_work_record_panel.md` §2.2（PropertyCard・2026-09-09 追加）、§4 `WorkProperty.qualitativeReason`、i18nキー: `workRecord.qualitativeEvalReason` / `workRecord.qualitativeEvalReasonPlaceholder` | - | - | 入力した値が保存リクエストに含まれることを確認する（`qualitativeReason` フィールド） |
+| 5-6-26 | 実績値を保存後、定量評価の各入力行に判定結果バッジ（「良好」/「不良」）が表示されること | 正常系 | `ui_work_record_panel.md` §2.2（PropertyCard・`lastJudgeResultMap`・2026-09-09 追加）、`correctRecord` API | POST `/api/v1/experiments/…/data` | - | 保存後に `lastJudgeResultMap` が更新されてバッジが表示されること。全件「良好」→「良好」バッジ、1件でも「不良」→「不良」バッジが表示されること |
+| 5-6-27 | `quantitativeUncertainties` が設定されているプロパティの定量評価入力行に、不確かさ基準名・許容値・説明がプリセット表示されること | 表示確認 | `ui_work_record_panel.md` §2.2（PropertyCard・`quantitativeUncertainties`・2026-09-09 追加）、§4 `WorkProperty.quantitativeUncertainties`（Phase 3-B 対応） | GET `/api/v1/experiments/…/data` | - | `toleranceValues[]` が存在するプロパティで確認する。各入力行の `uncertaintyKey` がプリセットされていること |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
@@ -315,7 +330,11 @@
 - **5-6-19 用**: トランジションが未保存状態であること（`is_recorded=FALSE`）
 - **5-6-20〜5-6-21 用**: `in_progress` および `ready` ステータスのトランジションが存在するテストデータ
 - **5-6-22 用**: `in_progress`・`ready`・`preparing` の各ステータスが混在するトランジションが存在するテストデータ
-- **5-6-23 用**: `description` フィールドが設定された定性評価プロパティが存在するMAIMLテンプレート
+- **5-6-23 用**: `intuition_selector` テーブルに `display_color`（`#` で始まる色コード）が設定された選択肢が1件以上存在すること（2026-09-09 修正）
+- **5-6-24 用**: `description`（`qualitativeNote`）フィールドが設定された定性評価プロパティが存在するMAIMLテンプレート（2026-09-09 追加）
+- **5-6-25 用**: 定性評価タイプのプロパティカードが表示される状態（5-6-10 の前提条件と同じ）（2026-09-09 追加）
+- **5-6-26 用**: 定量評価入力行が存在し、保存後に `experiment_uncertainty_judge` テーブルに判定結果が格納されるテストデータ（2026-09-09 追加）
+- **5-6-27 用**: MAIMLテンプレートに `toleranceValues[]`（不確かさ許容値配列）が設定されているプロパティが存在すること（2026-09-09 追加）
 
 **後処理:**
 - 保存した実験データを `experiment_data` テーブルから削除（5-6-12〜5-6-14、5-6-15〜5-6-19）
@@ -323,7 +342,7 @@
 
 **注意事項:**
 - フェーズB完了。実APIデータで動作
-- 5-6-19〜5-6-23（フェーズB追加機能）はフェーズB完了後に実施
+- 5-6-19〜5-6-27（フェーズB追加機能）はフェーズB完了後に実施（5-6-24〜5-6-27 は 2026-09-09 追加）
 - 定性評価・定量評価のプロパティカード（5-6-10〜5-6-11）は不確かさ基準マスターのフェーズ２新機能（4-19）と連携している
 - `ExperimentCommentDialog`（5-6-15）は `docs/design/ui/experiment_worker/ui_experiment_comment_dialog.md` に別途設計書あり
 
@@ -419,7 +438,23 @@
 | 6 | 5-5グループにシナリオを追加（計15件→16件） | メソッドタブが`project_task`テーブルの`experiment_order`の昇順で表示されることを確認するシナリオを追加（5-5-16）、合計件数を71件→72件に修正 |
 | 7 | waiting_approval時の操作制限シナリオを追加（計72件→78件） | 5-2グループに2件追加（実験データ入力・保存不可、ステータス更新不可）、5-3グループに3件追加（新規問題報告不可、コメント投稿不可、ステータス更新不可）、5-4グループに1件追加（確認完了ボタン非活性）（5-2-25〜5-2-26、5-3-15〜5-3-17、5-4-10） |
 
-#### 2026-08-20（設計書リデザイン対応）
+#### 2026-09-09（UI設計書2026-09-09更新分反映）
+
+| # | 変更内容 | 詳細 |
+|---|---------|------|
+| 1 | ヘッダー最終更新日・フェーズ２更新内容を更新 | 2026-09-09付き変更内容を箇条書きで追記 |
+| 2 | §1 スコープ表 5-4・5-5・5-6の根拠バージョンを更新 | v3.2.0→v3.3.0（5-4・5-6）、v3.0.0→v3.1.0（5-5） |
+| 3 | §1 スコープ表 合計件数を76件→80件に更新 | 5-6 を23件→27件に更新（5-6-24〜5-6-27の4件追加） |
+| 4 | 5-6 フェーズ注記を修正 | 「モックデータで動作・フェーズBで差し替え予定」→「フェーズB完了・実APIデータで動作・モックデータ全削除済み」に修正 |
+| 5 | **5-6-15 修正** | 対応APIを `POST /api/v1/experiments/…/data` → `PATCH /api/v1/progress/…/transitions/:transitionId/status`（`saveTransitionComment`）に修正。備考も「モックのみ」から「API連携済み・エラーハンドリング記載」に更新（`ui_experiment_comment_dialog.md` v1.2.0対応）|
+| 6 | **5-6-23 修正** | `description` 常時表示確認 → `confidenceOptionsWithColor`・`display_color` のボタン色反映確認に修正（v3.3.0 PropertyCard §4対応）|
+| 7 | **5-6-24〜5-6-27 新規追加** | PropertyCard新機能シナリオ4件追加：定性評価説明常時表示・定性評価理由入力欄・判定結果バッジ・`quantitativeUncertainties` プリセット表示（`ui_work_record_panel.md` v3.3.0 §2.2・§4 対応）|
+| 8 | 5-6 前提条件に5-6-23〜5-6-27用テストデータ条件を追記 | |
+| 9 | 5-6 注意事項の「フェーズB追加機能」範囲を 5-6-19〜5-6-27 に拡張 | |
+| 10 | §5.2 APIの実装状況表に `saveTransitionComment`・`correctRecord` を追加 | |
+| 11 | §7 参照ドキュメントのバージョン表記を更新 | `ui_work_record_panel.md` v3.2.0→v3.3.0、`ui_experiment_comment_dialog.md` v1.1.0→v1.2.0 |
+
+#### 2026-08-27（設計書バージョン更新）
 
 | # | 変更内容 | 詳細 |
 |---|---------|------|
@@ -476,6 +511,8 @@
 | GET `/api/v1/issues` | ✅ 完了 | 影響なし |
 | PATCH `/api/v1/issues/status` | ✅ 完了 | 5-3-6、5-3-7はManager権限ユーザーで実施 |
 | PATCH `/api/v1/projects/{projectName}/approval-request` | ✅ 完了 | 影響なし（`requestApproval(projectName)` を使用） |
+| PATCH `/api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status`（`saveTransitionComment`） | ✅ 完了 | 5-6-15 コメント保存の対応APIとして使用（2026-09-09 追加） |
+| PATCH `/api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct`（`correctRecord`） | ✅ 完了 | 5-6-26 判定結果バッジ表示の保存後確認で使用（2026-09-09 追加） |
 
 ---
 
@@ -504,6 +541,6 @@
 | プロバイダーテスト（参考実装） | `tests/e2e/features/provider/1-1_corporation_create.feature` |
 | プロバイダーステップ定義（参考実装） | `tests/e2e/steps/provider/1-1_corporation_create.ts` |
 | 実験管理者テスト対象一覧（参考） | `docs/20260310_1106_実験管理者シナリオテスト/4_experiment_admin_test_targets.md` |
-| **【v3.2.0 フェーズB完了】作業記録パネル設計** | `docs/design/ui/experiment_worker/ui_work_record_panel.md`（**v3.2.0** / 最終更新: 2026-08-27）|
-| **【フェーズ２追加】コメントダイアログ設計** | `docs/design/ui/experiment_worker/ui_experiment_comment_dialog.md`（**v1.1.0** / 最終更新: 2026-08-27）|
+| **【v3.3.0 フェーズB完了・2026-09-09更新】作業記録パネル設計** | `docs/design/ui/experiment_worker/ui_work_record_panel.md`（**v3.3.0** / 最終更新: **2026-09-09**）|
+| **【フェーズ２追加・2026-09-09更新】コメントダイアログ設計** | `docs/design/ui/experiment_worker/ui_experiment_comment_dialog.md`（**v1.2.0** / 最終更新: **2026-09-09**）|
 | **【フェーズ２追加】フェーズ２要件定義（実験計画指示・実験作業者UI）** | `docs/requirement/phase2/02_experiment_instruction_workerUI/` |

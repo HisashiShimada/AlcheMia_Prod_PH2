@@ -6,9 +6,9 @@
 - **ファイルパス**: `frontend/src/components/project/ProjectManagement.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-01-21
-- **最終更新日**: 2026-08-20
+- **最終更新日**: 2026-09-09
 - **担当者**: Development Team
-- **バージョン**: 3.0.0
+- **バージョン**: 3.1.0
 
 ---
 
@@ -51,7 +51,7 @@
 │ - プロジェクトA     ├────────────────────────────────────────────────────┤
 │ - プロジェクトB     │ タブコンテンツ                                       │
 │ - プロジェクトC     │                                                      │
-│                     │ [ファイル管理|タスク登録|プロジェクト指示|実験指示|評価登録] │
+│                     │ [ファイル管理|タスク登録|プロジェクト指示|実験指示|評価登録|全体評価] │
 │                     │ ┌────────────────────────────────────────────────┐  │
 │                     │ │ (各タブコンポーネント)                           │  │
 │                     │ └────────────────────────────────────────────────┘  │
@@ -83,10 +83,10 @@
 
 幅: 20%（min:280px, max:380px）
 
-**チーム未所属の場合（`isUnassignedToTeam === true`）:**
+**グループ未所属の場合（`isUnassignedToGroup === true`）:**
 - `TeamOutlined` アイコン
-- チーム未所属メッセージ
-- 「チーム管理へ」ボタン（`onNavigateToTeamManagement` が存在する場合）
+- グループ未所属メッセージ（`t('projectManagement.no_group_assigned_title')`）
+- 「グループ管理へ」ボタン（`onNavigateToGroupManagement` が存在する場合、`t('projectManagement.go_to_group_management')`）
 
 **通常表示:**
 - **ProjectFolderTree**: プロジェクト一覧をツリー表示
@@ -118,6 +118,9 @@
 | プロジェクト完了 | — | `allTasksCompleted !== true` or isEditable=false |
 | 名前変更 | `EditOutlined` | チェックアウト中 or status=4 or status=5 or isEditable=false |
 | バリデーション確認 | `SafetyCertificateOutlined` | プロジェクト未選択 |
+| **強制終了** | `WarningOutlined`（danger）| status が 1/2/3/6 のいずれでもない、またはチェックアウト中（`isProjectCheckedOut`） |
+
+> ⚠️ **[2026-09-09 追加]**: 「強制終了」ボタン（`forceTerminateProject` API呼び出し）を追加。確認ダイアログ経由で実行し、プロジェクトを status=5（タスク異常終了）に強制遷移させる。対象 status: TASK_PENDING(1) / TASK_IN_PROGRESS(2) / REVIEW_WAITING(3) / REVIEW_REJECTED(6)。
 
 - `data-testid="project-download-button"`, `data-testid="checkout-checkin-button"`
 - `data-testid="maiml-toolbar-publish-button"`, `data-testid="maiml-toolbar-unpublish-button"`
@@ -143,6 +146,11 @@
 
 **Tab 5: 評価登録**（`key: 'evaluation_registration'`）
 - **EvaluationRegistrationTab**: 評価の登録・管理
+
+**Tab 6: 全体評価**（`key: 'overall_evaluation'`）（2026-09-09 追加）
+- **OverallEvaluationTabContent**: プロジェクト全体の評価集計・確認
+  - Props: `selectedProject`, `isProjectCheckedOut`, `maimlHasErrors`
+  - パス: `./subcomponents/tabs/OverallEvaluationTabContent`
 
 ### 2.3 モーダル・ダイアログ一覧
 
@@ -241,7 +249,7 @@ useEffect(() => {
 
 ### 3.4 タブ切り替え
 
-タブキー: `'file_management' | 'task_registration' | 'project_instruction' | 'task_results' | 'evaluation_registration'`
+タブキー: `'file_management' | 'task_registration' | 'project_instruction' | 'task_results' | 'evaluation_registration' | 'overall_evaluation'`
 
 - **ファイル管理タブ切り替え時**: `getProjectFiles(projectId, true)` で最新取得
 - **その他タブ**: コンポーネント内部で `isActive` prop を監視して自動更新するため不要
@@ -376,15 +384,19 @@ useEffect(() => {
 interface ProjectManagementInnerProps {
   onEdit?: (params: MaimlEditorParams) => void;
   onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
+  /** ログイン中ユーザー情報（グループ未所属判定に使用） */
   user?: User;
-  onNavigateToTeamManagement?: () => void;
+  /** グループ管理タブへ遷移するコールバック */
+  onNavigateToGroupManagement?: () => void;
 }
 
 interface ProjectManagementProps {
   onEdit?: (params: MaimlEditorParams) => void;
   onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
+  /** ログイン中ユーザー情報（グループ未所属判定に使用） */
   user?: User;
-  onNavigateToTeamManagement?: () => void;
+  /** グループ管理タブへ遷移するコールバック */
+  onNavigateToGroupManagement?: () => void;
 }
 ```
 
@@ -392,8 +404,8 @@ interface ProjectManagementProps {
 |--------|---|------|
 | `onEdit` | `(params: MaimlEditorParams) => void` | Petri Netエディタを開くコールバック |
 | `onOpenWorkerScreen` | `(projectId, projectName) => void` | 作業者画面オーバーレイを開くコールバック |
-| `user` | `User?` | ログイン中ユーザー情報（チーム未所属判定に使用）|
-| `onNavigateToTeamManagement` | `() => void` | チーム管理タブへ遷移するコールバック |
+| `user` | `User?` | ログイン中ユーザー情報（グループ未所属判定に使用）|
+| `onNavigateToGroupManagement` | `() => void` | グループ管理タブへ遷移するコールバック |
 
 ### 4.2 State定義
 
@@ -410,7 +422,7 @@ interface ProjectManagementProps {
 | `sortBy` | `'name' \| 'status' \| 'createdAt'` | sessionStorage復元 or `'createdAt'` | ソート項目 |
 | `sortOrder` | `'asc' \| 'desc'` | sessionStorage復元 or `'desc'` | ソート順序 |
 | `currentFolder` | `string` | `'root'` | 現在表示中のフォルダ |
-| `currentTab` | 5タブキー | `'file_management'` | 選択中のタブ |
+| `currentTab` | 6タブキー | `'file_management'` | 選択中のタブ |
 | `expandedFolders` | `Set<string>` | `new Set(['folder_active'])` | 展開中フォルダ |
 | `uploadDialogOpen` | `boolean` | `false` | アップロードダイアログ |
 | `createModalOpen` | `boolean` | `false` | 新規作成モーダル |
@@ -523,21 +535,36 @@ interface OpenDialog {
 ## 7. 実装ファイル
 
 ### 7.1 メインファイル
-- **パス**: `frontend/src/components/project/ProjectManagement.tsx`
-- **行数**: 約2,577行
-- **エクスポート**: `ProjectManagement`（default export）、Provider付きラッパー
+
+> ⚠️ **[2026-09-09 変更]**: `ProjectManagement.tsx` は `ProjectMaimlProvider` を付与する薄い Wrapper のみ（27行）となり、実装本体は `ProjectManagementInner.tsx`（429行）に分離されました。
+
+| ファイル | パス | 行数 | 説明 |
+|---------|------|------|------|
+| `ProjectManagement.tsx` | `frontend/src/components/project/ProjectManagement.tsx` | 27行 | `ProjectMaimlProvider` ラッパー + default export |
+| `ProjectManagementInner.tsx` | `frontend/src/components/project/ProjectManagementInner.tsx` | 429行 | 実装本体（hooks・State・UI）|
 
 ### 7.2 子コンポーネント
+
+> ⚠️ **[2026-09-09 変更]**: タブコンテンツは `subcomponents/tabs/` 配下の Wrapper コンポーネント（`*TabContent`）経由で呼び出す構成に変更されました。
+
+**タブコンテンツ（`subcomponents/tabs/` 配下）:**
+
+| コンポーネント名 | パス | タブ | 説明 |
+|----------------|------|------|------|
+| `FileManagementTabContent` | `./subcomponents/tabs/FileManagementTabContent` | file_management | ファイル管理タブ Wrapper |
+| `TaskRegistrationTabContent` | `./subcomponents/tabs/TaskRegistrationTabContent` | task_registration | タスク登録タブ Wrapper |
+| `ProjectInstructionTabContent` | `./subcomponents/tabs/ProjectInstructionTabContent` | project_instruction | プロジェクト指示タブ Wrapper |
+| `ExperimentInstructionTabContent` | `./subcomponents/tabs/ExperimentInstructionTabContent` | task_results | 実験指示タブ Wrapper |
+| `EvaluationRegistrationTabContent` | `./subcomponents/tabs/EvaluationRegistrationTabContent` | evaluation_registration | 評価登録タブ Wrapper |
+| `OverallEvaluationTabContent` | `./subcomponents/tabs/OverallEvaluationTabContent` | overall_evaluation | 全体評価タブ Wrapper（2026-09-09 追加）|
+
+**その他の子コンポーネント:**
 
 | コンポーネント名 | パス | 説明 |
 |----------------|------|------|
 | `ProjectFolderTree` | `./ProjectFolderTree` | プロジェクト一覧ツリー |
-| `FileListTable` | `./FileListTable` | ファイル一覧テーブル |
-| `TaskRegistrationTab` | `./TaskRegistrationTab` | タスク登録タブ |
-| `InstructionRegistrationTab` | `./InstructionRegistrationTab` | プロジェクト指示タブ |
-| `ExperimentInstructionTab` | `./ExperimentInstructionTab` | 実験指示タブ（task_resultsキー）|
-| `EvaluationRegistrationTab` | `./EvaluationRegistrationTab` | 評価登録タブ |
-| `TaskResultsTable` | `./TaskResultsTable` | タスク結果一覧テーブル（直接使用なし）|
+| `ProjectToolbar` | `./subcomponents/ProjectToolbar` | ツールバー（フィルタ・アクションボタン）|
+| `ProjectModals` | `./subcomponents/ProjectModals` | モーダル群一括管理 |
 | `BulkUploadDialog` | `./BulkUploadDialog` | 一括アップロードダイアログ |
 | `CreateProjectModal` | `./CreateProjectModal` | 新規プロジェクト作成モーダル |
 | `RenameProjectModal` | `./RenameProjectModal` | プロジェクト名変更モーダル |
@@ -551,9 +578,15 @@ interface OpenDialog {
 | `TransitionSetSearchModal` | `@/components/TransitionSetSearch/TransitionSetSearchModal` | セマンティック検索モーダル |
 
 ### 7.3 使用するカスタムフック・サービス
-- `useApi` - API呼び出し
 - `usePublishStatusPoller` - 公開ジョブポーリング
 - `useProjectMaiml` / `ProjectMaimlProvider` - MAIML管理Context
+- `useProjectList` - プロジェクト一覧・フィルタ管理（`isUnassignedToGroup` を返す）
+- `useProjectSelection` - プロジェクト選択・セッション復元
+- `useProjectFiles` - ファイル一覧キャッシュ管理
+- `useProjectActions` - チェックアウト・削除・完了などのアクション
+- `useProjectMaimlEditor` - MAIML編集・バリデーション関連
+- `useProjectDialogs` - ダイアログ開閉状態管理
+- `forceTerminateProject`（`projectApiService`）- 強制終了 API（2026-09-09 追加）
 
 ---
 
@@ -575,6 +608,7 @@ interface OpenDialog {
 | 3 | 承認待ち | レビュー待ちタスクあり。公開可能 |
 | 4 | プロジェクト完了 | 全タスク完了。公開可能。編集系ボタン無効 |
 | 5 | タスク異常終了 | エラー発生。編集系ボタン無効 |
+| **6** | **レビュー差戻** | **NGタスクのみ残り、追加タスクなしでチェックアウトした場合。強制終了ボタンが活性（2026-09-09 追加）**|
 
 ### 8.3 `isEditable` フラグ
 `selectedProject.isEditable === false` の場合、変更系ボタンがすべて無効化される。
@@ -600,5 +634,6 @@ interface OpenDialog {
 |-----------|------|---------|
 | 3.0.0 | 2026-08-20 | 実装ベースで全面改訂（タブ構成5タブへ変更・組織グループフィルタ追加・Props/State追加・子コンポーネント追加・ツールバーボタン追加）|
 | 3.0.1 | 2026-08-20 | 暗号化管理・電子署名管理（開発対象外）削除・onInstructionsSubmit/encryptionModalOpen/signatureModalOpen削除 |
+| 3.1.0 | 2026-09-09 | 強制終了ボタン追加（`forceTerminateProject`・REVIEW_REJECTED(6)対応）・全体評価タブ（`overall_evaluation`）追加・チーム→グループ表記統一（`isUnassignedToGroup`/`onNavigateToGroupManagement`）・実装ファイル分割記載（`ProjectManagement.tsx` 27行 + `ProjectManagementInner.tsx` 429行）・タブコンテンツを `subcomponents/tabs/` 経由構成に更新・カスタムフック一覧更新 |
 | 2.0.0 | 2026-04-24 | MAIMLバリデーション機能追加 |
 | 1.0.0 | 2026-01-21 | 初版作成 |

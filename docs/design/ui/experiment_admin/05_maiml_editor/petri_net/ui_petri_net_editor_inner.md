@@ -80,6 +80,7 @@ PetriNetEditorInnerは、React Flowを使用したペトリネット編集・表
 - `ValidationPanel` - バリデーション結果詳細・自動補正
 - `WorkflowSelectorDialog` - ワークフロー追加
 - `DraftManager` - Draft管理
+- `MaimlStructureTreePanel` - MAIML構造ツリーパネル（2026-09-09 追加）
 
 ### 2.3 ビューモード
 
@@ -91,6 +92,11 @@ PetriNetEditorInnerは、React Flowを使用したペトリネット編集・表
 - TemplateList表示
 - 共通テンプレート/メソッド内テンプレートの切り替え
 - テンプレート追加・削除・編集
+
+#### 2.3.3 xmlモード（2026-09-09 追加）
+- `XMLViewerWrapper` を表示
+- MAIMLをXMLとしてシンタックスハイライト付きで表示
+- コピー・ダウンロードボタン（`.xml` ファイルとしてエクスポート）
 
 ---
 
@@ -110,6 +116,22 @@ export interface PetriNetEditorInnerProps {
   initialDescription?: string;
   originalFileName?: string;
   sourceS3Key?: string;
+  /**
+   * 起動時に DraftManager を自動表示するかどうか（任意）
+   * MAIMLファイルが存在せず、バックエンドDraftがある場合に使用
+   * （2026-09-09 追加）
+   */
+  openDraftManagerOnStart?: boolean;
+  /** コンテンツが変更されたときのコールバック（未保存変更フラグの設定用）（2026-09-09 追加）*/
+  onContentChange?: () => void;
+  /** 保存が完了したときのコールバック（未保存変更フラグのリセット用）（2026-09-09 追加）*/
+  onContentSaved?: () => void;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * TemplateEditorDialog の新規プロパティ追加ダイアログの用語スコープ絞り込みに使用する
+   * （2026-09-09 追加）
+   */
+  organizationGroupCd?: string;
   [key: string]: unknown;
 }
 ```
@@ -125,6 +147,10 @@ export interface PetriNetEditorInnerProps {
 | initialDescription | string | - | 新規作成時のDocument説明初期値 |
 | originalFileName | string | - | 元のファイル名（保存時に使用） |
 | sourceS3Key | string | - | 元のS3キー（保存先決定に使用） |
+| openDraftManagerOnStart | boolean | - | 起動時にDraftManagerを自動表示するかどうか（2026-09-09 追加）|
+| onContentChange | () => void | - | コンテンツ変更時コールバック（未保存変更フラグ設定用）（2026-09-09 追加）|
+| onContentSaved | () => void | - | 保存完了時コールバック（未保存変更フラグリセット用）（2026-09-09 追加）|
+| organizationGroupCd | string | - | 組織グループCD（用語スコープ絞り込み用）（2026-09-09 追加）|
 
 ### 3.2 State定義
 
@@ -1027,11 +1053,12 @@ useEffect(() => {
 - **型定義**: `frontend/src/types/editor.ts`, `frontend/src/types/maiml-unified.ts`
 - **コンテキスト**: `frontend/src/contexts/TemplateContext.tsx`
 - **カスタムフック**:
-  - `frontend/src/components/editorv2/hooks/useHistory.ts`
-  - `frontend/src/components/editorv2/hooks/useWorkflow.ts`
-  - `frontend/src/components/editorv2/hooks/useDraftManager.ts`
-  - `frontend/src/components/editorv2/hooks/useKeyboardShortcuts.ts`
-  - `frontend/src/components/editorv2/hooks/useEditorActions.ts`
+  - `frontend/src/hooks/useHistory.ts`
+  - `frontend/src/hooks/useWorkflow.ts`
+  - `frontend/src/hooks/useDraftManager.ts`
+  - `frontend/src/hooks/useKeyboardShortcuts.ts`
+  - `frontend/src/hooks/useEditorActions.ts`
+  - `frontend/src/hooks/useSessionHeartbeat.ts`
 - **ユーティリティ**:
   - `frontend/src/utils/maimlParserTyped.ts`
   - `frontend/src/utils/reactFlowConverter.ts`
@@ -1051,6 +1078,8 @@ useEffect(() => {
 - `<WorkflowSelectorDialog />` - ワークフロー選択ダイアログ
 - `<DraftManager />` - Draft管理ダイアログ
 - `<TemplateList />` - テンプレート一覧（templatesモード時）
+- `<MaimlStructureTreePanel />` - MAIML構造ツリーパネル（2026-09-09 追加）
+- `<XMLViewerWrapper />` - XMLビューア（xmlモード時）（2026-09-09 追加）
 - ノードコンポーネント:
   - `<MaterialTemplateNode />`
   - `<ConditionTemplateNode />`
@@ -1064,3 +1093,4 @@ useEffect(() => {
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-12 | 実装ベースで仕様書を新規作成 | Cline |
+| 2026-09-09 | ソースコードとの照合に基づき更新（2026-09-09）：①§2.2.3 ダイアログ類に `MaimlStructureTreePanel` を追加。②§2.3 ビューモードに `xmlモード`（XMLViewerWrapper）を追加。③§3.1 Props定義コードブロックに `openDraftManagerOnStart`・`onContentChange`・`onContentSaved`・`organizationGroupCd` を追加、Props表も更新。④§11.2 カスタムフックのパスを `editorv2/hooks/` → `src/hooks/` に修正、`useSessionHeartbeat` 追加。⑤§11.3 子コンポーネントに `<MaimlStructureTreePanel />`・`<XMLViewerWrapper />` を追加 | Cline |

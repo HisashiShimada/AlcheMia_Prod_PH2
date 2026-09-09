@@ -6,9 +6,9 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/ExperimentCommentDialog.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-08-15
-- **最終更新日**: 2026-08-27
+- **最終更新日**: 2026-09-09
 - **担当者**: Development Team
-- **バージョン**: 1.1.0
+- **バージョン**: 1.2.0
 
 ---
 
@@ -19,7 +19,7 @@
 実験作業者が実験中に気づいた注意点・異常・メモをコメントとして記録するダイアログです。
 タスクNo・トランジションIDと紐付けてコメントを保存します。
 
-> ⚠️ **フロントエンド未連携（2026-08-27 確認）**: バックエンドAPIはコメントフィールドを受け付ける形で実装済み（`POST /api/v1/experiments/.../data` の `records[].comment`、`PATCH .../transitions/:transitionId/status` の `comment` フィールド）。ただし `WorkRecordPanel` の `handleSaveComment` は `console.info` によるログ出力と `Modal.success` による成功ダイアログ表示のみを行い、APIへの保存は行っていない。
+> ✅ **API連携済み（2026-09-09 更新）**: `WorkRecordPanel` の `handleSaveComment` は `saveTransitionComment` API（`PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status`）を実際に呼び出してコメントを保存します。旧バージョンで「未連携」と記載していた注記は誤りで、現ソースでは完全に連携済みです。
 
 ### 1.2. アクセス権限
 
@@ -115,19 +115,32 @@ comment.trim() を onSave() に渡す
 入力欄リセット（setComment('')） → onClose() 呼び出し
 ```
 
-**呼び出し元（`WorkRecordPanel.handleSaveComment`）での処理（2026-08-27 確認）:**
+**呼び出し元（`WorkRecordPanel.handleSaveComment`）での処理（2026-09-09 更新）:**
 
 ```typescript
 // WorkRecordPanel.tsx
-const handleSaveComment = useCallback((comment: string) => {
-  console.info('[WorkRecordPanel] コメント保存（モック）:', comment);
-  Modal.success({ title: t('workRecord.commentSaved'), content: comment });
-}, []);
+const handleSaveComment = useCallback(async (
+  comment: string,
+  taskNo: number,
+  transitionId: string
+) => {
+  if (!projectId || !methodId) {
+    console.warn('[WorkRecordPanel] コメント保存: projectId / methodId が未設定');
+    return;
+  }
+  try {
+    await saveTransitionComment(projectId, methodId, transitionId, { taskNo, comment });
+    modal.success({ title: t('workRecord.commentSaved'), content: comment });
+  } catch {
+    message.error(t('workRecord.commentSaveError'));
+  }
+}, [projectId, methodId, t]);
 ```
 
-- `console.info` でコメント内容をログ出力
-- `Modal.success` で「保存成功」ダイアログを表示
-- バックエンドAPIへの保存は**現時点で未連携**（APIは実装済みだがフロントエンド側の呼び出しがない）
+- `saveTransitionComment` API（`projectApiService`）を `await` で呼び出してコメントを保存
+- 成功時: `modal.success({ title: t('workRecord.commentSaved'), content: comment })` を表示
+- 失敗時: `message.error(t('workRecord.commentSaveError'))` を表示
+- `projectId` または `methodId` が未設定の場合は `console.warn` のみで処理を中断
 
 ---
 
@@ -155,12 +168,12 @@ const handleSaveComment = useCallback((comment: string) => {
 | `PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status` | `comment`（optional） | 2000文字 |
 | `PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status` | `comment`（optional） | 500文字 |
 
-### フロントエンド（未連携・2026-08-27 確認）
+### フロントエンド（連携済み・2026-09-09 更新）
 
 | 項目 | 状態 | 備考 |
 |------|------|------|
-| `ExperimentCommentDialog` → `onSave` コールバック経由 | ⚠️ 未連携 | `WorkRecordPanel.handleSaveComment` は `console.info` + `Modal.success` のみ。APIを呼び出していない |
-| `handleSave` / `handleSaveAndNext` での `comment` フィールド | ⚠️ 未連携 | `ExperimentDataRecord` に `comment` フィールドは型定義されているが、`records` 生成時に含めていない |
+| `ExperimentCommentDialog` → `onSave` コールバック経由 | ✅ 連携済み | `WorkRecordPanel.handleSaveComment` は `saveTransitionComment` API を呼び出してコメントを保存する |
+| `handleSave` / `handleSaveAndNext` での `comment` フィールド | — | 実績値保存API（`saveBatchExperimentData`）とは別経路。コメントは `saveTransitionComment` で保存 |
 
 ---
 
@@ -168,6 +181,8 @@ const handleSaveComment = useCallback((comment: string) => {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.2.0 | 2026-09-09 | API連携済みに更新（2026-09-09）：①§1.1 注記を「フロントエンド未連携」→「API連携済み」に修正（`saveTransitionComment` API 呼び出し確認）。②§4.3 呼び出し元 `handleSaveComment` のコードを最新実装（`async`・`saveTransitionComment` await・成功時 `modal.success`・失敗時 `message.error`・未設定時 `console.warn`）に更新。③§6 フロントエンド連携状態を「未連携」→「連携済み」に修正 | Cline |
+
 | 1.1.0 | 2026-08-27 | ソースコードとの照合に基づき以下を修正：①§1.1 フェーズ注記を「バックエンドAPI実装済み・フロントエンド未連携」に修正（旧: 「バックエンドAPIへの保存は別フェーズで実装予定」）。②§4.1 リセット方法を `handleClose` 内 `setComment('')` と `destroyOnHidden` の二重制御として修正（旧: `destroyOnHidden` のみ記載）。③§4.3 保存フローに呼び出し元 `WorkRecordPanel.handleSaveComment` の実際の動作（`console.info` + `Modal.success`）を追記。④§5 UI仕様テーブルに Body レイアウト行（`direction="vertical"`）と対象情報のスタイル詳細を追記。⑤§6 API連携をバックエンド（実装済み）とフロントエンド（未連携）に分けて全面修正 | Cline |
 | 1.0.0 | 2026-08-15 | 初版作成 | Development Team |
 
