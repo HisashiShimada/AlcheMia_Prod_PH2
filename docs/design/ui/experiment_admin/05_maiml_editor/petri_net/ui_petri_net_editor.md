@@ -65,7 +65,7 @@ PetriNetEditorInnerは、React Flowを使用したペトリネットの表示・
 ├─────────────────────────────────────────────────────────────┤
 │ 非致命的エラー警告バナー (エラーがある場合のみ表示)          │
 ├─────────────────────────────────────────────────────────────┤
-│ React Flowキャンバス または TemplateList                     │
+│ React Flowキャンバス または TemplateList または XMLViewer      │
 │ ┌───────────────────────────────────────────────────────┐   │
 │ │ React Flow Canvas (viewMode='petriNet')               │   │
 │ │ - ノード（Material/Condition/Result/Transition）      │   │
@@ -81,6 +81,14 @@ PetriNetEditorInnerは、React Flowを使用したペトリネットの表示・
 │ │ TemplateList (viewMode='templates')                   │   │
 │ │ - カテゴリ別テンプレート一覧                           │   │
 │ │ - 共通テンプレート / メソッド内テンプレート切り替え    │   │
+│ └───────────────────────────────────────────────────────┘   │
+│                                                              │
+│ または                                                        │
+│                                                              │
+│ ┌───────────────────────────────────────────────────────┐   │
+│ │ XMLViewerWrapper (viewMode='xml')（2026-09-09 追加）  │   │
+│ │ - MAIMLをXML形式でシンタックスハイライト表示          │   │
+│ │ - コピー・ダウンロードボタン                          │   │
 │ └───────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 
@@ -104,7 +112,7 @@ PetriNetEditorInnerは、React Flowを使用したペトリネットの表示・
 - ワークフロー追加ボタン
 - Draft管理ボタン
 - 自動保存トグル
-- ビューモード切替（Petri Net / Templates）
+- ビューモード切替（Petri Net / Templates / **XMLビュー**）（2026-09-09 追加）
 
 #### 3.2.2 MethodTabPanel（複数Method時）
 - Method切り替えタブ
@@ -636,6 +644,22 @@ export interface PetriNetEditorInnerProps {
   initialDescription?: string;
   originalFileName?: string;
   sourceS3Key?: string;
+  /**
+   * 起動時に DraftManager を自動表示するかどうか（任意）
+   * MAIMLファイルが存在せず、バックエンドDraftがある場合に使用
+   * （2026-09-09 追加）
+   */
+  openDraftManagerOnStart?: boolean;
+  /** コンテンツが変更されたときのコールバック（未保存変更フラグの設定用）（2026-09-09 追加）*/
+  onContentChange?: () => void;
+  /** 保存が完了したときのコールバック（未保存変更フラグのリセット用）（2026-09-09 追加）*/
+  onContentSaved?: () => void;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * TemplateEditorDialog の新規プロパティ追加ダイアログの用語スコープ絞り込みに使用する
+   * （2026-09-09 追加）
+   */
+  organizationGroupCd?: string;
   [key: string]: unknown;
 }
 ```
@@ -663,6 +687,17 @@ const [edges, setEdges, onEdgesChange] = useEdgesState<EdgeData>([]);
 ```
 
 | State名 | 型 | 初期値 | 説明 |
+
+> ⚠️ **[2026-09-09 追加]** 以下 Props がソース実装に追加されています：
+
+| 追加 Prop | 型 | 説明 |
+|-----------|-----|------|
+| `openDraftManagerOnStart` | `boolean?` | 起動時に DraftManager を自動表示するかどうか |
+| `onContentChange` | `() => void` | コンテンツ変更時コールバック（未保存変更フラグ設定用）|
+| `onContentSaved` | `() => void` | 保存完了時コールバック（未保存変更フラグリセット用）|
+| `organizationGroupCd` | `string?` | 組織グループCD（TemplateEditorDialog の用語スコープ絞り込み用）|
+
+
 |---------|---|--------|------|
 | nodes | Node<NodeData>[] | [] | ペトリネットのノード配列（Place/Transition） |
 | edges | Edge<EdgeData>[] | [] | ペトリネットのエッジ配列（Arc） |
@@ -746,7 +781,7 @@ const [draftModeHandled, setDraftModeHandled] = useState<boolean>(false);
 #### 5.2.5 テンプレート表示関連State
 
 ```typescript
-const [viewMode, setViewMode] = useState<'petriNet' | 'templates'>('petriNet');
+const [viewMode, setViewMode] = useState<'petriNet' | 'templates' | 'xml'>('petriNet');
 const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 const [showCommonTemplates, setShowCommonTemplates] = useState<boolean>(false);
 const [savedPetriNetViewport, setSavedPetriNetViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
@@ -754,7 +789,7 @@ const [savedPetriNetViewport, setSavedPetriNetViewport] = useState<{ x: number; 
 
 | State名 | 型 | 初期値 | 説明 |
 |---------|---|--------|------|
-| viewMode | 'petriNet' \| 'templates' | 'petriNet' | 表示モード（ペトリネット/テンプレート一覧） |
+| viewMode | 'petriNet' \| 'templates' \| 'xml' | 'petriNet' | 表示モード（ペトリネット/テンプレート一覧/XMLビュー）（2026-09-09: 'xml' 追加）|
 | selectedTemplate | Template \| null | null | 選択中のテンプレート |
 | showCommonTemplates | boolean | false | 共通テンプレート表示フラグ |
 | savedPetriNetViewport | object \| null | null | ペトリネットモードのビューポート保存 |
@@ -1336,6 +1371,8 @@ const getErrorMessage = (err: unknown): string => {
 - `<WorkflowSelectorDialog />` - ワークフロー選択
 - `<DraftManager />` - Draft管理
 - `<TemplateList />` - テンプレート一覧
+- `<MaimlStructureTreePanel />` - MAIML構造ツリーパネル（2026-09-09 追加）
+- `<XMLViewerWrapper />` - XMLビューア（viewMode='xml' 時表示）（2026-09-09 追加）
 - `<MaterialTemplateNode />`, `<ConditionTemplateNode />`, `<ResultTemplateNode />`, `<TransitionNode />` - ノードコンポーネント
 
 ---
@@ -1349,3 +1386,4 @@ const getErrorMessage = (err: unknown): string => {
 | 2026-03-11 | セクション4: 機能仕様（12の主要機能）を追加 | Cline |
 | 2026-03-11 | セクション6: API連携（5つのAPI）を追加 | Cline |
 | 2026-03-11 | セクション7: エラーハンドリング（10のエラーケース）を追加 | Cline |
+| 2026-09-09 | ソースコードとの照合に基づき更新（2026-09-09）：①§3.1 レイアウト図に XMLViewerWrapper（viewMode='xml'）を追加。②§3.2.1 ビューモード切替に 'XMLビュー' を追加。③§5.1 Props定義コードブロックに `openDraftManagerOnStart`・`onContentChange`・`onContentSaved`・`organizationGroupCd` を追加。④Props補足表をセクション後に追加。⑤§5.2.5 viewMode の型に `'xml'` を追加、State表も更新。⑥§8.3 依存コンポーネントに `<MaimlStructureTreePanel />`・`<XMLViewerWrapper />` を追加 | Cline |
