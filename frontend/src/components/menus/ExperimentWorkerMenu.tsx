@@ -26,6 +26,7 @@ import type { ProgressRow } from '../ExperimentWorker/ProgressOverviewTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import type { WorkerProject } from '@/types/project';
 import type { ProjectStatus as ProjectStatusType } from '@/types/experimentWorker';
+import { isRecordViewableStatus } from '@/types/experimentWorker';
 import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus, getNgTasks, updateTransitionStatus, confirmInstruction, forceTerminateProject } from '@/services/projectApiService';
 import type { NgTaskItem } from '@/services/projectApiService';
 import { TransitionStatusCode } from '@/constants/codeMaster';
@@ -317,6 +318,15 @@ export default function ExperimentWorkerMenu({
   const selectedProjectUseDeemedProgress = projects.find(p => p.projectId === selectedProject)?.useDeemedProgress ?? true;
   /** 選択中プロジェクトの組織グループCD（不確かさ基準スコープ絞り込みに使用） */
   const selectedProjectOrganizationGroupCd = projects.find(p => p.projectId === selectedProject)?.organizationGroupCd ?? null;
+
+  /**
+   * 選択中プロジェクトが記録操作可能かどうか。
+   * null（未選択/取得前）の場合は安全側に倒して true（活性）とする。
+   * ProgressOverviewTab のリスト・フロー図両方の記録ボタン制御に使用する。
+   */
+  const isProjectRecordable =
+    selectedProjectStatus === null ||
+    isRecordViewableStatus(selectedProjectStatus as ProjectStatusType);
 
   const handleTabChange = (key: string) => {
     setCurrentTab(key);
@@ -772,6 +782,7 @@ export default function ExperimentWorkerMenu({
           ) : (
             <ProgressOverviewTab
               rows={progressRows}
+              isProjectRecordable={isProjectRecordable}
               onGoToWork={(taskNo, transitionId) => {
                 setViewingWorkTaskNo(taskNo);
                 setViewingWorkTransitionId(transitionId);

@@ -251,6 +251,7 @@ const FilterBar: React.FC<{
 export default function ProgressOverviewTab({
   rows,
   onGoToWork,
+  isProjectRecordable = true,
 }: ProgressOverviewTabProps) {
   const { t } = useLanguage();
   const [filterTaskNo, setFilterTaskNo] = useState<number | null>(null);
@@ -371,12 +372,12 @@ export default function ProgressOverviewTab({
   // ── 操作列 ─────────────────────────────────────────
   // not_started のみ disabled（バックエンドが前提トランジション完了時に自動で
   // PREPARING に変えるため、フロント側での前提チェックは不要）。
-  // それ以外の全ステータスは活性 → onGoToWork で WorkRecordPanel を開く。
-  // WorkRecordPanel 側が progressRows のステータスを見て編集/閲覧を自己判定する。
+  // isProjectRecordable=false の場合もすべて非活性（プロジェクトが記録操作不可状態）。
+  // フロー図モードの TransitionFlowNode.tsx と同一判定ロジックで統一する。
   const renderAction = (_: unknown, r: ProgressRow) => (
     <Button
       size="small"
-      disabled={r.status === 'not_started'}
+      disabled={!isProjectRecordable || r.status === 'not_started'}
       onClick={() => onGoToWork(r.taskNo, r.transitionId)}
     >
       {t('experimentWork.table.record')}
@@ -600,7 +601,7 @@ export default function ProgressOverviewTab({
                     transitions={flowTransitions}
                     onRecordClick={(t) => onGoToWork(item.taskNo, t.transitionId)}
                     onIssueClick={() => {}}
-                    isProjectRecordable={true}
+                    isProjectRecordable={isProjectRecordable}
                     methodName={flowMethodName}
                   />
                 ),
