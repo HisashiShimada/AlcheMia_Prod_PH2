@@ -18,7 +18,7 @@ import {
   fetchUncertaintyCriteriaDetail,
   saveUncertaintyCriteriaNewVersion,
 } from '@/services/uncertaintyCriteriaApiService';
-import { getTerms, type NamespaceTermRow } from '@/services/namespaceApiService';
+import { getTerms, getTermsForPropertyDialog, type NamespaceTermRow } from '@/services/namespaceApiService';
 import {
   NUMERIC_PROPERTY_TYPES,
   isUnitAllowed,
@@ -55,8 +55,14 @@ interface UncertaintyCreateModalProps {
   open: boolean;
   /** 一覧データ（継承元不確かさ基準の選択肢生成に使用） */
   allCriteria: UncertaintyTemplate[];
-  /** 左ペインで選択中のスコープキー（Key属性設定プルダウンの用語絞り込みに使用） */
+  /** 左ペインで選択中のスコープキー（Key属性設定プルダウンの用語絞り込みに使用）。名前空間管理画面から開く場合に使用 */
   selectedNsKey?: string | null;
+  /**
+   * プロジェクトが属する組織グループCD（任意）。テンプレート編集・実験記録タブから開く場合に使用。
+   * 指定時: そのグループ＋上位グループスコープ＋個人スコープの用語のみ表示（selectedNsKey より優先）
+   * 未指定時: 個人スコープのみにフォールバック
+   */
+  organizationGroupCd?: string | null;
   onClose: () => void;
   /** 保存成功時コールバック（一覧再取得などに使用） */
   onSaved?: () => void;
@@ -70,6 +76,7 @@ export default function UncertaintyCreateModal({
   open,
   allCriteria,
   selectedNsKey,
+  organizationGroupCd,
   onClose,
   onSaved,
 }: UncertaintyCreateModalProps) {
@@ -91,33 +98,71 @@ export default function UncertaintyCreateModal({
   // ─── namespace_term から取得した用語一覧（Key属性設定プルダウンに使用） ───
   const [termRows, setTermRows] = useState<NamespaceTermRow[]>([]);
 
-  // ─── モーダルが開いたとき、selectedNsKey に対応する namespace_term を取得 ───
-  // 'company' / 'global' / 'ns-maiml' / 'ns-xsi' / null → scopeKey 未指定（全件取得）
-  // 'personal-{userId}' → userId を scopeKey として渡す
-  // organization_group_cd → そのまま scopeKey として渡す
+  // ─── モーダルが開いたとき、スコープに対応する namespace_term を取得 ───
+  //
+  // 優先度:
+  //   1. organizationGroupCd が指定されている場合（プロジェクト文脈）:
+  //      getTermsForPropertyDialog でグループ＋上位グループ＋個人スコープの用語を取得
+  //   2. selectedNsKey が指定されている場合（名前空間管理画面）:
+  //      従来の getTerms(scopeKey) ロジックを使用
+  //      'company' / 'global' / 'ns-maiml' / 'ns-xsi' / 'personal' → 全件取得
+  //      'personal-{userId}' → userId を scopeKey として渡す
+  //      organization_group_cd → そのまま scopeKey として渡す
+  //   3. どちらも未指定の場合:
+  //      getTermsForPropertyDialog(undefined) で個人スコープのみ
   const FULL_SCOPE_KEYS_CREATE = new Set(['global', 'ns-maiml', 'ns-xsi', 'company', 'personal']);
 
   useEffect(() => {
     if (!open) return;
 
-    let scopeKey: string | undefined;
-    if (selectedNsKey && !FULL_SCOPE_KEYS_CREATE.has(selectedNsKey)) {
-      if (selectedNsKey.startsWith('personal-')) {
-        const userId = selectedNsKey.replace(/^personal-/, '');
-        scopeKey = userId || undefined;
-      } else {
-        scopeKey = selectedNsKey;
-      }
+    if (organizationGroupCd !== undefined) {
+      // プロジェクト文脈: グループ＋上位グループ＋個人スコープの用語を取得
+      const orgGroupCd = organizationGroupCd ?? undefined;
+      getTermsForPropertyDialog(orgGroupCd)
+        .then((termMap) => {
+          const rows = Array.from(termMap.values());
+          setTermRows(rows);
+        })
+        .catch((err) => {
+          console.error('[UncertaintyCreateModal] 用語一覧取得エラー（プロジェクト文脈）:', err);
+          setTermRows([]);
+        });
+      return;
     }
 
-    getTerms(scopeKey ? { scopeKey } : undefined)
-      .then((rows) => setTermRows(rows))
+    if (selectedNsKey !== undefined) {
+      // 名前空間管理画面文脈: selectedNsKey に対応するスコープの用語を取得
+      let scopeKey: string | undefined;
+      if (selectedNsKey && !FULL_SCOPE_KEYS_CREATE.has(selectedNsKey)) {
+        if (selectedNsKey.startsWith('personal-')) {
+          const userId = selectedNsKey.replace(/^personal-/, '');
+          scopeKey = userId || undefined;
+        } else {
+          scopeKey = selectedNsKey;
+        }
+      }
+      const scopeOptions = scopeKey ? { scopeKey } : undefined;
+      getTerms(scopeOptions)
+        .then((rows) => setTermRows(rows))
+        .catch((err) => {
+          console.error('[UncertaintyCreateModal] 用語一覧取得エラー（名前空間管理）:', err);
+          setTermRows([]);
+        });
+      return;
+    }
+
+    // どちらも未指定の場合: 個人スコープのみのフォールバック
+    getTermsForPropertyDialog(undefined)
+      .then((termMap) => {
+        const rows = Array.from(termMap.values());
+        setTermRows(rows);
+      })
       .catch((err) => {
-        console.error('[UncertaintyCreateModal] 用語一覧取得エラー:', err);
+        console.error('[UncertaintyCreateModal] 用語一覧取得エラー（フォールバック）:', err);
         setTermRows([]);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, selectedNsKey]);
+  }, [open, selectedNsKey, organizationGroupCd]);
 
   // ─── 継承元不確かさ基準の選択肢（一覧から uncertainty_key を収集） ───
   const parentOptions = React.useMemo(() => {
