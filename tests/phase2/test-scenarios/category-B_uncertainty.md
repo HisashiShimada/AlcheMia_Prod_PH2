@@ -1,7 +1,7 @@
 # 分類B シナリオテスト ― 不確かさ（Uncertainty）記録機能
 
 **作成日**: 2026-08-19
-**更新日**: 2026-09-08
+**更新日**: 2026-09-09
 **作成者**: SSV
 **対象機能**: 不確かさ（Uncertainty）記録機能
 **前提資料**:
@@ -134,13 +134,9 @@
 
 ## B-UC-02：継承元設定・Globalノード参照
 
-> ⚠️ **【実施不可・仕様変更予定】**
-> このシナリオは仕様変更が予定されているため、現時点での実施は不可です。
-> 仕様が確定次第、シナリオ本文を更新してください。
-
 ### 概要
 
-不確かさ基準作成時に「参照元不確かさ基準」（`inheritanceUncertaintyKey`）を設定すると、継承元の詳細が自動填入されることを確認する。また、ツリーで Global ノードを選択したときに右ペインが `GlobalNamespaceView`（viewOnly）に切り替わることを確認する。
+不確かさ基準作成時に「参照元不確かさ基準」（`inheritanceUncertaintyKey`）を設定すると、継承元の詳細が評価方式設定フィールドに自動填入されることを確認する。また、ツリーで Global ノードを選択したときに右ペインが `GlobalNamespaceView`（viewOnly）に切り替わることを確認する。
 
 ### 関連
 
@@ -152,7 +148,8 @@
 ### 前提条件
 
 - `experiment_admin` としてログイン済み
-- B-UC-01 で作成した `thermo-uc-001`（V1）が不確かさ基準一覧に存在すること
+- B-UC-01 で作成した `thermo-uc-001`（V1、定量評価）が不確かさ基準一覧に存在すること
+- 名前空間管理の namespace_term に `thermo-uc-002`（表示名「温度不確かさ基準2」）が登録済みであること（継承先 Key として使用）
 
 ### 操作手順
 
@@ -160,32 +157,38 @@
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 1 | experiment_admin | 名前空間管理を開き、ツリーで「🌐 Global」ノードを選択する | 右ペインのタブバーが非表示になり、`GlobalNamespaceView`（`viewOnly=true`）が全面表示される |
+| 1 | experiment_admin | 名前空間管理を開き、ツリーで「🌐 Global」ノードを選択する | 右ペインのタブバー（Prefix / 用語管理 / 不確かさ基準）が非表示になり、`GlobalNamespaceView`（`viewOnly=true`）が全面表示される |
 | 2 | — | Global ビューの内容を確認する | グローバル Prefix 一覧（名称・URI）が表示される |
 | 3 | experiment_admin | ツリーで組織配下のノードを選択し直す | タブバー（Prefix / 用語管理 / 不確かさ基準）が再表示される |
+
+> **注意**: `ns-maiml` / `ns-xsi` ノードを選択した場合も同様に `GlobalNamespaceView` が表示される（`isGlobalNodeSelected` 判定）。
 
 #### ステップ 2：継承元を設定した新規作成
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 4 | experiment_admin | 「不確かさ基準」タブ → 「＋ 新規作成」を開く | `UncertaintyCreateModal` が開く |
-| 5 | experiment_admin | 「参照元不確かさ基準」プルダウンを開く | 既存の不確かさ基準（基準名 + Key が2段表示）が選択肢に表示されている |
-| 6 | experiment_admin | `thermo-uc-001` を選択する | 最新バージョンの詳細（`fetchUncertaintyCriteriaDetail`）が取得され、評価方式・xsi:type・units・scaleFactor・formatString・定性オプションがフォームに自動填入される |
-| 7 | experiment_admin | 別の Key（`thermo-uc-002` など）を「Key属性設定」で選択し、保存する | `inheritanceUncertaintyKey: thermo-uc-001`、`uncertaintyKey: thermo-uc-002` で登録される |
-| 8 | — | `UncertaintyDetailModal` を開いて継承元の設定を確認する | 「継承元（参照元）」フィールドに `thermo-uc-001` が表示されている（※一覧テーブルに「継承元」列は存在しないため、詳細モーダルで確認する）|
+| 4 | experiment_admin | 「不確かさ基準」タブ → 「＋ 新規作成」を開く | `UncertaintyCreateModal`（幅900px）が開く |
+| 5 | experiment_admin | 「参照元不確かさ基準」プルダウンを開く | 既存の不確かさ基準が「基準名（上段・太字） + Key（下段・灰色）」の2段表示で選択肢に表示されている |
+| 6 | experiment_admin | `thermo-uc-001` を選択する | 最新バージョンの詳細（`fetchUncertaintyCriteriaDetail`）が取得され、以下のフィールドがフォームに自動填入される：評価方式（定量/定性）・xsi:type・units・scaleFactor・formatString・**toleranceUpper（許容上限値）**・**toleranceLower（許容下限値）**・定性オプション（定性の場合） |
+| 7 | experiment_admin | 「Key属性設定」プルダウンで `thermo-uc-002` を選択し、「保存」ボタンを押す | `inheritanceUncertaintyKey: thermo-uc-001`、`uncertaintyKey: thermo-uc-002` でDBに保存され、成功トーストが表示される |
+| 8 | — | ブラウザの開発者ツール（Network タブ）で保存リクエストを確認する | `POST /api/v1/uncertainty-criteria` のリクエストボディに `"inheritanceUncertaintyKey": "thermo-uc-001"` が含まれている |
+
+> **実装メモ**: 継承元（`inheritanceUncertaintyKey`）は現バージョンの `UncertaintyDetailModal` 画面には表示フィールドが存在しない。保存時に DB へ保持されるが UI 上での確認は Network タブを使用すること。
 
 ### 確認ポイント
 
-- [ ] Global ノード選択時はタブバーが非表示になり `GlobalNamespaceView`（viewOnly=true）が表示される
+- [ ] Global ノード（`global` / `ns-maiml` / `ns-xsi`）選択時はタブバーが非表示になり `GlobalNamespaceView`（`viewOnly=true`）が表示される
 - [ ] 組織ノードに戻ると Prefix / 用語管理 / 不確かさ基準のタブバーが再表示される
-- [ ] 参照元選択後、`fetchUncertaintyCriteriaDetail` が呼ばれて評価方式設定が自動填入される
-- [ ] 継承元は `UncertaintyDetailModal` の「参照元不確かさ基準」フィールドで確認できる（一覧テーブルには「継承元」列なし）
+- [ ] 参照元選択後、`fetchUncertaintyCriteriaDetail` が呼ばれて評価方式設定（xsiType / units / scaleFactor / formatString / toleranceUpper / toleranceLower）が自動填入される
+- [ ] 定性評価の継承元を選択した場合は定性オプション（選択肢・色）も自動填入される
+- [ ] 保存リクエストの `inheritanceUncertaintyKey` に選択した継承元キーがセットされている（Network タブで確認）
+- [ ] 現バージョンの `UncertaintyDetailModal` には「参照元不確かさ基準」の表示フィールドは存在しない
 
 ### テスト結果
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| | | 実施不可（仕様変更待ち） | |
+| | | 未実施 | |
 
 ---
 
@@ -269,26 +272,23 @@
 
 ## B-UC-04：実験指示タブの一覧確認・フィルタ・列切り替え
 
-> ⚠️ **【実施不可・仕様変更予定】**
-> このシナリオは仕様変更が予定されているため、現時点での実施は不可です。
-> 仕様が確定次第、シナリオ本文を更新してください。
-
 ### 概要
 
-実験管理者がプロジェクト管理画面の「実験指示（task_results）」タブ（`ExperimentInstructionTab`）を開き、フィルタ・列切り替え・実験指示編集・ペトリネット表示が動作することを確認する。`experiment_worker` はこのタブにアクセスできないことも確認する。
+実験管理者がプロジェクト管理画面の「実験指示確認」タブ（`task_results`）（`ExperimentInstructionTab`）を開き、フィルタ・列切り替え・訂正モード・実験指示編集・ペトリネット表示が動作することを確認する。`experiment_worker` はこのタブにアクセスできないことも確認する。
 
 ### 関連
 
 | 項目 | 参照先 |
 |------|--------|
-| UI設計書 | `docs/design/ui/experiment_admin/01_project_management/ui_experiment_instruction_tab.md`（※旧設計書のため差異あり） |
+| UI設計書 | `docs/design/ui/experiment_admin/01_project_management/ui_experiment_instruction_tab.md` |
 | コンポーネント | `ExperimentInstructionTab.tsx` / `ExperimentPlanDialog.tsx` / `ViewRendererDialog.tsx` |
-| API | `GET /api/v1/experiment-instructions` / `GET /api/v1/projects/:id/methods` |
+| API | `GET /api/v1/projects/:projectId/experiment-instructions` / `GET /api/v1/projects/:projectId/methods` |
 
 ### 前提条件
 
 - `experiment_admin` としてログイン済み
 - `proj-test-001` が存在し、メソッド・タスク・トランジションが設定済みであること
+- `proj-test-001` にタスクステータスが「レビュー待ち（04）」のタスクが1件以上存在すること（訂正モード確認用）
 
 ### 操作手順
 
@@ -297,127 +297,159 @@
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 1 | experiment_admin | プロジェクト管理画面 → `proj-test-001` を選択する | プロジェクト詳細画面が表示される |
-| 2 | experiment_admin | 「実験指示」タブ（`task_results`）を選択する | `ExperimentInstructionTab` が表示される |
-| 3 | — | フィルタバーを確認する | タスクNo / メソッドID / トランジション名 / テンプレート名 / Key の各 Select フィルターが表示されている |
-| 4 | — | ツールバーを確認する | 左: 「列リセット」テキスト、右: 「実験指示を編集」/ 「ペトリネットを表示」/ 「⚙ 列を選択 ▼」/ 「承認処理」ボタンが表示されている |
-| 5 | — | テーブルの固定列を確認する | メソッド名 / タスクNo / タスクステータス（Tag）/ トランジション名 が常時表示されている |
+| 2 | experiment_admin | 「実験指示確認」タブ（`task_results`）を選択する | `ExperimentInstructionTab` が表示される |
+| 3 | — | フィルタバーを確認する | 🔍アイコン + タスクNo（幅70px）/ メソッドID（幅200px）/ トランジション（幅160px）/ テンプレート（幅190px）/ Key（幅160px）の各 Select フィルターと `{絞り込み件数}/{全件}行` テキストが表示されている |
+| 4 | — | ツールバーを確認する | 「実験指示を編集」（EditOutlined）/ 「ペトリネット表示」（FileSearchOutlined）/ 「列選択」（SettingOutlined）/ 「承認処理」（CheckCircleOutlined, primary）/ 「訂正」（EditOutlined）の5ボタンが表示されている |
+| 5 | — | テーブルの固定列を確認する | `#No`（タスクNo）と `Key` の2列が常時表示されている（非表示不可） |
 
 #### ステップ 2：フィルタ操作
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 6 | experiment_admin | タスクNo フィルターで「1」を選択する | タスクNo が 1 の行のみ表示される |
+| 6 | experiment_admin | タスクNo フィルターで「1」を選択する | タスクNo が 1 の行のみ表示される。フィルターバー右端の件数表示が変化する |
 | 7 | experiment_admin | メソッドID フィルターを選択してさらに絞り込む | 対象メソッドの行のみ表示される |
-| 8 | experiment_admin | 各フィルターをクリアする | 全行が再表示される |
+| 8 | experiment_admin | 各フィルターの「×」（allowClear）をクリックして全クリアする | 全行が再表示される |
 
 #### ステップ 3：列の表示切り替え
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 9 | experiment_admin | 「⚙ 列を選択 ▼」ドロップダウンを開く | トグル可能な列一覧（templateName / xsiType / expected / expectedAverage / actual / actualAverage / diff / uncertaintyCriteriaName / uncertaintyAssignedValue / uncertaintyAssignedBy / uncertaintyAssignedAt / uncertaintyComment）が表示される |
-| 10 | experiment_admin | `uncertaintyCriteriaName` / `uncertaintyAssignedValue` / `uncertaintyComment` をオンにする | 3列がテーブルに追加表示される |
-| 11 | experiment_admin | 「列リセット」テキストをクリックする | 表示列が既定値に戻る |
+| 9 | experiment_admin | 「列選択」（SettingOutlined）ドロップダウンを開く | 切替可能な17列のチェックリストが表示される：`taskStatus` / `methodName` / `transitionName` / `templateName` / `xsiType` / `expected` / `expectedAverage` / `actual` / `actualAverage` / `diff` / `qualitativeCriteriaName` / `qualitativeAssignedValue` / `quantitativeCriteriaName` / `quantitativeTolerance` / `quantitativeRecordedValue` / `quantitativeJudgeResult` / `experimentUser` |
+| 10 | experiment_admin | `quantitativeCriteriaName` / `quantitativeTolerance` / `quantitativeJudgeResult` のチェックを外す | 3列がテーブルから非表示になる |
+| 11 | experiment_admin | ドロップダウンを閉じ、非表示にした列がテーブルにないことを確認する | 選択を外した3列が表示されていない |
+| 12 | experiment_admin | 「列選択」ドロップダウンを再度開き、外したチェックを戻す | 3列が再表示される |
 
 #### ステップ 4：実験指示の編集・ペトリネット表示
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 12 | experiment_admin | 「実験指示を編集」ボタンを押す | `ExperimentPlanDialog` が開く |
-| 13 | experiment_admin | `ExperimentPlanDialog` を閉じる | 実験指示タブに戻る |
-| 14 | experiment_admin | 「ペトリネットを表示」ボタンを押す | `ViewRendererDialog`（ペトリネットビューア）が開く |
+| 13 | experiment_admin | 「実験指示を編集」ボタンを押す | `ExperimentPlanDialog` が開く |
+| 14 | experiment_admin | `ExperimentPlanDialog` を閉じる | 実験指示タブに戻る |
+| 15 | experiment_admin | 「ペトリネット表示」ボタンを押す | `ViewRendererDialog`（ペトリネットビューア、フローティング）が開く |
+| 16 | experiment_admin | `ViewRendererDialog` を閉じる | ビューアウィンドウが消える |
 
-#### ステップ 5：experiment_worker のアクセス不可確認
+#### ステップ 5：訂正モードの動作確認
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 15 | experiment_worker | `worker@test.example` でログインし、プロジェクト管理画面を開く | 「実験指示（task_results）」タブが表示されないか、アクセスが制限されている |
+| 17 | experiment_admin | ツールバーの「訂正」ボタンを押す | 訂正モードが開始される。ツールバーが「保存」（primary）・「キャンセル」の2ボタンのみに切り替わる |
+| 18 | — | テーブルを確認する | タスクステータスが「レビュー待ち（04）」の行の `actual`（実績値）列が `Input` フィールドに切り替わっている。他ステータスの行は通常表示のまま |
+| 19 | experiment_admin | レビュー待ち行の `actual` Input に新しい値を入力する | フィールドの値が変化する |
+| 20 | experiment_admin | 「キャンセル」ボタンを押す | 訂正モードが終了し、入力した値が破棄される。ツールバーが通常モードの5ボタンに戻る |
+| 21 | experiment_admin | 再度「訂正」ボタンを押して値を変更し、「保存」ボタンを押す | `PATCH /api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct` が呼ばれ、成功メッセージが表示される。訂正モードが終了し、テーブルが最新データで更新される |
+
+#### ステップ 6：experiment_worker のアクセス不可確認
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 22 | experiment_worker | `worker@test.example` でログインし、プロジェクト管理画面を開く | 「実験指示確認（task_results）」タブが表示されないか、アクセスが制限されている |
 
 ### 確認ポイント
 
 - [ ] フィルターの各 Select にはそのカラムのユニーク値が選択肢として表示される
-- [ ] タスクステータスは Tag で色分け表示される（waiting: default / inProgress: processing / reviewWaiting: warning / completed: success / ng: error）
-- [ ] 「列を選択」でトグル可能な12列（templateName〜uncertaintyComment）が制御できる
+- [ ] フィルターバー右端に `{絞り込み件数}/{全件}行` が表示される
+- [ ] 固定列は `taskNumber`（#No）と `propKey`（Key）の2列のみ（非表示不可）
+- [ ] タスクステータスは Tag で色分け表示される（`'01'` default / `'02'``'03'` processing / `'04'` warning / `'05'` success / `'06'` error）
+- [ ] 「列選択」でトグル可能な列は17列（`taskStatus`〜`experimentUser`）
+- [ ] 訂正モード中はツールバーが「保存」「キャンセル」の2ボタンのみになり、通常ボタンは非表示
+- [ ] 訂正対象は `taskStatus='04'`（レビュー待ち）の行の `actual` 列のみ
+- [ ] 訂正保存後はテーブルが自動更新（`fetchData()` 再実行）される
 - [ ] `experiment_worker` はこのタブにアクセスできない
 
 ### テスト結果
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| | | 実施不可（仕様変更待ち） | |
+| | | 未実施 | |
 
 ---
 
 ## B-UC-05：実験指示タブからの承認処理（承認・NG）
 
-> ⚠️ **【実施不可・仕様変更予定】**
-> このシナリオは仕様変更が予定されているため、現時点での実施は不可です。
-> 仕様が確定次第、シナリオ本文を更新してください。
-
 ### 概要
 
-実験管理者が `ExperimentInstructionTab` のツールバー「承認処理」ボタンから承認・NG ダイアログを開き、タスクの承認と NG（差し戻し）を実行できることを確認する。
+実験管理者が `ExperimentInstructionTab` のツールバー「承認処理」ボタンから一括承認ダイアログを開き、タスクの承認と NG（差し戻し）を実行できることを確認する。また、テーブル行の操作列から単体承認・単体NG操作も行えることを確認する。
 
 ### 関連
 
 | 項目 | 参照先 |
 |------|--------|
-| コンポーネント | `ExperimentInstructionTab.tsx`（承認処理 Modal）|
-| API | `POST /api/v1/tasks/:taskKey/approve` / `POST /api/v1/tasks/:taskKey/ng` |
+| UI設計書 | `docs/design/ui/experiment_admin/01_project_management/ui_experiment_instruction_tab.md` |
+| コンポーネント | `ExperimentInstructionTab.tsx`（承認処理ダイアログ・単体承認モーダル・NGモーダル）|
+| API | `PUT /api/v1/projects/:projectId/tasks/:methodId/:taskNo/approve` |
+| API | `PUT /api/v1/projects/:projectId/tasks/:methodId/:taskNo/ng` |
 
 ### 前提条件
 
 - `experiment_admin` としてログイン済み
-- `proj-test-001` にタスクステータスが「レビュー待ち（04）」のタスクが1件以上存在すること
+- `proj-test-001` にタスクステータスが「レビュー待ち（04）」のタスクが2件以上存在すること（一括・単体それぞれ確認用）
 
 ### 操作手順
 
-#### ステップ 1：承認処理ダイアログを開く
+#### ステップ 1：一括承認ダイアログを開く
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 1 | experiment_admin | 実験指示タブ → ツールバーの「承認処理」ボタンを押す | 承認処理 Modal が開く |
-| 2 | — | ダイアログの構成を確認する | メソッド選択（Select 幅180px）/ タスクNo選択（Select 幅90px）/ 操作 Radio（承認=緑 / NG=赤）が表示されている |
-| 3 | — | 「実行」ボタンの状態を確認する | タスクKey（タスクNo）未選択時は「実行」ボタンが disabled になっている |
+| 1 | experiment_admin | 実験指示タブ → ツールバーの「承認処理」（CheckCircleOutlined, primary）ボタンを押す | 一括承認ダイアログ（幅480px）が開く。選択状態がリセットされた状態で表示される |
+| 2 | — | ダイアログの構成を確認する | メソッド選択 Select / タスク番号選択 Select / 操作 Radio（承認 / NG）が表示されている |
+| 3 | — | 「実行」ボタンの状態を確認する | タスクキー未選択時は「実行」ボタンが disabled になっている |
 
-#### ステップ 2：承認操作
+> **注意**: 「承認処理」ボタン自体は `reviewWaitingTasks.length === 0`（レビュー待ちタスクが0件）/ `!isEditable` / `isProjectCompleted` / `isCheckoutLocked` のいずれかの場合は disabled になる。
+
+#### ステップ 2：一括承認操作
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 4 | experiment_admin | メソッド選択で対象メソッドを選択する | タスクNo 選択が活性化される |
-| 5 | experiment_admin | タスクNo 選択でレビュー待ちタスクを選択する | 「実行」ボタンが活性化される |
-| 6 | experiment_admin | 操作 Radio で「承認（緑）」を選択する | NG理由入力欄が非表示のままになっている |
-| 7 | experiment_admin | 「実行」ボタンを押す | 承認 API が呼ばれ、成功メッセージが表示される |
+| 4 | experiment_admin | メソッド選択で対象メソッドを選択する | タスク番号の選択肢が絞り込まれる |
+| 5 | experiment_admin | タスク番号選択でレビュー待ちタスクを選択する | 「実行」ボタンが活性化される |
+| 6 | experiment_admin | 操作 Radio で「承認」を選択したまま（デフォルト）にする | NG理由入力欄が表示されていないことを確認する |
+| 7 | experiment_admin | 「実行」ボタンを押す | `PUT /api/v1/projects/:projectId/tasks/:methodId/:taskNo/approve` が呼ばれ、`message.success`（タスク番号入り）が表示される。ダイアログが閉じてテーブルが更新される |
 | 8 | — | 一覧テーブルで該当タスクのステータスを確認する | タスクステータスが「完了（05）」（success Tag）に更新されている |
 
-#### ステップ 3：NG（差し戻し）操作
+#### ステップ 3：一括NG（差し戻し）操作
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 9 | experiment_admin | 「承認処理」ダイアログを再度開く | ダイアログが開く |
-| 10 | experiment_admin | メソッドとタスクNoを選択し、操作 Radio で「NG（赤）」を選択する | NG理由入力 TextArea（最大500文字）が表示される |
-| 11 | experiment_admin | NG理由 TextArea に理由を入力する（例：「測定値が許容範囲外。再測定してください。」） | テキストが入力される |
-| 12 | experiment_admin | 「実行」ボタンを押す | NG API が呼ばれ、成功メッセージが表示される |
-| 13 | — | 一覧テーブルで該当タスクのステータスを確認する | タスクステータスが「NG（06）」（error Tag）に更新されている |
+| 9 | experiment_admin | 「承認処理」ボタンを押してダイアログを再度開く | 選択状態がリセットされた状態でダイアログが開く |
+| 10 | experiment_admin | メソッドとタスク番号を選択し、操作 Radio で「NG」を選択する | NG理由入力 TextArea（rows:3, maxLength:500）が表示される |
+| 11 | experiment_admin | NG理由入力欄を空のまま「実行」ボタンを押す | フォームバリデーションではなく `message.warning`（NG理由必須の警告）が表示される。ダイアログは閉じない |
+| 12 | experiment_admin | NG理由 TextArea に理由を入力する（例：「測定値が許容範囲外。再測定してください。」） | テキストが入力される |
+| 13 | experiment_admin | 「実行」ボタンを押す | `PUT /api/v1/projects/:projectId/tasks/:methodId/:taskNo/ng` が呼ばれ、`message.warning`（タスク番号入りのNG記録メッセージ）が表示される。ダイアログが閉じてテーブルが更新される |
+| 14 | — | 一覧テーブルで該当タスクのステータスを確認する | タスクステータスが「NG（06）」（error Tag）に更新されている |
 
-#### ステップ 4：キャンセル操作
+#### ステップ 4：バリデーション・キャンセル操作
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 14 | experiment_admin | 「承認処理」ダイアログを開いて「キャンセル」を押す | ダイアログが閉じる。タスクステータスは変化しない |
+| 15 | experiment_admin | 「承認処理」ダイアログを開き、タスクキー未選択のまま「実行」を押す | `message.warning`（タスク未選択の警告）が表示される。ダイアログは閉じない |
+| 16 | experiment_admin | 「キャンセル」ボタンを押す | ダイアログが閉じる。タスクステータスは変化しない |
+
+#### ステップ 5：テーブル行からの単体承認・NG操作
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 17 | experiment_admin | テーブルのレビュー待ち（04）行の操作列「承認」ボタンを押す | 単体承認確認モーダルが開く（タスク番号・メソッド名が表示される） |
+| 18 | experiment_admin | 確認モーダルの「OK」ボタンを押す | 承認 API が呼ばれ、`message.success` が表示される。テーブルが更新される |
+| 19 | experiment_admin | 別のレビュー待ち行の操作列「NG」ボタンを押す | NG記録モーダルが開く（NG理由 TextArea が表示される。OKボタンは danger スタイル） |
+| 20 | experiment_admin | NG理由を入力して「OK（danger）」ボタンを押す | NG記録 API が呼ばれ、`message.warning` が表示される。テーブルが更新される |
 
 ### 確認ポイント
 
-- [ ] タスクKey（タスクNo）未選択時は「実行」ボタンが disabled
-- [ ] 「承認」選択時は NG理由入力欄が非表示
-- [ ] 「NG」選択時は NG理由入力 TextArea（最大500文字）が表示される
+- [ ] 「承認処理」ボタンはレビュー待ちタスクが0件の場合は disabled
+- [ ] 一括ダイアログのタスクキー未選択時は `message.warning` 警告が出る（「実行」ボタンは押せるが警告のみ）
+- [ ] NG選択かつ理由が空の場合は `message.warning` 警告が出る（フォームバリデーションエラーではない）
+- [ ] NG記録成功時のトーストは `message.warning`（承認成功時は `message.success` と異なる）
 - [ ] 承認後のタスクステータスは「完了（05）」/ NG後は「NG（06）」
-- [ ] このダイアログは `experiment_worker` からはアクセスできない（`ExperimentInstructionTab` 自体へのアクセス不可）
+- [ ] 単体承認モーダルはタスク番号・メソッド名を含む確認内容が表示される
+- [ ] 単体NGモーダルの「OK」ボタンは danger スタイル
+- [ ] 承認/NG操作後は `fetchData()` が再実行されてテーブルが自動更新される
+- [ ] このタブは `experiment_worker` からアクセスできない
 
 ### テスト結果
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| | | 実施不可（仕様変更待ち） | |
+| | | 未実施 | |
 
 ---
 
@@ -492,8 +524,8 @@
 | シナリオID | タイトル | 対象ロール | ステータス |
 |-----------|---------|-----------|----------|
 | B-UC-01 | 不確かさ基準の新規作成（Key選択・定量/定性設定） | experiment_admin | 未実施 |
-| B-UC-02 | 継承元設定・Globalノード参照 | experiment_admin | 実施不可（仕様変更待ち） |
+| B-UC-02 | 継承元設定・Globalノード参照 | experiment_admin | 未実施 |
 | B-UC-03 | 不確かさ基準の編集・廃止・バージョン差分確認 | experiment_admin | 未実施 |
-| B-UC-04 | 実験指示タブの一覧確認・フィルタ・列切り替え | experiment_admin | 実施不可（仕様変更待ち） |
-| B-UC-05 | 実験指示タブからの承認処理（承認・NG） | experiment_admin | 実施不可（仕様変更待ち） |
+| B-UC-04 | 実験指示タブの一覧確認・フィルタ・列切り替え | experiment_admin | 未実施 |
+| B-UC-05 | 実験指示タブからの承認処理（承認・NG） | experiment_admin | 未実施 |
 | B-UC-06 | CSVインポート・エクスポート（不確かさ基準） | experiment_admin | 未実施 |
