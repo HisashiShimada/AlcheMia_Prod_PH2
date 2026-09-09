@@ -315,6 +315,8 @@ export default function ExperimentWorkerMenu({
   // worker-accessible APIのレスポンスから直接参照することで、不要なAPIコールを排除
   const selectedProjectStatus = projects.find(p => p.projectId === selectedProject)?.projectStatus ?? null;
   const selectedProjectUseDeemedProgress = projects.find(p => p.projectId === selectedProject)?.useDeemedProgress ?? true;
+  /** 選択中プロジェクトの組織グループCD（不確かさ基準スコープ絞り込みに使用） */
+  const selectedProjectOrganizationGroupCd = projects.find(p => p.projectId === selectedProject)?.organizationGroupCd ?? null;
 
   const handleTabChange = (key: string) => {
     setCurrentTab(key);
@@ -668,6 +670,7 @@ export default function ExperimentWorkerMenu({
             projectStatus={selectedProjectStatus ?? undefined}
             allWorkerInstructions={instructions}
             onConfirmInstruction={handleConfirmInstruction}
+            organizationGroupCd={selectedProjectOrganizationGroupCd}
             initialTaskNo={viewingWorkTaskNo ?? undefined}
             initialTransitionId={viewingWorkTransitionId ?? undefined}
             onStart={async (taskNo, transitionId) => {

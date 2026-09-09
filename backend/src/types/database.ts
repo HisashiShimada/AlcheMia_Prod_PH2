@@ -621,7 +621,7 @@ export interface UpdatePrefixRow {
  *
  * @remarks
  * DDL: docs/design/db/ddl/experiment_instruction_detail.sql
- * 主キー: (organization_id, project_id, method_id, task_no, transition_id, template_name, prop_key)
+ * 主キー: (organization_id, project_id, method_id, task_no, transition_id, template_id, prop_key)
  * 実験指示タブの一覧を一括管理する。
  * ExperimentPlanDialog 保存時に基本情報・想定値を登録し、
  * WorkRecordPanel 保存時に実績値・不確かさ情報を更新する。
@@ -637,10 +637,16 @@ export interface ExperimentInstructionDetail {
   task_no: number;
   /** トランジションID（主キー5） */
   transition_id: string;
-  /** テンプレート名（主キー6） */
-  template_name: string;
+  /** テンプレートID（主キー6）: MAIMLの template.id */
+  template_id?: string | null;
   /** MAIMLプロパティキー（主キー7）: 例 ns1:Temperature */
   prop_key: string;
+  /** トランジション表示名: MAIMLから取得したname属性（未設定時はNULL） */
+  transition_name?: string | null;
+  /** テンプレート表示ラベル: MAIMLの template.name/label（非主キー、表示用） */
+  template_name?: string | null;
+  /** place_id: template_data.place_id（findByProject での LEFT JOIN で取得。訂正処理で使用） */
+  place_id?: string | null;
   /** xsi:type: FloatValue / IntegerValue / StringValue */
   xsi_type?: string | null;
   /** 想定値: 管理者が設定した指示値（未設定時はNULL） */

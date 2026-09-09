@@ -226,8 +226,8 @@ export interface SaveBatchExperimentDataRequest {
   uncertaintyValues?: Array<{
     /** プロパティKey */
     propertyKey: string;
-    /** Place ID */
-    placeId: string;
+    /** Template ID（MAIMLの template.id） */
+    templateId: string;
     /** 不確かさ基準Key */
     uncertaintyKey: string;
     /** 作業者が入力した値 */
@@ -241,8 +241,8 @@ export interface SaveBatchExperimentDataRequest {
   qualitativeValues?: Array<{
     /** プロパティKey */
     propKey: string;
-    /** Place ID */
-    placeId: string;
+    /** Template ID（MAIMLの template.id） */
+    templateId: string;
     /** 定性評価の選択値（例: '確か', '曖昧', '不確か' または intuition_selector.value） */
     value: string;
     /** 不確かさ基準Key（uncertainty_criteria に紐づく場合のみ。デフォルト3択の場合は null） */

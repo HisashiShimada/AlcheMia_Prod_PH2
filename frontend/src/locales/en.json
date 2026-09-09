@@ -160,7 +160,9 @@
     "task": "Task {n}",
     "saveSuccess": "Experiment plan saved",
     "saveFailed": "Failed to save",
-    "cannotChangeOrder": "Order cannot be changed"
+    "cannotChangeOrder": "Order cannot be changed",
+    "saveDisabledNoTransitions": "Cannot save because no transitions exist",
+    "saveDisabledNoTemplates": "Cannot save because no templates are linked to the places"
   },
   "evaluationRegistration": {
     "title": "Evaluation Registration",
@@ -313,9 +315,9 @@
     "executeButton": "Execute",
     "cancelButton": "Cancel",
     "status": {
-      "waiting": "Waiting",
+      "pending": "Pending",
       "inProgress": "In Progress",
-      "running": "In Progress",
+      "forcedTerminated": "Forced Terminated",
       "reviewWaiting": "Review Waiting",
       "completed": "Completed",
       "ng": "NG"
@@ -2605,6 +2607,8 @@
     "E7011": "Process is already in progress",
     "E7012": "No published assets exist",
     "E7013": "A different MAIML may already be registered in the destination project",
+    "E7014": "No transitions registered",
+    "E7015": "No experiment plan registered",
     "E9999": "An error occurred. Please try again later.",
     "AUTH_PIN_INVALID": "Invalid PIN code",
     "PIN_VERIFY_FAILED": "PIN code verification failed. Please try again.",
@@ -2618,6 +2622,8 @@
     "CHECKOUT_INVALID_STATUS": "Project status does not allow this operation",
     "CHECKOUT_NO_TASKS": "No tasks have been registered",
     "CHECKOUT_UNSENT_INSTRUCTIONS": "Unsent instructions exist",
+    "CHECKOUT_NO_TRANSITIONS": "No transitions registered",
+    "CHECKOUT_NO_EXPERIMENT_PLAN": "No experiment plan registered",
     "TASK_NOT_COMPLETED": "Tasks are not in a state that allows check-in",
     "BUSINESS_MAIML_FILE_EXISTS": "Cannot delete project because a MAIML file exists",
     "PROJECT_ALREADY_CHECKED_OUT": "This project is already checked out by another user",
@@ -2674,6 +2680,8 @@
     "checkoutErrorInvalidStatus": "Project status is not waiting for task execution",
     "checkoutErrorNoTasks": "No tasks have been registered. Please register tasks first",
     "checkoutErrorUnsentInstructions": "Unsent instructions exist. Please send all instructions before checking out",
+    "checkoutErrorNoTransitions": "No transitions registered. Please set a MAIML containing transitions and re-register tasks",
+    "checkoutErrorNoExperimentPlan": "No experiment plan registered. Please save the plan in the experiment plan dialog before checking out",
     "checkoutWarningAlreadyCheckedOut": "This project is already checked out by {user}.",
     "notFound": "Project not found",
     "infoNotFound": "Project information not found",
