@@ -43,6 +43,7 @@ import * as uncertaintyCriteriaRepository from '../repositories/uncertaintyCrite
 import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
 import * as experimentInstructionDetailRepository from '../repositories/experimentInstructionDetailRepository';
 import type { Template, Property } from '../types/maiml-unified';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 export type {
   InstructionField,
@@ -212,12 +213,12 @@ export async function getExperimentInstructions(
       tasks.push({
         taskNo,
         taskStatus:       td?.task_status ?? null,
-        reviewedAt:       td?.reviewed_at ? td.reviewed_at.toISOString() : null,
+        reviewedAt:       td?.reviewed_at ? toJSTIsoString(td.reviewed_at) : null,
         reviewUserId:     td?.review_user_id ?? null,
         reviewResult:     td?.review_result ?? null,
         templates,
         experimentUserId: td?.experiment_user_id ?? null,
-        experimentEndAt:  td?.experiment_end_at ? td.experiment_end_at.toISOString() : null,
+        experimentEndAt:  td?.experiment_end_at ? toJSTIsoString(td.experiment_end_at) : null,
       });
     }
     tasks.sort((a, b) => a.taskNo - b.taskNo);
@@ -319,7 +320,7 @@ export async function approveTask(
 
     return {
       taskStatus: updated.task_status ?? null,
-      reviewedAt: updated.reviewed_at ? updated.reviewed_at.toISOString() : null,
+      reviewedAt: updated.reviewed_at ? toJSTIsoString(updated.reviewed_at) : null,
       reviewUserId: updated.review_user_id ?? null,
       reviewResult: updated.review_result ?? null,
     };
@@ -891,7 +892,7 @@ export async function recordNg(
 
     return {
       taskStatus: updated.task_status ?? null,
-      reviewedAt: updated.reviewed_at ? updated.reviewed_at.toISOString() : null,
+      reviewedAt: updated.reviewed_at ? toJSTIsoString(updated.reviewed_at) : null,
       reviewUserId: updated.review_user_id ?? null,
       reviewResult: updated.review_result ?? null,
     };

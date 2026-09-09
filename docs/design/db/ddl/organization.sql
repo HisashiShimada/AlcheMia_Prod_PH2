@@ -32,9 +32,9 @@ CREATE TABLE organization (
   , is_active BOOLEAN
   , default_retention_days INT NOT NULL DEFAULT 30
   , create_user_id character varying(50)
-  , create_at timestamp
+  , create_at TIMESTAMPTZ
   , update_user_id character varying(50)
-  , update_at timestamp
+  , update_at TIMESTAMPTZ
   , CONSTRAINT organization_PKC PRIMARY KEY (organization_id)
 ) ;
 

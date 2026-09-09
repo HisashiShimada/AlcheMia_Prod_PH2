@@ -64,6 +64,7 @@ import {
   OID,
 } from '../types/integrityTypes';
 import * as integrityAuditLogRepository from '../repositories/integrityAuditLogRepository';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 // ---------------------------------------------------------------------------
 // インメモリストア
@@ -122,7 +123,7 @@ function ensureDummyKeyPair(): void {
     privateKey: {
       keyId: DUMMY_KEY_ID,
       pem: privateKey,
-      createdAt: new Date().toISOString(),
+      createdAt: toJSTIsoString(new Date()),
     },
     publicKey: {
       keyId: DUMMY_KEY_ID,
@@ -289,7 +290,7 @@ export function computeCanonicalHash(
   return {
     digestValue,
     algorithmUri: HASH_ALGORITHM_URI_MAP[policy.hashAlgorithm],
-    computedAt: new Date().toISOString(),
+    computedAt: toJSTIsoString(new Date()),
   };
 }
 
@@ -343,7 +344,7 @@ export function getSigningPrivateKey(
         const pair = signingKeyStore.get(DUMMY_KEY_ID)!;
         return pair.privateKey;
       }
-      return { keyId: 'local-file-signing-key', pem, createdAt: new Date().toISOString() };
+      return { keyId: 'local-file-signing-key', pem, createdAt: toJSTIsoString(new Date()) };
     }
     case 'local-dummy': {
       ensureDummyKeyPair();
@@ -427,7 +428,7 @@ export function signHash(
     signatureId,
     signatureValue,
     signatureAlgorithmUri: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
-    signedAt: new Date().toISOString(),
+    signedAt: toJSTIsoString(new Date()),
   };
 }
 
@@ -562,7 +563,7 @@ export function requestTimestamp(
   switch (policy.tsaProvider) {
     case 'local-mock': {
       // 【仮実装】RFC 3161 準拠の TSTInfo 構造を組み立てる（DER エンコードなし）
-      const now = new Date().toISOString();
+      const now = toJSTIsoString(new Date());
       const serialNumber = uuidv4().replace(/-/g, '');
 
       const tstInfo: TSTInfo = {
@@ -1264,7 +1265,7 @@ export async function recordTimestampRequest(
   organizationId?: string,
   createdBy?: string | null,
 ): Promise<void> {
-  const recordedAt = new Date().toISOString();
+  const recordedAt = toJSTIsoString(new Date());
   const record: TimestampRequestRecord = {
     hash,
     tsaEndpoint,
@@ -1321,7 +1322,7 @@ export async function recordVerificationResult(
   organizationId?: string,
   createdBy?: string | null,
 ): Promise<void> {
-  const recordedAt = result.recordedAt ?? new Date().toISOString();
+  const recordedAt = result.recordedAt ?? toJSTIsoString(new Date());
   const record: VerificationResultRecord = {
     ...result,
     recordedAt,

@@ -33,7 +33,7 @@ CREATE TABLE experiment_uncertainty_judge (
   , recorded_value numeric(20,10)
   , judge_result character varying(10)
   , create_user_id character varying(50)
-  , create_at timestamp
+  , create_at TIMESTAMPTZ
   , update_user_id character varying(50)
   , update_at character varying(50)
   , CONSTRAINT experiment_uncertainty_judge_PKC PRIMARY KEY (organization_id,project_id,judge_seq)

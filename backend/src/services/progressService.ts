@@ -44,6 +44,7 @@ import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { CheckoutStatusEnum } from '../enums/codeMaster.enum';
 import { PROJECT_STATUS_STRING_MAP } from '../types/project';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * ステータス遷移マトリクス（数値型）
@@ -121,7 +122,7 @@ export class ProgressService {
       methodId,
       taskNo,
       organizationId,
-      timestamp: new Date().toISOString()
+      timestamp: toJSTIsoString(new Date())
     });
 
     try {
@@ -599,7 +600,7 @@ export class ProgressService {
         transition_name: transition.data?.label || transition.id,
         status: latestRecord.status,
         progress,
-        last_updated: latestRecord.update_at.toISOString(),
+        last_updated: toJSTIsoString(latestRecord.update_at),
         is_recorded: latestRecord.is_recorded ?? false,
         material_count: materialCount,
         material_actual_count: materialActualCount,
@@ -782,8 +783,8 @@ export class ProgressService {
         organizationGroup: proj.organization_group_name ?? proj.organization_group_cd ?? undefined,
         status: statusStr,
         methods: methodIds,
-        createdAt: proj.create_at ? proj.create_at.toISOString() : '',
-        updatedAt: proj.update_at ? proj.update_at.toISOString() : ''
+        createdAt: proj.create_at ? toJSTIsoString(proj.create_at) : '',
+        updatedAt: proj.update_at ? toJSTIsoString(proj.update_at) : ''
       };
 
       const fileInfo: FileInfoDetail = {
@@ -864,8 +865,8 @@ export class ProgressService {
               transitionId: row.transition_id,
               progressStatus: TRANSITION_STATUS_LABELS[row.status] ?? '未開始',
               assignedWorker: row.worker_name ?? undefined,
-              startDate: row.create_at ? row.create_at.toISOString() : undefined,
-              endDate: row.status === 5 && row.update_at ? row.update_at.toISOString() : undefined
+              startDate: row.create_at ? toJSTIsoString(row.create_at) : undefined,
+              endDate: row.status === 5 && row.update_at ? toJSTIsoString(row.update_at) : undefined
             };
           });
 

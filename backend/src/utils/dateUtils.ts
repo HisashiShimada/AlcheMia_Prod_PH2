@@ -5,11 +5,18 @@
  * 常に日本時間（JST = UTC+9）で日時を文字列化する共通関数を提供する。
  *
  * 【背景】
- * - DB の create_at / update_at は `TIMESTAMP WITHOUT TIME ZONE` 型で NOW()（UTC）が保存される
+ * - DB の create_at / update_at は TIMESTAMPTZ 型で NOW()（UTC）が保存される
  * - サーバー環境は TZ=UTC のため、Date#getHours() 等のローカルメソッドは UTC 値を返す
  * - UTC オフセット (+9h) を明示的に加算してから getUTC* メソッドで取得することで
  *   TZ 環境変数に左右されない JST 変換を実現する
+ *
+ * 【使い分け指針】
+ * - APIレスポンスで日時を返す場合は toJSTIsoString() または toISOStringJST() を使用する
+ * - DBへの書き込み時は変換不要（NOW() をそのまま使用する）
+ * - .toISOString() の直接使用は禁止（UTC文字列のままAPIレスポンスに返ることになる）
  */
+
+import dayjs from 'dayjs';
 
 /** JST オフセット（ミリ秒）: UTC+9 = 9 * 60 * 60 * 1000 */
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -81,3 +88,94 @@ export function toJSTIsoString(date: Date): string {
 export function getNowJST(): string {
   return formatDateTimeJST(new Date());
 }
+
+/**
+ * toJSTIsoString のエイリアス
+ *
+ * 命名を toISOString に合わせた別名。
+ * 新規コードでは toISOStringJST を使用することを推奨する。
+ *
+ * @param date - 変換対象の Date オブジェクト（null / undefined の場合は '-' を返す）
+ * @returns ISO8601 形式の JST 文字列（例: "2026-08-31T12:00:00.000+09:00"）、null の場合は "-"
+ *
+ * @example
+ * // DB から取得した日時を APIレスポンスに返す場合
+ * createdAt: toISOStringJST(row.create_at)
+ *
+ * // 現在時刻を APIレスポンスに返す場合
+ * timestamp: toISOStringJST(new Date())
+ */
+export function toISOStringJST(date: Date | null | undefined): string {
+  if (!date) return '-';
+  return toJSTIsoString(date);
+}
+
+/**
+ * Date オブジェクトを日本時間（JST）の表示文字列に変換する
+ *
+ * @param date - 変換対象の Date オブジェクト（null / undefined の場合は '-' を返す）
+ * @returns "YYYY-MM-DD HH:mm:ss" 形式の JST 文字列（例: "2026-08-31 12:00:00"）
+ *
+ * @example
+ * toDisplayStringJST(new Date('2026-08-31T03:00:00.000Z')) // => '2026-08-31 12:00:00'
+ */
+export function toDisplayStringJST(date: Date | null | undefined): string {
+  if (!date) return '-';
+  try {
+    return formatJST(date, 'YYYY-MM-DD HH:mm:ss');
+  } catch (error) {
+    console.error('dateUtils.toDisplayStringJST: Date format error:', error);
+    return '-';
+  }
+}
+
+/**
+ * Date オブジェクトを日本時間（JST）の日付文字列に変換する
+ *
+ * @param date - 変換対象の Date オブジェクト（null / undefined の場合は '-' を返す）
+ * @returns "YYYY-MM-DD" 形式の JST 日付文字列（例: "2026-08-31"）
+ *
+ * @example
+ * toDateStringJST(new Date('2026-08-31T03:00:00.000Z')) // => '2026-08-31'
+ */
+export function toDateStringJST(date: Date | null | undefined): string {
+  if (!date) return '-';
+  try {
+    return formatJST(date, 'YYYY-MM-DD');
+  } catch (error) {
+    console.error('dateUtils.toDateStringJST: Date format error:', error);
+    return '-';
+  }
+}
+
+/**
+ * Date オブジェクトを日本時間（JST）で指定フォーマットの文字列に変換する
+ *
+ * dayjs を使用した汎用フォーマット関数。
+ * UTC+9 のオフセットを適用してから dayjs でフォーマットするため、
+ * TZ 環境変数に左右されない。
+ *
+ * @param date - 変換対象の Date オブジェクト（null / undefined の場合は '-' を返す）
+ * @param format - dayjs フォーマット文字列（例: 'YYYY-MM-DD HH:mm:ss'）
+ * @returns 指定フォーマットの JST 文字列、null の場合は "-"
+ *
+ * @example
+ * formatJST(new Date('2026-08-31T03:00:00.000Z'), 'YYYY/MM/DD') // => '2026/08/31'
+ * formatJST(new Date('2026-08-31T03:00:00.000Z'), 'HH:mm')      // => '12:00'
+ */
+export function formatJST(date: Date | null | undefined, format: string): string {
+  if (!date) return '-';
+  try {
+    // UTC タイムスタンプに JST オフセットを加算し dayjs でフォーマットする
+    // dayjs の utcOffset() を使わず手動オフセットを使うことで
+    // dayjs プラグイン（utc, timezone）に依存せず動作する
+    const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
+    // TZ=UTC 環境では dayjs(jstDate) はそのまま UTC として解釈するため
+    // JST_OFFSET_MS を加算済みの Date を渡すことで正しい JST 値をフォーマットできる
+    return dayjs(jstDate).format(format);
+  } catch (error) {
+    console.error('dateUtils.formatJST: Date format error:', error);
+    return '-';
+  }
+}
+

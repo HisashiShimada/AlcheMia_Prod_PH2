@@ -16,13 +16,13 @@ CREATE TABLE instruction_acknowledged_history (
     experiment_user_id VARCHAR(50) NOT NULL,
     
     -- 確認情報
-    acknowledged_at TIMESTAMP,
+    acknowledged_at TIMESTAMPTZ,
     
     -- 監査情報
     create_user_id VARCHAR(50),
-    create_at TIMESTAMP,
+    create_at TIMESTAMPTZ,
     update_user_id VARCHAR(50),
-    update_at TIMESTAMP,
+    update_at TIMESTAMPTZ,
     
     -- 主キー制約
     CONSTRAINT instruction_acknowledged_history_PKC PRIMARY KEY (

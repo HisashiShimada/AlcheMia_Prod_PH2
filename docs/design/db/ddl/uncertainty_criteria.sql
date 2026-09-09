@@ -41,9 +41,9 @@ CREATE TABLE uncertainty_criteria (
 
     -- 監査証跡
     create_user_id          VARCHAR(50),
-    create_at               TIMESTAMP,
+    create_at               TIMESTAMPTZ,
     update_user_id          VARCHAR(50),
-    update_at               TIMESTAMP,
+    update_at               TIMESTAMPTZ,
 
     -- 主キー制約
     CONSTRAINT uncertainty_criteria_PKC PRIMARY KEY (

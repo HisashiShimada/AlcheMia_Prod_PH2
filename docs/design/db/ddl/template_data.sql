@@ -22,8 +22,8 @@ CREATE TABLE template_data (
     update_user_id VARCHAR(50),
     
     -- タイムスタンプ
-    create_at TIMESTAMP,
-    update_at TIMESTAMP,
+    create_at TIMESTAMPTZ,
+    update_at TIMESTAMPTZ,
     
     -- 制約
   , CONSTRAINT template_data_PKC PRIMARY KEY (organization_id,project_id,method_id,task_no,place_id)

@@ -22,8 +22,8 @@ CREATE TABLE code_master (
     update_user_id VARCHAR(50),
     
     -- タイムスタンプ
-    create_at TIMESTAMP,
-    update_at TIMESTAMP,
+    create_at TIMESTAMPTZ,
+    update_at TIMESTAMPTZ,
     
     -- 制約
     CONSTRAINT code_master_PKC PRIMARY KEY (organization_id, code_division, code_value)
