@@ -2247,7 +2247,7 @@ export default function WorkRecordPanel({
 }: WorkRecordPanelProps = {}) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [tasks, setTasks] = useState<WorkTask[]>([]);
 
   /**
@@ -2574,7 +2574,7 @@ export default function WorkRecordPanel({
     try {
       const result = await getProjectMaiml(projectId);
       if (!result.success || !result.data?.maimlContent) {
-        Modal.error({ title: t('experimentInstruction.fetchError') });
+        modal.error({ title: t('experimentInstruction.fetchError') });
         return;
       }
       const { maimlContent, projectName: resolvedName, lastModified } = result.data;
@@ -2592,7 +2592,7 @@ export default function WorkRecordPanel({
       ]);
     } catch (err) {
       console.error('[WorkRecordPanel] handleOpenPetriNetViewer error:', err);
-      Modal.error({ title: t('experimentInstruction.fetchError') });
+      modal.error({ title: t('experimentInstruction.fetchError') });
     } finally {
       setPetriNetViewerLoading(false);
     }
@@ -2736,7 +2736,7 @@ export default function WorkRecordPanel({
 
     // API 呼び出しに必要なパラメータが揃っていない場合はモック成功表示のみ
     if (!projectId || !methodId) {
-      Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+      modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
       setIsDirty(false);
       return;
     }
@@ -2748,7 +2748,7 @@ export default function WorkRecordPanel({
 
     if (rawItems.length === 0) {
       // 生データなし: 成功メッセージのみ
-      Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+      modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
       setIsDirty(false);
       return;
     }
@@ -2769,13 +2769,22 @@ export default function WorkRecordPanel({
           }
         }
         // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
+        // ※ 定量評価（toleranceValues に含まれるキー）には書き込まない
         if (Array.isArray(baseData.properties)) {
           (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
             if (p.isCustomProperty === true) return;
             const propKey = String(p.key ?? '');
             const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+            // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
+            const quantitativeKeys = new Set(
+              (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
+                ?.map((tv) => tv.uncertaintyKey) ?? []
+            );
             if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
               (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+                const ucKey = unc['key'] as string | undefined;
+                // 定量評価キーはスキップ（定性評価のキーのみ書き込む）
+                if (!ucKey || quantitativeKeys.has(ucKey)) return;
                 // 定性評価選択値を書き込む
                 if (confidenceEntry?.value) {
                   unc.value = confidenceEntry.value;
@@ -2785,6 +2794,17 @@ export default function WorkRecordPanel({
                   unc.description = confidenceEntry.description;
                 }
               });
+            }
+            // フラットフィールドも同期して上書きする
+            // （rawTemplateItemsRef は保存後に更新されないため、古い値が残らないよう明示的に更新）
+            if (confidenceEntry?.value) {
+              p['qualitativeEval'] = confidenceEntry.value;
+            }
+            if (confidenceEntry?.description != null) {
+              p['qualitativeReason'] = confidenceEntry.description;
+            } else if (confidenceEntry !== undefined) {
+              // エントリは存在するが description が null/undefined の場合はクリア
+              p['qualitativeReason'] = null;
             }
           });
         }
@@ -2828,14 +2848,34 @@ export default function WorkRecordPanel({
         }
         setLastJudgeResultMap(newMap);
       }
-      Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+      modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
       // 保存成功後に未保存フラグをリセット
       setIsDirty(false);
+      // 保存成功後: apiTransitions の WorkProperty を confidenceValuesRef の現在値で更新する
+      // これにより PropertyCard が再マウントされた際も定性評価選択・定性評価理由が保持される
+      setApiTransitions((prevTransitions) =>
+        prevTransitions.map((transition) => ({
+          ...transition,
+          templates: transition.templates.map((template) => ({
+            ...template,
+            properties: template.properties.map((prop) => {
+              const refKey = `${template.id}__${prop.key}`;
+              const entry = confidenceValuesRef.current.get(refKey);
+              if (!entry) return prop;
+              return {
+                ...prop,
+                ...(entry.value !== '' ? { defaultConfidence: entry.value } : {}),
+                ...(entry.description != null ? { qualitativeReason: entry.description } : {}),
+              };
+            }),
+          })),
+        }))
+      );
     } catch (err) {
       console.error('[WorkRecordPanel] handleSave error:', err);
       message.error(t('workRecord.saveContent'));
     }
-  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions]);
+  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions, setApiTransitions]);
 
   // ─── スキップ state ────────────────────────────────────────
   const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
@@ -2846,7 +2886,7 @@ export default function WorkRecordPanel({
       // プロパティカードが編集中（保存ボタンが押されていない）場合は確認ダイアログを表示する
       if (isDirty) {
         const confirmed = await new Promise<boolean>((resolve) => {
-          Modal.confirm({
+          modal.confirm({
             title: t('workRecord.unsavedWarningTitle'),
             content: t('workRecord.unsavedWarningContent'),
             okText: t('workRecord.unsavedWarningOk'),
@@ -2888,13 +2928,22 @@ export default function WorkRecordPanel({
                 }
               }
               // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
+              // ※ 定量評価（toleranceValues に含まれるキー）には書き込まない
               if (Array.isArray(baseData.properties)) {
                 (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
                   if (p.isCustomProperty === true) return;
                   const propKey = String(p.key ?? '');
                   const confidenceEntry = confidenceValuesRef.current.get(`${item.placeId}__${propKey}`);
+                  // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
+                  const quantitativeKeys = new Set(
+                    (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
+                      ?.map((tv) => tv.uncertaintyKey) ?? []
+                  );
                   if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
                     (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+                      const ucKey = unc['key'] as string | undefined;
+                      // 定量評価キーはスキップ（定性評価のキーのみ書き込む）
+                      if (!ucKey || quantitativeKeys.has(ucKey)) return;
                       // 定性評価選択値を書き込む
                       if (confidenceEntry?.value) {
                         unc.value = confidenceEntry.value;
@@ -2904,6 +2953,17 @@ export default function WorkRecordPanel({
                         unc.description = confidenceEntry.description;
                       }
                     });
+                  }
+                  // フラットフィールドも同期して上書きする
+                  // （rawTemplateItemsRef は保存後に更新されないため、古い値が残らないよう明示的に更新）
+                  if (confidenceEntry?.value) {
+                    p['qualitativeEval'] = confidenceEntry.value;
+                  }
+                  if (confidenceEntry?.description != null) {
+                    p['qualitativeReason'] = confidenceEntry.description;
+                  } else if (confidenceEntry !== undefined) {
+                    // エントリは存在するが description が null/undefined の場合はクリア
+                    p['qualitativeReason'] = null;
                   }
                 });
               }
@@ -2931,6 +2991,26 @@ export default function WorkRecordPanel({
               ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
               ...(qualitativeValues.length > 0 ? { qualitativeValues } : {}),
             });
+            // 保存成功後: apiTransitions の WorkProperty を confidenceValuesRef の現在値で更新する
+            // これにより PropertyCard が再マウントされた際も定性評価選択・定性評価理由が保持される
+            setApiTransitions((prevTransitions) =>
+              prevTransitions.map((transition) => ({
+                ...transition,
+                templates: transition.templates.map((template) => ({
+                  ...template,
+                  properties: template.properties.map((prop) => {
+                    const refKey = `${template.id}__${prop.key}`;
+                    const entry = confidenceValuesRef.current.get(refKey);
+                    if (!entry) return prop;
+                    return {
+                      ...prop,
+                      ...(entry.value !== '' ? { defaultConfidence: entry.value } : {}),
+                      ...(entry.description != null ? { qualitativeReason: entry.description } : {}),
+                    };
+                  }),
+                })),
+              }))
+            );
           } catch (err) {
             console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
             message.error(t('workRecord.saveContent'));
@@ -2960,15 +3040,15 @@ export default function WorkRecordPanel({
       const next = findNextAvailableTransition(taskNo, transitionId, skippedTransitionIds, tasks);
 
       if (next) {
-        Modal.success({
+        modal.success({
           title: t('workRecord.transitionComplete'),
           content: <span>{t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{next.transitionId}</Text></span>,
         });
       } else {
-        Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
+        modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
       }
     },
-    [projectId, methodId, tasks, skippedTransitionIds, t, uploadAllPendingInsertions, isDirty]
+    [projectId, methodId, tasks, skippedTransitionIds, t, uploadAllPendingInsertions, isDirty, setApiTransitions]
   );
 
   const handleSkip = useCallback(
@@ -2989,7 +3069,7 @@ export default function WorkRecordPanel({
       if (next) {
         // 次のトランジションが見つかったら viewingKey をリセット（activeEntry で自動選択）
         setViewingKey(null);
-        Modal.info({
+        modal.info({
           title: t('workRecord.skipDone'),
           content: (
             <span>
@@ -3000,7 +3080,7 @@ export default function WorkRecordPanel({
       } else {
         // スキップできる次のトランジションなし → 進捗確認タブへの誘導メッセージ
         setViewingKey(null);
-        Modal.warning({
+        modal.warning({
           title: t('workRecord.skipNoTarget'),
           content: t('workRecord.skipNoTargetContent'),
         });
@@ -3231,7 +3311,7 @@ export default function WorkRecordPanel({
       errorTime: srErrorTime,
     };
     console.info('[WorkRecordPanel] 状態記録保存（モック）:', saveData);
-    Modal.success({ title: t('workRecord.stateRecordSaved') });
+    modal.success({ title: t('workRecord.stateRecordSaved') });
     // 保存時はダイアログを閉じるのみ（state はリセットしない）
     // キャンセル時（handleStateRecordClose）のみ state をリセットする
     setStateRecordDialogOpen(false);
@@ -3264,7 +3344,7 @@ export default function WorkRecordPanel({
         transitionId,
         commentRequest
       );
-      Modal.success({ title: t('workRecord.commentSaved'), content: comment });
+      modal.success({ title: t('workRecord.commentSaved'), content: comment });
     } catch {
       message.error(t('workRecord.commentSaveError'));
     }

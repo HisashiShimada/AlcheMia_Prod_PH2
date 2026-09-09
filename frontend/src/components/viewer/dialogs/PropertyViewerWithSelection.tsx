@@ -222,10 +222,8 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
         render: (_: unknown, record: TableDataType) => (
           <Checkbox
             checked={selected.includes(record.key)}
-            onChange={(e) => {
-              e.stopPropagation();
-              onPropertyToggle(structure, record.key);
-            }}
+            onChange={() => onPropertyToggle(structure, record.key)}
+            onClick={(e) => e.stopPropagation()}
           />
         ),
       },
@@ -333,7 +331,8 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
             render: (_: unknown, record: TableDataType) => (
               <Checkbox
                 checked={selected.includes(record.key)}
-                onChange={(e) => { e.stopPropagation(); onPropertyToggle('template', record.key); }}
+                onChange={() => onPropertyToggle('template', record.key)}
+                onClick={(e) => e.stopPropagation()}
               />
             ),
           },

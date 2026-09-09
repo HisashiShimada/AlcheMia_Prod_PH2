@@ -55,10 +55,10 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 5-1-1 | プロジェクト選択エリアのコンボボックスに実験作業可能なプロジェクトが表示されること | 正常系 | 追加機能A、`ui_project_selection_modal.md` §1.3 | GET `/api/v1/projects/worker-accessible` | - | |
-| 5-1-2 | 「選択」ボタンでプロジェクト選択モーダル（`ProjectSelectionModal`）が開くこと | 正常系 | 追加機能A | - | - | |
-| 5-1-3 | プロジェクト選択モーダルでプロジェクト名・プロジェクトコードのあいまい検索が機能すること | 正常系 | `ui_project_selection_modal.md` §6.1 | - | - | 旧 5-1-6 を繰り上げ（2026-08-27）|
-| 5-1-4 | プロジェクト選択モーダルでプロジェクト名フィルターが機能すること | 正常系 | `ui_project_selection_modal.md` §6.2 | - | - | 旧 5-1-7 を繰り上げ（2026-08-27）|
+| 5-1-1 | プロジェクト選択エリアのコンボボックスに実験作業可能なプロジェクトが表示されること | 正常系 | 追加機能A、`ui_project_selection_modal.md` §1.3 | GET `/api/v1/projects/worker-accessible` | OK | |
+| 5-1-2 | 「選択」ボタンでプロジェクト選択モーダル（`ProjectSelectionModal`）が開くこと | 正常系 | 追加機能A | - | OK | |
+| 5-1-3 | プロジェクト選択モーダルでプロジェクト名・プロジェクトコードのあいまい検索が機能すること | 正常系 | `ui_project_selection_modal.md` §6.1 | - | OK | 旧 5-1-6 を繰り上げ（2026-08-27）|
+| 5-1-4 | プロジェクト選択モーダルでプロジェクト名フィルターが機能すること | 正常系 | `ui_project_selection_modal.md` §6.2 | - | OK | 旧 5-1-7 を繰り上げ（2026-08-27）|
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
@@ -81,24 +81,24 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 5-3-1 | トランジションの「問題報告」ボタンで問題管理モーダルが開くこと | 正常系 | 追加機能D | GET `/api/v1/issues` | - | |
-| 5-3-2 | 問題管理モーダルで新しい問題を報告できること | 正常系 | 追加機能D | POST `/api/v1/issues` | - | |
-| 5-3-3 | 問題管理モーダルで既存の問題にコメントを投稿できること | 正常系 | 追加機能E | POST `/api/v1/issues/comments` | - | |
-| 5-3-4 | タイトルが未入力の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | - | |
-| 5-3-5 | 問題一覧がステータスでフィルタリングできること | 正常系 | 追加機能F | GET `/api/v1/issues` | - | |
-| 5-3-6 | 未解決の問題を解決済みに変更できること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` | - | |
-| 5-3-7 | 解決済みの問題を未解決に戻せること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` | - | |
-| 5-3-8 | 内容が未入力の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | - | |
-| 5-3-9 | 問題タイプが未選択の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | - | |
-| 5-3-10 | 内容が10文字未満の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | - | |
-| 5-3-11 | タイトルが100文字を超える場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | - | |
-| 5-3-12 | 内容が1000文字を超える場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | - | |
-| 5-3-13 | 問題一覧で問題を選択すると詳細エリアにタイトル・状態・対象・報告者・報告時刻・内容が表示されること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - | - | |
-| 5-3-14 | 問題詳細にコメントが存在する場合、コメント一覧（投稿者名・投稿時刻・コメント内容）が表示されること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - | - | |
-| 5-3-15 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合に新規の問題報告ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - | - | |
-| 5-3-16 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にコメントの投稿ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - | - | |
-| 5-3-17 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にステータスの更新ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - | - | |
-| 5-3-18 | 実験作業者メニューの「問題報告」ボタンを押すと `IssueManagementModal` が開くこと | 正常系 | `ui_screen_transition.md` §3（2026-08-26更新）、`ui_issue_management_modal.md` | GET `/api/v1/issues` | - | バグ修正確認: `IssueManagementModal` の import と JSX レンダリングが欠落していた問題の解消。ボタン活性条件: プロジェクトが選択済みであること |
+| 5-3-1 | トランジションの「問題報告」ボタンで問題管理モーダルが開くこと | 正常系 | 追加機能D | GET `/api/v1/issues` | OK | |
+| 5-3-2 | 問題管理モーダルで新しい問題を報告できること | 正常系 | 追加機能D | POST `/api/v1/issues` | OK | |
+| 5-3-3 | 問題管理モーダルで既存の問題にコメントを投稿できること | 正常系 | 追加機能E | POST `/api/v1/issues/comments` | OK | |
+| 5-3-4 | タイトルが未入力の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | OK | |
+| 5-3-5 | 問題一覧がステータスでフィルタリングできること | 正常系 | 追加機能F | GET `/api/v1/issues` | OK | |
+| 5-3-6 | 未解決の問題を解決済みに変更できること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` | OK | |
+| 5-3-7 | 解決済みの問題を未解決に戻せること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` | OK | |
+| 5-3-8 | 内容が未入力の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | OK | |
+| 5-3-9 | 問題タイプが未選択の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | OK | |
+| 5-3-10 | 内容が10文字未満の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | OK | |
+| 5-3-11 | タイトルが100文字を超える場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-349?atlOrigin=eyJpIjoiZGVkYjYzNzg4OTYyNGIzYWJkZWE0ZGUzNzNlN2Y4ZDAiLCJwIjoiaiJ9 |
+| 5-3-12 | 内容が1000文字を超える場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-350?atlOrigin=eyJpIjoiZGM2ODQyYjc2ZmY1NDUyMzk4OTczZWNmOTk3YTk2MjAiLCJwIjoiaiJ9 |
+| 5-3-13 | 問題一覧で問題を選択すると詳細エリアにタイトル・状態・対象・報告者・報告時刻・内容が表示されること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - | OK | |
+| 5-3-14 | 問題詳細にコメントが存在する場合、コメント一覧（投稿者名・投稿時刻・コメント内容）が表示されること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - | OK | |
+| 5-3-15 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合に新規の問題報告ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - | 不要 | 承認待ちプロジェクトは実験作業者画面に表示されない |
+| 5-3-16 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にコメントの投稿ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - | 不要 | 承認待ちプロジェクトは実験作業者画面に表示されない |
+| 5-3-17 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にステータスの更新ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - | 不要 | 承認待ちプロジェクトは実験作業者画面に表示されない |
+| 5-3-18 | 実験作業者メニューの「問題報告」ボタンを押すと `IssueManagementModal` が開くこと | 正常系 | `ui_screen_transition.md` §3（2026-08-26更新）、`ui_issue_management_modal.md` | GET `/api/v1/issues` | OK | バグ修正確認: `IssueManagementModal` の import と JSX レンダリングが欠落していた問題の解消。ボタン活性条件: プロジェクトが選択済みであること |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み（5-3-1〜5-3-18）
@@ -147,9 +147,9 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 5-4-1 | 実験記録タブ（`WorkRecordPanel`）上部の `InstructionCollapse` にプロジェクト指示が表示されること | 正常系 | `ui_work_record_panel.md` §2.2（InstructionCollapse）| GET `/api/v1/instructions` | - | 黄色背景 `#fffbe6`、折りたたみ表示、右端に「指示確認」ボタン |
+| 5-4-1 | 実験記録タブ（`WorkRecordPanel`）上部の `InstructionCollapse` にプロジェクト指示が表示されること | 正常系 | `ui_work_record_panel.md` §2.2（InstructionCollapse）| GET `/api/v1/instructions` | OK | 黄色背景 `#fffbe6`、折りたたみ表示、右端に「指示確認」ボタン |
 | 5-4-2 | `InstructionCollapse` の折りたたみ・展開が機能すること | 正常系 | `ui_work_record_panel.md` §2.2 | - | - | |
-| 5-4-3 | `InstructionCollapse` 右端の「指示確認」ボタンを押すと `PUT .../confirm` API が呼ばれ、`preparing` 状態のトランジションが `ready` に遷移すること | 正常系 | `ui_work_record_panel.md` §1.2、`ExperimentWorkerMenu.tsx` L211-256 | PUT `/api/v1/instructions/{instructionId}/confirm` | - | 対象: 未確認のプロジェクト指示のみ（methodId・transitionId なし）|
+| 5-4-3 | `InstructionCollapse` 右端の「指示確認」ボタンを押すと `PUT .../confirm` API が呼ばれ、`preparing` 状態のトランジションが `ready` に遷移すること | 正常系 | `ui_work_record_panel.md` §1.2、`ExperimentWorkerMenu.tsx` L211-256 | PUT `/api/v1/instructions/{instructionId}/confirm` | NG | 対象: 未確認のプロジェクト指示のみ（methodId・transitionId なし）https://soft-service.atlassian.net/browse/AISOLMAIML-351?atlOrigin=eyJpIjoiMWFiOTZkZTNlNzAxNDUwMDg4OTFmOWNhNmM3NzJjMmYiLCJwIjoiaiJ9 |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み

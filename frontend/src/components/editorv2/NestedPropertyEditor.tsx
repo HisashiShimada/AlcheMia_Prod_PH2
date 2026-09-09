@@ -113,6 +113,18 @@ export interface NestedPropertyEditorProps {
    * xsi:type・units 選択時のデフォルト値表示に使用
    */
   termTypeUnitMap?: Map<string, { type?: string; unitHint?: string }>;
+  /**
+   * key 属性選択時の選択肢一覧（qname → displayName）
+   * 指定時: key 属性の値入力欄を Select プルダウンに変更して用語マップから選択させる
+   * 未指定または空配列: 従来通り Input 手入力にフォールバック
+   */
+  termKeyOptions?: Array<{ value: string; label: string }>;
+  /**
+   * key 属性変更時のリネームコールバック
+   * 指定時: key 属性の確定時に onUpdateNestedAttribute ではなくこちらを呼び出す
+   * 未指定: 従来通り onUpdateNestedAttribute にフォールバック
+   */
+  onRenameProperty?: (oldKey: string, newKey: string) => void;
 }
 
 // ===== 固定属性名（Attributeマスタ選択肢から除外） =====
@@ -170,6 +182,8 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   onDeleteUncertainty,
   termDisplayMap,
   termTypeUnitMap,
+  termKeyOptions,
+  onRenameProperty,
 }) => {
   const { modal } = App.useApp();
   const { t } = useLanguage();
@@ -333,24 +347,28 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         {hasAttributes && (
           <div style={{ marginBottom: 8 }}>
             <Text type="success" strong style={{ fontSize: 12 }}>{t('nestedPropertyEditor.attributesSection')}</Text>
-            {Object.entries(propertyData.attributes).map(([attrName, attrValue]) => (
-              <div key={attrName} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Text style={{ minWidth: 100, fontSize: 12 }}>{attrName}:</Text>
-                <Input
-                  size="small"
-                  value={attrValue || ''}
-                  onChange={(e) => onUpdateNestedAttribute(propertyKey, attrName, e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  size="small"
-                  type="text"
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={() => onDeleteNestedAttribute(propertyKey, attrName)}
-                />
-              </div>
-            ))}
+            {Object.entries(propertyData.attributes).map(([attrName, attrValue]) => {
+              // key 属性はプロパティの識別子（辞書キー）と同一のため属性セクションに表示しない
+              if (attrName === 'key') return null;
+              return (
+                <div key={attrName} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Text style={{ minWidth: 100, fontSize: 12 }}>{attrName}:</Text>
+                  <Input
+                    size="small"
+                    value={attrValue || ''}
+                    onChange={(e) => onUpdateNestedAttribute(propertyKey, attrName, e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    size="small"
+                    type="text"
+                    danger
+                    icon={<CloseOutlined />}
+                    onClick={() => onDeleteNestedAttribute(propertyKey, attrName)}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -550,7 +568,17 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
             return;
           }
 
-          onUpdateNestedAttribute(propertyKey, finalAttributeName, newAttributeValue.trim());
+          // key 属性はプロパティのリネームとして処理する
+          if (finalAttributeName === 'key') {
+            if (onRenameProperty) {
+              onRenameProperty(propertyKey, newAttributeValue.trim());
+            } else {
+              // onRenameProperty 未提供時のフォールバック（後方互換性）
+              onUpdateNestedAttribute(propertyKey, finalAttributeName, newAttributeValue.trim());
+            }
+          } else {
+            onUpdateNestedAttribute(propertyKey, finalAttributeName, newAttributeValue.trim());
+          }
           setNewAttributeName('');
           setNewAttributeValue('');
           setShowAttributeAddModal(false);
@@ -732,12 +760,31 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 />
               </Space>
             ) : newAttributeName === 'key' ? (
-              /* key 属性 → テキスト入力（デフォルト値: termDisplayMapの表示名、なければ空欄） */
-              <Input
-                placeholder={t('nestedPropertyEditor.placeholderAttrValueInput')}
-                value={newAttributeValue !== '' ? newAttributeValue : (termDisplayMap?.get(propertyKey) ?? '')}
-                onChange={(e) => setNewAttributeValue(e.target.value)}
-              />
+              /* key 属性 → termKeyOptions がある場合は Select プルダウン、なければ Input フォールバック */
+              termKeyOptions && termKeyOptions.length > 0 ? (
+                <Select
+                  showSearch
+                  style={{ width: '100%' }}
+                  placeholder={t('nestedPropertyEditor.placeholderKeySelect')}
+                  value={newAttributeValue || undefined}
+                  onChange={setNewAttributeValue}
+                  filterOption={(input, option) => {
+                    if (!option) return false;
+                    const val = String(option.value ?? '').toLowerCase();
+                    const lbl = String(option.label ?? '').toLowerCase();
+                    const q = input.toLowerCase();
+                    return val.includes(q) || lbl.includes(q);
+                  }}
+                  options={termKeyOptions}
+                />
+              ) : (
+                /* termKeyOptions 未提供時のフォールバック（後方互換性） */
+                <Input
+                  placeholder={t('nestedPropertyEditor.placeholderAttrValueInput')}
+                  value={newAttributeValue}
+                  onChange={(e) => setNewAttributeValue(e.target.value)}
+                />
+              )
             ) : (
               /* その他の固定属性（id / ref）または termDisplayMap が空 → テキスト入力 */
               <Input

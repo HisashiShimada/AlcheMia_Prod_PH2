@@ -628,7 +628,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   onNsKeyChange,
   viewOnly = false,
 }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
 
   // ── ログインユーザー情報を localStorage から導出（useMemo でメモ化して依存配列に安定して渡せるようにする）
@@ -1183,7 +1183,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           onOk: () => resolve(true),
           onCancel: () => resolve(false),
         };
-        Modal.confirm(modalConfig);
+        modal.confirm(modalConfig);
       });
       if (!confirmed) return;
     }
@@ -1228,7 +1228,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           // 重複エラー → モーダル表示
           const qname = `${row.prefix}:${row.localName}`;
           const scopeName = errData?.details?.scopeName ?? row.prefix;
-          Modal.error({
+          modal.error({
             title: t('termManagement.duplicateErrorTitle'),
             content: t('termManagement.duplicateError', { qname, scopeName }),
           });
@@ -1743,7 +1743,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     // 非アクティブにする場合のみ確認ダイアログを表示
     if (currentActive) {
       const label = `${term.prefix}:${term.localName}`;
-      Modal.confirm({
+      modal.confirm({
         title: t('namespaceMain.deactivateConfirmTitle', { label }),
         content: t('namespaceMain.deactivateConfirmContent'),
         okText: t('namespaceMain.deactivate'),
@@ -1758,7 +1758,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const handleBulkToggleActive = (targetIds: string[]) => {
     const count = targetIds.length;
-    Modal.confirm({
+    modal.confirm({
       title: t('namespaceMain.bulkDeactivateTitle'),
       content: t('namespaceMain.bulkDeactivateContent', { count: String(count) }),
       okText: t('namespaceMain.deactivate'),
@@ -1822,6 +1822,16 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         const text  = (ev.target?.result as string).replace(/^\uFEFF/, '');
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         if (lines.length < 2) { message.error(t('namespaceMain.csvEmpty2')); return; }
+
+        // ── ヘッダー検証（期待ヘッダー: qname,prefix,localName,displayName,description,type,unitHint）
+        const expectedHeader = 'qname,prefix,localName,displayName,description,type,unitHint';
+        const actualHeaderCols = parseCsvLine(lines[0]);
+        const actualHeader = actualHeaderCols.join(',');
+        if (actualHeader !== expectedHeader) {
+          message.error(t('namespaceMain.csvHeaderMismatch2'));
+          if (csvInputRef.current) csvInputRef.current.value = '';
+          return;
+        }
 
         // CSV パース（parseCsvLine: RFC 4180 準拠、クォートあり・なし・空列・"" エスケープ対応）
         const rows: TermCsvParsedRow[] = [];

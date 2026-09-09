@@ -1,103 +1,103 @@
 # IssueManagementModal UI設計書
 
-## メタデータ
-- **コンポーネントID**: IssueManagementModal
-- **コンポーネント名**: 問題管理モーダル
+## メタチE�Eタ
+- **コンポ�EネンチED**: IssueManagementModal
+- **コンポ�Eネント名**: 問題管琁E��ーダル
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/IssueManagementModal.tsx`
-- **利用権限**: 実験作業者（experiment_worker）
-- **作成日**: 2026-01-19
+- **利用権陁E*: 実験作業老E��Experiment_worker�E�E
+- **作�E日**: 2026-01-19
 - **最終更新日**: 2026-08-27
 
 ---
 
-## 1. 概要
+## 1. 概要E
 
-### 1.1 コンポーネントの目的
-トランジションに関連する問題の一覧表示、詳細閲覧、新規問題報告、コメント追加、ステータス変更機能を統合的に提供するモーダルです。問題の全体像を把握し、効率的に管理できます。
+### 1.1 コンポ�Eネント�E目皁E
+トランジションに関連する問題�E一覧表示、詳細閲覧、新規問題報告、コメント追加、スチE�Eタス変更機�Eを統合的に提供するモーダルです。問題�E全体像を把握し、効玁E��に管琁E��きます、E
 
-### 1.2 主要機能
-- 問題一覧表示（検索・フィルタリング）
-- 問題詳細表示（タイトル、内容、ステータス、コメント履歴）
+### 1.2 主要機�E
+- 問題一覧表示�E�検索・フィルタリング�E�E
+- 問題詳細表示�E�タイトル、�E容、スチE�Eタス、コメント履歴�E�E
 - 新規問題報告フォーム
 - コメント追加
-- ステータス変更（未解決/解決済）
-- 参照専用モード対応
-- 承認依頼中の編集制限
+- スチE�Eタス変更�E�未解決/解決済！E
+- 参�E専用モード対忁E
+- 承認依頼中の編雁E��陁E
 
 ### 1.3 使用場所
-- ExperimentWorkerMenu（実験作業者メニューの「問題報告」ボタン経由）
-- ProgressCheckTab（進捗確認タブ）
-- InstructionConfirmationTab（指示確認タブ）
-- その他、トランジション関連の問題管理が必要な場所
+- ExperimentWorkerMenu�E�実験作業老E��ニューの「問題報告」�Eタン経由�E�E
+- ProgressCheckTab�E�進捗確認タブ！E
+- InstructionConfirmationTab�E�指示確認タブ！E
+- そ�E他、トランジション関連の問題管琁E��忁E��な場所
 
 ---
 
-## 2. コンポーネント構成
+## 2. コンポ�Eネント構�E
 
 ### 2.1 画面イメージ
-![問題管理モーダルイメージ(新規報告)](..\images\ui_issue_management_modal_1.jpg)
-![問題管理モーダルイメージ](..\images\ui_issue_management_modal_2.jpg)
+![問題管琁E��ーダルイメージ(新規報呁E](..\images\ui_issue_management_modal_1.jpg)
+![問題管琁E��ーダルイメージ](..\images\ui_issue_management_modal_2.jpg)
 
 ### 2.2 レイアウト構造
 
 ```
-┌─Modal（幅:1200px）───────────────────────────────────────────┐
-│ Header: [ExclamationCircleOutlined] 問題報告 - {トランジション名} │
+┌─Modal�E�幁E1200px�E�───────────────────────────────────────────━E
+━EHeader: [ExclamationCircleOutlined] 問題報呁E- {トランジション名} ━E
 ├──────────────────────────────────────────────────────────────┤
-│ [新規問題報告] ボタン（viewMode時は非表示）                    │
+━E[新規問題報告] ボタン�E�EiewMode時�E非表示�E�E                   ━E
 ├──────────────────────────────────────────────────────────────┤
-│ Body: 2カラムレイアウト (Row/Col)                             │
-│ ┌─左側（Col span=10）───────┐ ┌─右側（Col span=14）─────┐ │
-│ │ Card: 問題一覧             │ │ Card: 問題詳細 or 新規  │ │
-│ │ ┌─検索・フィルター──┐     │ │                         │ │
-│ │ │ [検索...]         │     │ │ ┌─問題詳細───────┐   │ │
-│ │ │ [ステータス▼]     │     │ │ │ タイトル        │   │ │
-│ │ └──────────────────┘     │ │ │ 状態・対象      │   │ │
-│ │                           │ │ │ 報告者・時刻    │   │ │
-│ │ ┌─Table──────────┐       │ │ │ 内容            │   │ │
-│ │ │ ○ 問題A         │       │ │ │                 │   │ │
-│ │ │   [未解決]      │       │ │ │ コメント一覧    │   │ │
-│ │ │ ◉ 問題B (選択中) │       │ │ │                 │   │ │
-│ │ │   [解決済]      │       │ │ │ [コメント入力]  │   │ │
-│ │ │ ○ 問題C         │       │ │ │                 │   │ │
-│ │ │   [未解決]      │       │ │ │ [送信] [未解決]  │   │ │
-│ │ │ ...             │       │ │ │ [解決]          │   │ │
-│ │ └─────────────────┘       │ │ └─────────────────┘   │ │
-│ └───────────────────────────┘ └─────────────────────────┘ │
-│ 高さ: calc(70vh - 100px)                                     │
-└──────────────────────────────────────────────────────────────┘
+━EBody: 2カラムレイアウチE(Row/Col)                             ━E
+━E┌─左側�E�Eol span=10�E�───────━E┌─右側�E�Eol span=14�E�─────━E━E
+━E━ECard: 問題一覧             ━E━ECard: 問題詳細 or 新要E ━E━E
+━E━E┌─検索・フィルター──━E    ━E━E                        ━E━E
+━E━E━E[検索...]         ━E    ━E━E┌─問題詳細───────━E  ━E━E
+━E━E━E[スチE�Eタス▼]     ━E    ━E━E━Eタイトル        ━E  ━E━E
+━E━E└──────────────────━E    ━E━E━E状態�E対象      ━E  ━E━E
+━E━E                          ━E━E━E報告老E�E時刻    ━E  ━E━E
+━E━E┌─Table──────────━E      ━E━E━E冁E��            ━E  ━E━E
+━E━E━E◁E問題A         ━E      ━E━E━E                ━E  ━E━E
+━E━E━E  [未解決]      ━E      ━E━E━Eコメント一覧    ━E  ━E━E
+━E━E━E◁E問題B (選択中) ━E      ━E━E━E                ━E  ━E━E
+━E━E━E  [解決渁E      ━E      ━E━E━E[コメント�E力]  ━E  ━E━E
+━E━E━E◁E問題C         ━E      ━E━E━E                ━E  ━E━E
+━E━E━E  [未解決]      ━E      ━E━E━E[送信] [未解決]  ━E  ━E━E
+━E━E━E...             ━E      ━E━E━E[解決]          ━E  ━E━E
+━E━E└─────────────────━E      ━E━E└─────────────────━E  ━E━E
+━E└───────────────────────────━E└─────────────────────────━E━E
+━E高さ: calc(70vh - 100px)                                     ━E
+└──────────────────────────────────────────────────────────────━E
 
-モーダル幅: 1200px
+モーダル幁E 1200px
 モーダルトップ位置: 20px
 destroyOnHidden: true
 ```
 
-### 2.3 使用コンポーネント
+### 2.3 使用コンポ�EネンチE
 
-#### Ant Design コンポーネント
+#### Ant Design コンポ�EネンチE
 - `Modal` - モーダルダイアログ
-- `Row` / `Col` - 2カラムレイアウト
-- `Card` - 問題一覧カード、問題詳細カード
-- `Table` - 問題一覧テーブル
+- `Row` / `Col` - 2カラムレイアウチE
+- `Card` - 問題一覧カード、問題詳細カーチE
+- `Table` - 問題一覧チE�Eブル
 - `List` - コメント一覧
 - `Form` - 新規問題報告フォーム
-- `Form.Item` - フォーム項目
-- `Input` - 検索、タイトル入力
-- `Input.TextArea` - 内容入力、コメント入力
-- `Select` - ステータスフィルター、対象選択、問題タイプ選択
-- `Button` - 各種ボタン
-- `Tag` - ステータスタグ
+- `Form.Item` - フォーム頁E��
+- `Input` - 検索、タイトル入劁E
+- `Input.TextArea` - 冁E��入力、コメント�E劁E
+- `Select` - スチE�Eタスフィルター、対象選択、問題タイプ選抁E
+- `Button` - 吁E��ボタン
+- `Tag` - スチE�Eタスタグ
 - `Space` - 要素間隔制御
-- `Typography.Text` / `Typography.Title` - テキスト表示
-- `Divider` - 区切り線
-- `message` - トースト通知
-- `Spin` - 問題一覧ローディング表示
+- `Typography.Text` / `Typography.Title` - チE��スト表示
+- `Divider` - 区刁E��緁E
+- `message` - ト�Eスト通知
+- `Spin` - 問題一覧ローチE��ング表示
 
 #### Reactフック
-- `useState` - 各種状態管理
-- `useMemo` - 派生値の計算（filteredIssues, selectedIssue）
-- `useEffect` - モーダルオープン時の問題一覧取得
-- `useCallback` - fetchIssues関数のメモ化
+- `useState` - 吁E��状態管琁E
+- `useMemo` - 派生値の計算！EilteredIssues, selectedIssue�E�E
+- `useEffect` - モーダルオープン時�E問題一覧取征E
+- `useCallback` - fetchIssues関数のメモ匁E
 
 #### アイコン
 - `ExclamationCircleOutlined` - 未解決アイコン
@@ -110,23 +110,23 @@ destroyOnHidden: true
 
 ```typescript
 interface IssueManagementModalProps {
-  open: boolean;                       // モーダルの表示状態
+  open: boolean;                       // モーダルの表示状慁E
   /** タイトルに表示する名前 */
   targetName: string;
-  /** 問題一覧取得・新規報告に必要なプロジェクトID */
+  /** 問題一覧取得�E新規報告に忁E��なプロジェクチED */
   projectId: string;
-  /** コメント追加・ステータス変更に必要なプロジェクト名 */
+  /** コメント追加・スチE�Eタス変更に忁E��なプロジェクト名 */
   projectName: string;
-  /** オプション: 省略時はプロジェクト全件を取得 */
+  /** オプション: 省略時�Eプロジェクト�E件を取征E*/
   methodId?: string;
-  /** オプション: タスク単位の絞り込みに使用 */
+  /** オプション: タスク単位�E絞り込みに使用 */
   taskNo?: number;
-  /** オプション: トランジション単位の絞り込みに使用 */
+  /** オプション: トランジション単位�E絞り込みに使用 */
   transitionId?: string;
   onClose: () => void;                 // 閉じるイベントハンドラ
-  viewMode?: boolean;                  // 参照専用モード（デフォルト: false）
+  viewMode?: boolean;                  // 参�E専用モード（デフォルチE false�E�E
   filterTaskId?: string;               // フィルタリング用タスクID
-  projectStatus?: ProjectStatus | null; // プロジェクトステータス（編集可否の判定用）
+  projectStatus?: ProjectStatus | null; // プロジェクトスチE�Eタス�E�編雁E��否の判定用�E�E
 }
 
 interface Issue {
@@ -164,47 +164,47 @@ interface IssueReportFormData {
 
 **Props詳細:**
 - `open`: モーダルの表示/非表示を制御
-- `targetName`: タイトルに表示する名前（トランジション名など）
-- `projectId`: 問題一覧取得・新規報告に使用するプロジェクトID
-- `projectName`: コメント追加・ステータス変更APIに使用するプロジェクト名
-- `methodId`: 絞り込み用メソッドID（オプション、省略時はプロジェクト全件を取得）
-- `taskNo`: タスク単位の絞り込みに使用するタスク番号（オプション）
-- `transitionId`: トランジション単位の絞り込みに使用するID（オプション）
+- `targetName`: タイトルに表示する名前�E�トランジション名など�E�E
+- `projectId`: 問題一覧取得�E新規報告に使用するプロジェクチED
+- `projectName`: コメント追加・スチE�Eタス変更APIに使用するプロジェクト名
+- `methodId`: 絞り込み用メソチE��ID�E�オプション、省略時�Eプロジェクト�E件を取得！E
+- `taskNo`: タスク単位�E絞り込みに使用するタスク番号�E�オプション�E�E
+- `transitionId`: トランジション単位�E絞り込みに使用するID�E�オプション�E�E
 - `onClose`: モーダルを閉じるハンドラ
-- `viewMode`: true の場合、参照専用モード（編集・新規作成不可）
-- `filterTaskId`: 指定した場合、そのタスクIDの問題のみ表示
-- `projectStatus`: プロジェクトのステータス（'waiting_approval'の場合は編集不可）
+- `viewMode`: true の場合、参照専用モード（編雁E�E新規作�E不可�E�E
+- `filterTaskId`: 持E��した場合、そのタスクIDの問題�Eみ表示
+- `projectStatus`: プロジェクト�EスチE�Eタス�E�Ewaiting_approval'の場合�E編雁E��可�E�E
 
-> **設計変更について:**
-> 旧設計では `issues` Props として親コンポーネントから問題一覧を受け取り、`onSubmitIssue` / `onSubmitComment` / `onUpdateStatus` コールバックを通じて操作していた。
-> 現行設計では、コンポーネント内部で `issueApiService` を直接呼び出す設計に変更されており、親コンポーネントからのデータ受け渡しは不要になっている。
+> **設計変更につぁE��:**
+> 旧設計では `issues` Props として親コンポ�Eネントから問題一覧を受け取り、`onSubmitIssue` / `onSubmitComment` / `onUpdateStatus` コールバックを通じて操作してぁE��、E
+> 現行設計では、コンポ�Eネント�E部で `issueApiService` を直接呼び出す設計に変更されており、親コンポ�Eネントから�EチE�Eタ受け渡し�E不要になってぁE��、E
 
 ---
 
-## 4. State（内部状態）
+## 4. State�E��E部状態！E
 
 ### 4.1 状態変数
 
 ```typescript
 const [form] = Form.useForm();                          // 新規問題報告フォーム
 
-// 問題一覧（内部state: コンポーネント内部でAPIから取得）
+// 問題一覧�E��E部state: コンポ�Eネント�E部でAPIから取得！E
 const [issues, setIssues] = useState<Issue[]>([]);
 const [issuesLoading, setIssuesLoading] = useState(false);
 
 // 選択中の問題IDのみをstateで保持する
-// selectedIssue 自体は issues state から useMemo で導出することで、
-// 再取得のたびに自動的に最新データが反映される
+// selectedIssue 自体�E issues state から useMemo で導�Eすることで、E
+// 再取得�Eた�Eに自動的に最新チE�Eタが反映されめE
 const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);  // 選択中の問題ID
 
-const [showNewIssueForm, setShowNewIssueForm] = useState(false);         // 新規報告フォーム表示状態
-const [newComment, setNewComment] = useState('');                        // 新規コメントテキスト
+const [showNewIssueForm, setShowNewIssueForm] = useState(false);         // 新規報告フォーム表示状慁E
+const [newComment, setNewComment] = useState('');                        // 新規コメントテキスチE
 
 // フィルタリング用
-const [searchText, setSearchText] = useState('');                        // 検索テキスト
-const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');  // ステータスフィルター
+const [searchText, setSearchText] = useState('');                        // 検索チE��スチE
+const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');  // スチE�Eタスフィルター
 
-// 問題一覧を再取得する関数
+// 問題一覧を�E取得する関数
 const fetchIssues = useCallback(async () => {
   if (!projectId) return;
   setIssuesLoading(true);
@@ -219,32 +219,32 @@ const fetchIssues = useCallback(async () => {
   }
 }, [projectId, methodId, taskNo, transitionId]);
 
-// モーダルが開いた時に問題一覧を取得する
+// モーダルが開ぁE��時に問題一覧を取得すめE
 useEffect(() => {
   if (open) {
     fetchIssues();
   }
 }, [open, fetchIssues]);
 
-// 選択中の問題を issues state から導出する（useMemo）
-// issues が更新（コメント送信・ステータス変更後の再取得）されると
-// selectedIssue も自動的に最新データに追随し、コメント一覧が即時更新される
+// 選択中の問題を issues state から導�Eする�E�EseMemo�E�E
+// issues が更新�E�コメント送信・スチE�Eタス変更後�E再取得）されると
+// selectedIssue も�E動的に最新チE�Eタに追随し、コメント一覧が即時更新されめE
 const selectedIssue = useMemo(
   () => issues.find((issue) => issue.issueId === selectedIssueId) ?? null,
   [issues, selectedIssueId]
 );
 ```
 
-**設計ポイント:**
-- `issues` はPropsではなく内部Stateとして保持し、コンポーネント内部でAPIから取得する
-- `selectedIssue` はstateではなく `useMemo` で導出される派生値
-- `issues` stateが変化するたびに自動再計算されるため、コメント送信後の即時表示が実現される
-- `fetchIssues` は `useCallback` でメモ化し、`useEffect` の依存配列に安全に渡す
-- 各操作（問題報告・コメント送信・ステータス変更）後に `fetchIssues()` を再呼び出しして最新状態を反映する
+**設計�EインチE**
+- `issues` はPropsではなく�E部Stateとして保持し、コンポ�Eネント�E部でAPIから取得すめE
+- `selectedIssue` はstateではなぁE`useMemo` で導�Eされる派生値
+- `issues` stateが変化するた�Eに自動�E計算されるため、コメント送信後�E即時表示が実現されめE
+- `fetchIssues` は `useCallback` でメモ化し、`useEffect` の依存�E列に安�Eに渡ぁE
+- 吁E��作（問題報告�Eコメント送信・スチE�Eタス変更�E�後に `fetchIssues()` を�E呼び出しして最新状態を反映する
 
-### 4.2 使用APIサービス（issueApiService）
+### 4.2 使用APIサービス�E�EssueApiService�E�E
 
-このコンポーネントは `@/services/issueApiService` を直接インポートして使用します。
+こ�Eコンポ�Eネント�E `@/services/issueApiService` を直接インポ�Eトして使用します、E
 
 ```typescript
 import {
@@ -255,64 +255,64 @@ import {
 } from '@/services/issueApiService';
 ```
 
-| 関数 | 用途 | 呼び出しタイミング |
+| 関数 | 用送E| 呼び出しタイミング |
 |------|------|-----------------|
-| `getIssues({ projectId, methodId, taskNo, transitionId })` | 問題一覧取得 | モーダルオープン時・各操作後 |
-| `createIssue({ projectId, methodId, issueType, targetType, taskNo, transitionId, title, description })` | 新規問題報告 | 保存ボタンクリック時 |
-| `addComment({ projectName, issueId, comment })` | コメント追加 | コメント送信・ステータス変更時 |
-| `updateIssueStatus({ projectName, issueId, status })` | ステータス変更 | 未解決/解決ボタンクリック時 |
+| `getIssues({ projectId, methodId, taskNo, transitionId })` | 問題一覧取征E| モーダルオープン時�E吁E��作征E|
+| `createIssue({ projectId, methodId, issueType, targetType, taskNo, transitionId, title, description })` | 新規問題報呁E| 保存�EタンクリチE��晁E|
+| `addComment({ projectName, issueId, comment })` | コメント追加 | コメント送信・スチE�Eタス変更晁E|
+| `updateIssueStatus({ projectName, issueId, status })` | スチE�Eタス変更 | 未解決/解決ボタンクリチE��晁E|
 
 **再取得パターン:**
 
-各操作完了後は必ず `fetchIssues()` を呼び出し、最新状態を反映します。
+吁E��作完亁E���E忁E�� `fetchIssues()` を呼び出し、最新状態を反映します、E
 
 ```
-ユーザー操作
-  ↓
-APIを直接呼び出し（createIssue / addComment / updateIssueStatus）
-  ↓
-成功メッセージ表示
-  ↓
-fetchIssues() で一覧を再取得
-  ↓
+ユーザー操佁E
+  ↁE
+APIを直接呼び出し！EreateIssue / addComment / updateIssueStatus�E�E
+  ↁE
+成功メチE��ージ表示
+  ↁE
+fetchIssues() で一覧を�E取征E
+  ↁE
 issues state が更新
-  ↓
-selectedIssue（useMemo）が自動的に最新状態に追随
+  ↁE
+selectedIssue�E�EseMemo�E�が自動的に最新状態に追隁E
 ```
 
-### 4.3 編集可否の判定
+### 4.3 編雁E��否の判宁E
 
 ```typescript
-// プロジェクトが承認依頼中の場合は編集不可
+// プロジェクトが承認依頼中の場合�E編雁E��可
 const isApprovalPending = projectStatus === 'waiting_approval';
 const isEditDisabled = viewMode || isApprovalPending;
 ```
 
-**編集不可条件:**
-- `viewMode === true`（参照専用モード）
-- `projectStatus === 'waiting_approval'`（承認依頼中）
+**編雁E��可条件:**
+- `viewMode === true`�E�参照専用モード！E
+- `projectStatus === 'waiting_approval'`�E�承認依頼中�E�E
 
 ---
 
-## 5. データフィルタリング
+## 5. チE�Eタフィルタリング
 
-### 5.1 フィルタリングロジック
+### 5.1 フィルタリングロジチE��
 
 ```typescript
 const filteredIssues = useMemo(() => {
   return issues.filter((issue) => {
-    // タスクIDフィルタ（参照専用モード用）
+    // タスクIDフィルタ�E�参照専用モード用�E�E
     if (filterTaskId && issue.taskId !== filterTaskId) {
       return false;
     }
     
-    // あいまい検索（タイトル、内容）
+    // あいまぁE��索�E�タイトル、�E容�E�E
     const matchesSearch =
       searchText === '' ||
       issue.title.toLowerCase().includes(searchText.toLowerCase()) ||
       issue.content.toLowerCase().includes(searchText.toLowerCase());
 
-    // ステータスフィルタ
+    // スチE�Eタスフィルタ
     const matchesStatus =
       statusFilter === 'all' || issue.status === statusFilter;
 
@@ -322,24 +322,24 @@ const filteredIssues = useMemo(() => {
 ```
 
 **フィルター条件:**
-1. **タスクIDフィルター**（`filterTaskId`が指定されている場合）
-   - 指定されたタスクIDの問題のみ表示
+1. **タスクIDフィルター**�E�EfilterTaskId`が指定されてぁE��場合！E
+   - 持E��されたタスクIDの問題�Eみ表示
 
-2. **あいまい検索**（`searchText`）
-   - タイトル（部分一致、大文字小文字無視）
-   - 内容（部分一致、大文字小文字無視）
+2. **あいまぁE��索**�E�EsearchText`�E�E
+   - タイトル�E�部刁E��致、大斁E��小文字無視！E
+   - 冁E���E�部刁E��致、大斁E��小文字無視！E
 
-3. **ステータスフィルター**（`statusFilter`）
+3. **スチE�Eタスフィルター**�E�EstatusFilter`�E�E
    - `'all'`: すべて表示
    - `'unresolved'`: 未解決のみ
-   - `'resolved'`: 解決済のみ
+   - `'resolved'`: 解決済�Eみ
 
-**論理演算:**
+**論理演箁E**
 - 全ての条件をAND結合
 
 ---
 
-## 6. 問題一覧（左側カラム）
+## 6. 問題一覧�E�左側カラム�E�E
 
 ### 6.1 検索・フィルターUI
 
@@ -367,7 +367,7 @@ const filteredIssues = useMemo(() => {
 </Space>
 ```
 
-### 6.2 テーブル列定義（2行表示）
+### 6.2 チE�Eブル列定義�E�E行表示�E�E
 
 ```typescript
 const columns: ColumnsType<Issue> = [
@@ -398,11 +398,11 @@ const columns: ColumnsType<Issue> = [
 ];
 ```
 
-**表示内容:**
-- **上段**: タイトル（太字、14px）
-- **下段**: ステータスタグ + 対象タイプと対象名（グレー、12px）
+**表示冁E��:**
+- **上段**: タイトル�E�太字、E4px�E�E
+- **下段**: スチE�Eタスタグ + 対象タイプと対象名（グレー、E2px�E�E
 
-### 6.3 行クリックイベント
+### 6.3 行クリチE��イベンチE
 
 ```typescript
 onRow={(record) => ({
@@ -417,12 +417,12 @@ onRow={(record) => ({
 })}
 ```
 
-**動作:**
-- 行クリックで問題を選択
-- 選択行は背景色 `#e6f7ff`（水色）
+**動佁E**
+- 行クリチE��で問題を選抁E
+- 選択行�E背景色 `#e6f7ff`�E�水色�E�E
 - カーソルはポインター
 
-### 6.4 ステータスタグの表示
+### 6.4 スチE�Eタスタグの表示
 
 ```typescript
 const getStatusTag = (status: IssueStatus) => {
@@ -441,26 +441,26 @@ const getStatusTag = (status: IssueStatus) => {
 };
 ```
 
-| ステータス | アイコン | カラー | 表示テキスト |
+| スチE�Eタス | アイコン | カラー | 表示チE��スチE|
 |-----------|---------|-------|-------------|
-| resolved | CheckCircleOutlined | success（緑） | 解決済 |
-| unresolved | ExclamationCircleOutlined | warning（オレンジ） | 未解決 |
+| resolved | CheckCircleOutlined | success�E�緑！E| 解決渁E|
+| unresolved | ExclamationCircleOutlined | warning�E�オレンジ�E�E| 未解決 |
 
 ---
 
-## 7. 問題詳細（右側カラム）
+## 7. 問題詳細�E�右側カラム�E�E
 
-### 7.1 表示状態の切り替え
+### 7.1 表示状態�E刁E��替ぁE
 
-右側カラムには以下の3つの状態があります：
+右側カラムには以下�E3つの状態があります！E
 
-1. **問題未選択時**: 「問題を選択してください」テキスト
+1. **問題未選択時**: 「問題を選択してください」テキスチE
 2. **新規問題報告時**: 新規問題報告フォーム
 3. **問題選択時**: 問題詳細表示
 
-### 7.2 問題詳細の表示内容
+### 7.2 問題詳細の表示冁E��
 
-#### 基本情報
+#### 基本惁E��
 
 ```typescript
 <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
@@ -482,7 +482,7 @@ const getStatusTag = (status: IssueStatus) => {
     </div>
   </Space>
   
-  {/* 報告者と時刻 */}
+  {/* 報告老E��時刻 */}
   <Space size="large">
     <div>
       <Text type="secondary">{t('issueManagement.details.reportedBy')}: </Text>
@@ -496,7 +496,7 @@ const getStatusTag = (status: IssueStatus) => {
 </Space>
 ```
 
-#### 内容
+#### 冁E��
 
 ```typescript
 <div style={{ marginBottom: 16 }}>
@@ -536,7 +536,7 @@ const getStatusTag = (status: IssueStatus) => {
               {new Date(comment.createdAt).toLocaleString('ja-JP')}
             </Text>
           </div>
-          {/* コメント内容 */}
+          {/* コメント�E容 */}
           <div style={{
             padding: 8,
             backgroundColor: '#f5f5f5',
@@ -555,10 +555,10 @@ const getStatusTag = (status: IssueStatus) => {
 **特徴:**
 - コメント数を表示
 - 最大高さ200px、スクロール可能
-- 各コメントは投稿者名、投稿時刻、内容を表示
-- 投稿時刻は日本語ロケールでフォーマット
+- 吁E��メント�E投稿老E��、投稿時刻、�E容を表示
+- 投稿時刻は日本語ロケールでフォーマッチE
 
-#### コメント入力（viewModeでは非表示）
+#### コメント�E力！EiewModeでは非表示�E�E
 
 ```typescript
 <div style={{ marginBottom: 16 }}>
@@ -576,13 +576,13 @@ const getStatusTag = (status: IssueStatus) => {
 </div>
 ```
 
-**設定:**
-- 行数: 3行
-- 最大文字数: 500文字
-- 文字数カウント表示: あり
+**設宁E**
+- 行数: 3衁E
+- 最大斁E��数: 500斁E��E
+- 斁E��数カウント表示: あり
 - 承認依頼中は非活性
 
-#### ボタンエリア（viewModeでは非表示）
+#### ボタンエリア�E�EiewModeでは非表示�E�E
 
 ```typescript
 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
@@ -617,13 +617,13 @@ const getStatusTag = (status: IssueStatus) => {
 
 | ボタン | 活性条件 |
 |--------|---------|
-| コメント送信 | コメントが入力されている かつ 編集可能 |
-| 未解決 | コメントが入力されている かつ 現在のステータスが「解決済」 かつ 編集可能 |
-| 解決 | コメントが入力されている かつ 現在のステータスが「未解決」 かつ 編集可能 |
+| コメント送信 | コメントが入力されてぁE�� かつ 編雁E��能 |
+| 未解決 | コメントが入力されてぁE�� かつ 現在のスチE�Eタスが「解決済、Eかつ 編雁E��能 |
+| 解決 | コメントが入力されてぁE�� かつ 現在のスチE�Eタスが「未解決、Eかつ 編雁E��能 |
 
-**ボタンのtooltip（承認依頼中）:**
+**ボタンのtooltip�E�承認依頼中�E�E**
 
-承認依頼中（`isApprovalPending === true`）の場合、各ボタンに以下の `title` tooltipが表示されます：
+承認依頼中�E�EisApprovalPending === true`�E��E場合、各ボタンに以下�E `title` tooltipが表示されます！E
 
 | ボタン | tooltip |
 |--------|---------|
@@ -635,7 +635,7 @@ const getStatusTag = (status: IssueStatus) => {
 
 ## 8. 新規問題報告フォーム
 
-### 8.1 フォーム項目
+### 8.1 フォーム頁E��
 
 ```typescript
 <Form form={form} layout="vertical">
@@ -681,12 +681,12 @@ const getStatusTag = (status: IssueStatus) => {
     rules={[
       { required: true, message: t('issueManagement.form.contentRequired') },
       { min: 10, message: t('issueManagement.form.contentMinLength') },
+      { max: 1000, message: t('issueManagement.form.contentMaxLength') },
     ]}
   >
     <TextArea
       rows={8}
       placeholder={t('issueManagement.form.contentPlaceholder')}
-      maxLength={1000}
       showCount
     />
   </Form.Item>
@@ -704,50 +704,50 @@ const getStatusTag = (status: IssueStatus) => {
 </Form>
 ```
 
-### 8.2 フォーム項目詳細
+### 8.2 フォーム頁E��詳細
 
-| 項目 | 入力タイプ | バリデーション | 初期値 |
+| 頁E�� | 入力タイチE| バリチE�Eション | 初期値 |
 |------|-----------|---------------|--------|
-| タイトル | Input | 必須、最大100文字 | - |
-| 対象 | Select | 必須 | 'transition' |
-| 問題タイプ | Select | 必須 | - |
-| 内容 | TextArea | 必須、最小10文字、最大1000文字 | - |
+| タイトル | Input | 忁E��、最大100斁E��E| - |
+| 対象 | Select | 忁E��E| 'transition' |
+| 問題タイチE| Select | 忁E��E| - |
+| 冁E�� | TextArea | 忁E��、最封E0斁E��、最大1000斁E��E| - |
 
-### 8.3 問題タイプの選択肢
+### 8.3 問題タイプ�E選択肢
 
-問題タイプの選択肢は **コードマスターAPI** から動的に取得します。ハードコードはしていません。
+問題タイプ�E選択肢は **コード�EスターAPI** から動的に取得します。ハードコード�EしてぁE��せん、E
 
 **API:** `GET /api/v1/code-master/issue_type/options`
 
-**取得方法:** `useCodeMaster('issue_type')` カスタムフックを使用
+**取得方況E** `useCodeMaster('issue_type')` カスタムフックを使用
 
 ```typescript
-// コンポーネント内で自動取得
+// コンポ�Eネント�Eで自動取征E
 const { options: issueTypeOptions, loading: issueTypeLoading } = useCodeMaster('issue_type');
 ```
 
-**選択肢の管理:** `code_master` テーブルの `code_division = 'issue_type'` レコードで管理します。
-選択肢の追加・変更・削除はDBのみで対応可能です（フロントエンドの変更不要）。
+**選択肢の管琁E** `code_master` チE�Eブルの `code_division = 'issue_type'` レコードで管琁E��ます、E
+選択肢の追加・変更・削除はDBのみで対応可能です（フロントエンド�E変更不要E��、E
 
 ---
 
-## 9. イベント
+## 9. イベンチE
 
 ### 9.1 イベント一覧
 
-| イベント名 | トリガー | 処理内容 |
+| イベント名 | トリガー | 処琁E�E容 |
 |-----------|---------|---------|
-| handleSelectIssue | 問題行クリック | 問題を選択して詳細を表示 |
-| handleNewIssueClick | 新規問題報告ボタンクリック | 新規報告フォームを表示 |
-| handleSubmitNewIssue | 保存ボタンクリック | 新規問題を報告 |
-| handleCommentSubmit | コメント送信ボタンクリック | コメントを送信 |
-| handleSetUnresolved | 未解決ボタンクリック | ステータスを「未解決」に変更してコメントを送信 |
-| handleSetResolved | 解決ボタンクリック | ステータスを「解決済」に変更してコメントを送信 |
-| handleClose | キャンセルボタンクリック | モーダルを閉じて状態をリセット |
+| handleSelectIssue | 問題行クリチE�� | 問題を選択して詳細を表示 |
+| handleNewIssueClick | 新規問題報告�EタンクリチE�� | 新規報告フォームを表示 |
+| handleSubmitNewIssue | 保存�EタンクリチE�� | 新規問題を報呁E|
+| handleCommentSubmit | コメント送信ボタンクリチE�� | コメントを送信 |
+| handleSetUnresolved | 未解決ボタンクリチE�� | スチE�Eタスを「未解決」に変更してコメントを送信 |
+| handleSetResolved | 解決ボタンクリチE�� | スチE�Eタスを「解決済」に変更してコメントを送信 |
+| handleClose | キャンセルボタンクリチE�� | モーダルを閉じて状態をリセチE�� |
 
 ### 9.2 イベント詳細
 
-#### handleSubmitNewIssue（新規問題報告）
+#### handleSubmitNewIssue�E�新規問題報告！E
 
 ```typescript
 const handleSubmitNewIssue = async () => {
@@ -768,7 +768,7 @@ const handleSubmitNewIssue = async () => {
     message.success(t('issueManagement.messages.issueReported'));
     form.resetFields();
     setShowNewIssueForm(false);
-    // 一覧を再取得
+    // 一覧を�E取征E
     await fetchIssues();
   } catch (error) {
     if (error && typeof error === 'object' && 'errorFields' in error) {
@@ -781,15 +781,15 @@ const handleSubmitNewIssue = async () => {
 };
 ```
 
-**処理フロー:**
-1. フォームのバリデーション
-2. `createIssue()` APIを直接呼び出し
-3. 成功メッセージ表示
-4. フォームをリセット
+**処琁E��ロー:**
+1. フォームのバリチE�Eション
+2. `createIssue()` APIを直接呼び出ぁE
+3. 成功メチE��ージ表示
+4. フォームをリセチE��
 5. 新規報告フォームを閉じる
-6. `fetchIssues()` で一覧を再取得
+6. `fetchIssues()` で一覧を�E取征E
 
-#### handleCommentSubmit（コメント送信）
+#### handleCommentSubmit�E�コメント送信�E�E
 
 ```typescript
 const handleCommentSubmit = async () => {
@@ -809,7 +809,7 @@ const handleCommentSubmit = async () => {
 
     message.success(t('issueManagement.messages.commentPosted'));
     setNewComment('');
-    // 一覧を再取得（コメントが追加された状態を反映）
+    // 一覧を�E取得（コメントが追加された状態を反映�E�E
     await fetchIssues();
   } catch (error) {
     console.error('[IssueManagementModal] handleCommentSubmit error:', error);
@@ -818,15 +818,15 @@ const handleCommentSubmit = async () => {
 };
 ```
 
-**処理フロー:**
-1. 問題選択確認
-2. コメント入力確認
-3. `addComment()` APIを直接呼び出し
-4. 成功メッセージ表示
+**処琁E��ロー:**
+1. 問題選択確誁E
+2. コメント�E力確誁E
+3. `addComment()` APIを直接呼び出ぁE
+4. 成功メチE��ージ表示
 5. コメントをクリア
-6. `fetchIssues()` で一覧を再取得
+6. `fetchIssues()` で一覧を�E取征E
 
-#### handleSetUnresolved（未解決に変更）
+#### handleSetUnresolved�E�未解決に変更�E�E
 
 ```typescript
 const handleSetUnresolved = async () => {
@@ -838,7 +838,7 @@ const handleSetUnresolved = async () => {
   }
 
   try {
-    // コメントを送信してからステータスを更新
+    // コメントを送信してからスチE�Eタスを更新
     await addComment({
       projectName,
       issueId: selectedIssue.issueId,
@@ -852,7 +852,7 @@ const handleSetUnresolved = async () => {
 
     message.success(t('issueManagement.messages.setUnresolved'));
     setNewComment('');
-    // 一覧を再取得
+    // 一覧を�E取征E
     await fetchIssues();
   } catch (error) {
     console.error('[IssueManagementModal] handleSetUnresolved error:', error);
@@ -861,16 +861,16 @@ const handleSetUnresolved = async () => {
 };
 ```
 
-**処理フロー:**
-1. 問題選択確認
-2. コメント入力確認
-3. `addComment()` APIを直接呼び出し
-4. `updateIssueStatus()` APIを直接呼び出し（`'unresolved'` を渡す）
-5. 成功メッセージ表示
+**処琁E��ロー:**
+1. 問題選択確誁E
+2. コメント�E力確誁E
+3. `addComment()` APIを直接呼び出ぁE
+4. `updateIssueStatus()` APIを直接呼び出し！E'unresolved'` を渡す！E
+5. 成功メチE��ージ表示
 6. コメントをクリア
-7. `fetchIssues()` で一覧を再取得
+7. `fetchIssues()` で一覧を�E取征E
 
-#### handleSetResolved（解決済に変更）
+#### handleSetResolved�E�解決済に変更�E�E
 
 ```typescript
 const handleSetResolved = async () => {
@@ -882,7 +882,7 @@ const handleSetResolved = async () => {
   }
 
   try {
-    // コメントを送信してからステータスを更新
+    // コメントを送信してからスチE�Eタスを更新
     await addComment({
       projectName,
       issueId: selectedIssue.issueId,
@@ -896,7 +896,7 @@ const handleSetResolved = async () => {
 
     message.success(t('issueManagement.messages.setResolved'));
     setNewComment('');
-    // 一覧を再取得
+    // 一覧を�E取征E
     await fetchIssues();
   } catch (error) {
     console.error('[IssueManagementModal] handleSetResolved error:', error);
@@ -905,16 +905,16 @@ const handleSetResolved = async () => {
 };
 ```
 
-**処理フロー:**
-1. 問題選択確認
-2. コメント入力確認
-3. `addComment()` APIを直接呼び出し
-4. `updateIssueStatus()` APIを直接呼び出し（`'resolved'` を渡す）
-5. 成功メッセージ表示
+**処琁E��ロー:**
+1. 問題選択確誁E
+2. コメント�E力確誁E
+3. `addComment()` APIを直接呼び出ぁE
+4. `updateIssueStatus()` APIを直接呼び出し！E'resolved'` を渡す！E
+5. 成功メチE��ージ表示
 6. コメントをクリア
-7. `fetchIssues()` で一覧を再取得
+7. `fetchIssues()` で一覧を�E取征E
 
-#### handleClose（モーダルを閉じる）
+#### handleClose�E�モーダルを閉じる�E�E
 
 ```typescript
 const handleClose = () => {
@@ -927,19 +927,19 @@ const handleClose = () => {
 };
 ```
 
-**処理フロー:**
+**処琁E��ロー:**
 1. 選択中の問題IDをクリア
 2. 新規報告フォームを非表示
-3. フォームをリセット
+3. フォームをリセチE��
 4. コメントをクリア
 5. 問題一覧をクリア
-6. `onClose`コールバック実行
+6. `onClose`コールバック実衁E
 
 ---
 
-## 10. ヘルパー関数
+## 10. ヘルパ�E関数
 
-### 10.1 対象タイプの表示テキスト取得
+### 10.1 対象タイプ�E表示チE��スト取征E
 
 ```typescript
 const getTargetTypeText = (targetType: IssueTargetType) => {
@@ -952,7 +952,7 @@ const getTargetTypeText = (targetType: IssueTargetType) => {
 };
 ```
 
-### 10.2 対象名の取得
+### 10.2 対象名�E取征E
 
 ```typescript
 const getTargetName = (issue: Issue): string => {
@@ -995,18 +995,18 @@ const getTargetName = (issue: Issue): string => {
 ```
 
 **特徴:**
-- モーダル幅: 1200px
-- トップ位置: 20px（画面上部に近づける）
-- カスタムタイトル: 警告アイコン（オレンジ色）+ テキスト
-  - `viewMode` が `true` の場合: `問題確認 - {targetName}`
-  - `viewMode` が `false` の場合: `問題報告 - {targetName}`
-- フッターなし（`footer={null}`）
-- `destroyOnHidden={true}`: モーダルが非表示になる度にコンポーネントを破棄（`destroyOnClose` の後継API）
+- モーダル幁E 1200px
+- トップ位置: 20px�E�画面上部に近づける�E�E
+- カスタムタイトル: 警告アイコン�E�オレンジ色�E�E チE��スチE
+  - `viewMode` ぁE`true` の場吁E `問題確誁E- {targetName}`
+  - `viewMode` ぁE`false` の場吁E `問題報呁E- {targetName}`
+- フッターなし！Efooter={null}`�E�E
+- `destroyOnHidden={true}`: モーダルが非表示になる度にコンポ�Eネントを破棁E��EdestroyOnClose` の後継API�E�E
 
 ### 11.2 カードスタイル
 
 ```typescript
-// 左側カード（問題一覧）
+// 左側カード（問題一覧�E�E
 <Card
   title="問題一覧"
   size="small"
@@ -1014,21 +1014,21 @@ const getTargetName = (issue: Issue): string => {
   styles={{ body: { padding: 12, overflow: 'auto', height: 'calc(100% - 38px)' } }}
 >
 
-// 右側カード（問題詳細）
+// 右側カード（問題詳細�E�E
 <Card
-  title={showNewIssueForm ? '新規問題報告' : '問題詳細'}
+  title={showNewIssueForm ? '新規問題報呁E : '問題詳細'}
   size="small"
   style={{ height: 'calc(70vh - 100px)' }}
   styles={{ body: { padding: 16, overflow: 'auto', height: 'calc(100% - 38px)' } }}
 >
 ```
 
-**カードの高さ:**
-- 全体: `calc(70vh - 100px)`（ビューポート高さの70%から100pxを引く）
-- ボディ: `calc(100% - 38px)`（カードヘッダー分を除く）
-- オーバーフロー: auto（スクロール可能）
+**カード�E高さ:**
+- 全佁E `calc(70vh - 100px)`�E�ビューポ�Eト高さの70%から100pxを引く�E�E
+- ボディ: `calc(100% - 38px)`�E�カード�EチE��ー刁E��除く！E
+- オーバ�Eフロー: auto�E�スクロール可能�E�E
 
-### 11.3 選択行のハイライト
+### 11.3 選択行�EハイライチE
 
 ```typescript
 style: {
@@ -1040,8 +1040,8 @@ style: {
 },
 ```
 
-**選択行:**
-- 背景色: `#e6f7ff`（水色）
+**選択衁E**
+- 背景色: `#e6f7ff`�E�水色�E�E
 - カーソル: pointer
 
 ### 11.4 解決ボタンのカスタムスタイル
@@ -1055,52 +1055,52 @@ style={{
 ```
 
 **動的スタイル:**
-- 活性時（コメント入力済 かつ 未解決 かつ 編集可能）: 緑色の背景とボーダー、白文字
-- 非活性時: デフォルトスタイル
+- 活性時（コメント�E力渁Eかつ 未解決 かつ 編雁E��能�E�E 緑色の背景とボ�Eダー、白斁E��E
+- 非活性晁E チE��ォルトスタイル
 
 ---
 
-## 12. アクセシビリティ
+## 12. アクセシビリチE��
 
-### 12.1 キーボード操作
+### 12.1 キーボ�Eド操佁E
 
-- Tabキーでフォーカス移動
-- Enterキーでボタン実行、問題選択
+- Tabキーでフォーカス移勁E
+- Enterキーでボタン実行、問題選抁E
 - Escapeキーでモーダルを閉じる
 
-### 12.2 フォーカス管理
+### 12.2 フォーカス管琁E
 
-- モーダル表示時、最初のフォーム要素に自動フォーカス
-- 問題一覧の行はキーボードで選択可能
+- モーダル表示時、最初�Eフォーム要素に自動フォーカス
+- 問題一覧の行�Eキーボ�Eドで選択可能
 - ボタンの活性/非活性状態が視覚的に明確
 
-### 12.3 承認依頼中のヘルプテキスト
+### 12.3 承認依頼中のヘルプテキスチE
 
 ```typescript
-title={isApprovalPending ? 'プロジェクトが承認依頼中のため、新規問題報告はできません' : undefined}
-placeholder={isApprovalPending ? 'プロジェクトが承認依頼中のため、コメントを追加できません' : 'コメントを入力...'}
+title={isApprovalPending ? 'プロジェクトが承認依頼中のため、新規問題報告�Eできません' : undefined}
+placeholder={isApprovalPending ? 'プロジェクトが承認依頼中のため、コメントを追加できません' : 'コメントを入劁E..'}
 ```
 
-- ボタンのtooltipで理由を表示
-- プレースホルダーで理由を表示
+- ボタンのtooltipで琁E��を表示
+- プレースホルダーで琁E��を表示
 
 ---
 
-## 13. パフォーマンス考慮事項
+## 13. パフォーマンス老E�E事頁E
 
-### 13.1 useMemoによるフィルタリング最適化
+### 13.1 useMemoによるフィルタリング最適匁E
 
 ```typescript
 const filteredIssues = useMemo(() => {
   return issues.filter((issue) => {
-    // フィルタリングロジック
+    // フィルタリングロジチE��
   });
 }, [issues, searchText, statusFilter, filterTaskId]);
 ```
 
-**効果:**
-- 依存配列が変更されない限り、再計算を避ける
-- 検索テキスト入力時のパフォーマンスを改善
+**効极E**
+- 依存�E列が変更されなぁE��り、�E計算を避ける
+- 検索チE��スト�E力時のパフォーマンスを改喁E
 
 ### 13.2 destroyOnHiddenの使用
 
@@ -1108,119 +1108,119 @@ const filteredIssues = useMemo(() => {
 <Modal destroyOnHidden>
 ```
 
-**メリット:**
-- モーダルが非表示になる度にコンポーネントが破棄され、状態がリセットされる
-- メモリリークを防ぐ
+**メリチE��:**
+- モーダルが非表示になる度にコンポ�Eネントが破棁E��れ、状態がリセチE��されめE
+- メモリリークを防ぁE
 
-**デメリット:**
-- モーダルを開く度に再レンダリングが発生
-- ただし、このモーダルは複雑だが許容範囲内
+**チE��リチE��:**
+- モーダルを開く度に再レンダリングが発甁E
+- ただし、このモーダルは褁E��だが許容篁E��冁E
 
-> **Note:** `destroyOnClose` は旧APIで非推奨。Ant Design 最新版では `destroyOnHidden` を使用する。
+> **Note:** `destroyOnClose` は旧APIで非推奨、Ent Design 最新版では `destroyOnHidden` を使用する、E
 
-### 13.3 テーブルのスクロール仮想化
+### 13.3 チE�Eブルのスクロール仮想匁E
 
 ```typescript
 scroll={{ y: 'calc(70vh - 280px)' }}
 ```
 
-**効果:**
-- 大量の問題がある場合でも、スクロール可能な固定高さに制限
-- レンダリング対象を制限してパフォーマンスを維持
+**効极E**
+- 大量�E問題がある場合でも、スクロール可能な固定高さに制陁E
+- レンダリング対象を制限してパフォーマンスを維持E
 
 ---
 
-## 14. 備考
+## 14. 備老E
 
-### 14.1 特記事項
+### 14.1 特記事頁E
 
-1. **2カラムレイアウトの採用理由**
-   - 左側で問題を素早く一覧表示・選択
-   - 右側で詳細を確認・操作
-   - 効率的な問題管理ワークフローを実現
+1. **2カラムレイアウト�E採用琁E��**
+   - 左側で問題を素早く一覧表示・選抁E
+   - 右側で詳細を確認�E操佁E
+   - 効玁E��な問題管琁E��ークフローを実現
 
-2. **参照専用モード（viewMode）の目的**
-   - 実験管理者などが問題を閲覧するのみの場合に使用
-   - 編集・新規作成ボタンを非表示にして混乱を防ぐ
+2. **参�E専用モード！EiewMode�E��E目皁E*
+   - 実験管琁E��E��どが問題を閲覧するのみの場合に使用
+   - 編雁E�E新規作�Eボタンを非表示にして混乱を防ぁE
 
-3. **承認依頼中の編集制限**
-   - プロジェクトが`waiting_approval`ステータスの場合、編集不可
-   - 承認プロセス中の変更を防ぐ
-   - ツールチップで理由を明確に表示
+3. **承認依頼中の編雁E��陁E*
+   - プロジェクトが`waiting_approval`スチE�Eタスの場合、編雁E��可
+   - 承認�Eロセス中の変更を防ぁE
+   - チE�Eルチップで琁E��を�E確に表示
 
-4. **検索・フィルタリング機能の重要性**
-   - 問題数が増えても素早く目的の問題を見つけられる
-   - タイトルと内容の両方で検索可能
-   - ステータスで絞り込み可能
+4. **検索・フィルタリング機�Eの重要性**
+   - 問題数が増えても素早く目皁E�E問題を見つけられる
+   - タイトルと冁E��の両方で検索可能
+   - スチE�Eタスで絞り込み可能
 
 5. **コメント履歴の表示**
    - 過去の議論を確認できる
    - 問題解決のプロセスを追跡できる
    - 最大200pxの高さでスクロール可能
 
-6. **新規問題報告フォームの項目**
-   - タイトル: 100文字以内
-   - 対象: プロジェクト/タスク/トランジション
-   - 問題タイプ: 7種類（材料不足、機器故障など）
-   - 内容: 10〜1000文字
+6. **新規問題報告フォームの頁E��**
+   - タイトル: 100斁E��以冁E
+   - 対象: プロジェクチEタスク/トランジション
+   - 問題タイチE 7種類（材料不足、機器敁E��など�E�E
+   - 冁E��: 10、E000斁E��E
 
-7. **filterTaskIdの用途**
-   - 特定のタスクに関連する問題のみを表示
-   - 参照専用モードと組み合わせて使用
+7. **filterTaskIdの用送E*
+   - 特定�Eタスクに関連する問題�Eみを表示
+   - 参�E専用モードと絁E��合わせて使用
    - タスク単位での問題確認に便利
 
-### 14.2 将来の拡張案
+### 14.2 封E��の拡張桁E
 
-1. **優先度の設定**
-   - 高/中/低の優先度を設定
-   - 優先度で並び替え
+1. **優先度の設宁E*
+   - 髁E中/低�E優先度を設宁E
+   - 優先度で並び替ぁE
 
-2. **担当者の割り当て**
-   - 問題の解決を特定の人に依頼
-   - 担当者でフィルタリング
+2. **拁E��老E�E割り当て**
+   - 問題�E解決を特定�E人に依頼
+   - 拁E��老E��フィルタリング
 
-3. **期限の設定**
-   - 問題解決の期限を設定
-   - 期限切れを警告表示
+3. **期限の設宁E*
+   - 問題解決の期限を設宁E
+   - 期限刁E��を警告表示
 
-4. **添付ファイル機能**
-   - スクリーンショットや証拠ファイルの添付
-   - 画像のプレビュー表示
+4. **添付ファイル機�E**
+   - スクリーンショチE��めE��拠ファイルの添仁E
+   - 画像�Eプレビュー表示
 
-5. **問題のエクスポート**
-   - CSV/PDFでエクスポート
-   - レポート作成に活用
+5. **問題�Eエクスポ�EチE*
+   - CSV/PDFでエクスポ�EチE
+   - レポ�Eト作�Eに活用
 
-6. **通知機能**
+6. **通知機�E**
    - 新しいコメントが追加された時に通知
-   - ステータスが変更された時に通知
+   - スチE�Eタスが変更された時に通知
 
-7. **問題の統計表示**
-   - 未解決/解決済の件数
+7. **問題�E統計表示**
+   - 未解決/解決済�E件数
    - 問題タイプ別の件数
    - グラフ表示
 
-### 14.3 関連コンポーネント
+### 14.3 関連コンポ�EネンチE
 
-- **ProgressCheckTab**: 問題管理ボタンの呼び出し元（viewMode=false で問題報告、viewMode=true で問題確認）
-- **InstructionConfirmationTab**: 問題管理ボタンの呼び出し元
-- **Issue型**: 問題のデータ型
-- **IssueStatus型**: ステータスの型定義
-- **IssueTargetType型**: 対象タイプの型定義
+- **ProgressCheckTab**: 問題管琁E�Eタンの呼び出し�E�E�EiewMode=false で問題報告、viewMode=true で問題確認！E
+- **InstructionConfirmationTab**: 問題管琁E�Eタンの呼び出し�E
+- **Issue垁E*: 問題�EチE�Eタ垁E
+- **IssueStatus垁E*: スチE�Eタスの型定義
+- **IssueTargetType垁E*: 対象タイプ�E型定義
 
-> **廃止コンポーネント:**
-> `IssueReportModal`（`frontend/src/components/ExperimentWorker/IssueReportModal.tsx`）は API 未実装のまま放置されていたため、2026-03-25 に削除されました。
-> 問題報告機能は本コンポーネント（`IssueManagementModal`）の `viewMode=false` で提供します。
+> **廁E��コンポ�EネンチE**
+> `IssueReportModal`�E�Efrontend/src/components/ExperimentWorker/IssueReportModal.tsx`�E��E API 未実裁E�Eまま放置されてぁE��ため、E026-03-25 に削除されました、E
+> 問題報告機�Eは本コンポ�Eネント！EIssueManagementModal`�E��E `viewMode=false` で提供します、E
 
 ---
 
 ## 15. 変更履歴
 
-| バージョン | 日付 | 変更内容 | 担当者 |
+| バ�Eジョン | 日仁E| 変更冁E�� | 拁E��老E|
 |-----------|------|----------|--------|
-| 1.5.0 | 2026-08-27 | ソースコードとの照合に基づき以下を修正（2026-08-27）：①§1.3 使用場所に ExperimentWorkerMenu を追加（タスク: 問題報告ボタン修正）。②§3 Props `visible` → `open`（Ant Design v5 prop名）。③§4.1 `commentForm` 削除（ソースに存在しない）。④§4.1 useEffect の `visible` → `open`、fetchIssues エラーメッセージを `extractErrorMessage()` に変更。⑤§6.1〜6.4・§7.2・§8.1・§10.1・§11.1 のハードコード日本語文字列を全て `t('issueManagement.*')` キー参照に変更（多言語化対応に追従）。⑥§9.2 handleCommentSubmit/handleSetUnresolved/handleSetResolved/handleClose から `commentForm.resetFields()` を削除、成功/エラーメッセージを `t()` / `extractErrorMessage()` に変更。⑦§9.2 handleSubmitNewIssue の成功/エラーメッセージを `t()` / `extractErrorMessage()` に変更 | Cline |
-| 1.4.0 | 2026-03-25 | 関連コンポーネント欄の IssueReportModal を削除、廃止コンポーネント注記を追加（永続化漏れ修正対応） | Cline |
-| 1.3.0 | 2026-03-11 | 仕様書をソースコードと同期: Props設計をコールバック方式から内部API直接呼び出し方式に変更（`issues`/`onSubmitIssue`/`onSubmitComment`/`onUpdateStatus` 削除 → `projectId`/`projectName`/`targetName`/`methodId`/`taskNo` 追加）、`fetchIssues`/`issuesLoading` 追記、各イベントハンドラのAPI呼び出し処理に更新、`destroyOnClose` → `destroyOnHidden` 修正、`bodyStyle` → `styles.body` 修正、ボタンtooltip追記 | Cline |
-| 1.2.0 | 2026-02-27 | コメント送信後の即時表示対応: `selectedIssue` を state から `useMemo` による派生値に変更し、`issues` props 更新時に自動反映されるよう修正 | Cline |
-| 1.1.0 | 2026-02-27 | 問題タイプ選択肢をハードコードからコードマスターAPI取得に変更（useCodeMaster('issue_type')） | Cline |
-| 1.0.0 | 2026-01-19 | 初版作成、UI設計書として文書化 | Cline |
+| 1.5.0 | 2026-08-27 | ソースコードとの照合に基づき以下を修正�E�E026-08-27�E�：①§1.3 使用場所に ExperimentWorkerMenu を追加�E�タスク: 問題報告�Eタン修正�E�。②§3 Props `visible` ↁE`open`�E�Ent Design v5 prop名）。③§4.1 `commentForm` 削除�E�ソースに存在しなぁE��。④§4.1 useEffect の `visible` ↁE`open`、fetchIssues エラーメチE��ージめE`extractErrorMessage()` に変更。⑤§6.1、E.4・§7.2・§8.1・§10.1・§11.1 のハ�Eドコード日本語文字�Eを�Eて `t('issueManagement.*')` キー参�Eに変更�E�多言語化対応に追従）。⑥§9.2 handleCommentSubmit/handleSetUnresolved/handleSetResolved/handleClose から `commentForm.resetFields()` を削除、�E劁EエラーメチE��ージめE`t()` / `extractErrorMessage()` に変更。⑦§9.2 handleSubmitNewIssue の成功/エラーメチE��ージめE`t()` / `extractErrorMessage()` に変更 | Cline |
+| 1.4.0 | 2026-03-25 | 関連コンポ�Eネント欁E�E IssueReportModal を削除、廁E��コンポ�Eネント注記を追加�E�永続化漏れ修正対応！E| Cline |
+| 1.3.0 | 2026-03-11 | 仕様書をソースコードと同期: Props設計をコールバック方式から�E部API直接呼び出し方式に変更�E�Eissues`/`onSubmitIssue`/`onSubmitComment`/`onUpdateStatus` 削除 ↁE`projectId`/`projectName`/`targetName`/`methodId`/`taskNo` 追加�E�、`fetchIssues`/`issuesLoading` 追記、各イベントハンドラのAPI呼び出し�E琁E��更新、`destroyOnClose` ↁE`destroyOnHidden` 修正、`bodyStyle` ↁE`styles.body` 修正、�Eタンtooltip追訁E| Cline |
+| 1.2.0 | 2026-02-27 | コメント送信後�E即時表示対忁E `selectedIssue` めEstate から `useMemo` による派生値に変更し、`issues` props 更新時に自動反映されるよぁE��正 | Cline |
+| 1.1.0 | 2026-02-27 | 問題タイプ選択肢をハードコードからコード�EスターAPI取得に変更�E�EseCodeMaster('issue_type')�E�E| Cline |
+| 1.0.0 | 2026-01-19 | 初版作�E、UI設計書として斁E��匁E| Cline |

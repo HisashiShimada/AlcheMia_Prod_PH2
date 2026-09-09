@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
-import { App, Modal } from 'antd';
+import { App } from 'antd';
 import {
   checkoutProject, checkinProject,
   sendInstructions,
@@ -38,7 +38,7 @@ export const useProjectActions = ({
   setProjectFilesData, setRenameModalOpen, setCreateModalOpen,
   setIssueManagementModalOpen, projectTasksData,
 }: UseProjectActionsParams) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
   const { reloadMaiml } = useProjectMaiml();
 
@@ -145,7 +145,7 @@ export const useProjectActions = ({
 
   const handleProjectDelete = useCallback(async () => {
     if (!selectedProject) { message.warning(t('project.selectProjectWarning')); return; }
-    Modal.confirm({
+    modal.confirm({
       title: t('projectManagement.deleteProjectTitle', { name: selectedProject.name }),
       content: (
         <div>

@@ -524,12 +524,12 @@ export default function IssueManagementModal({
                 rules={[
                   { required: true, message: t('issueManagement.form.contentRequired') },
                   { min: 10, message: t('issueManagement.form.contentMinLength') },
+                  { max: 1000, message: t('issueManagement.form.contentMaxLength') },
                 ]}
               >
                 <TextArea
                   rows={8}
                   placeholder={t('issueManagement.form.contentPlaceholder')}
-                  maxLength={1000}
                   showCount
                   data-testid="issue-management-content-textarea"
                 />

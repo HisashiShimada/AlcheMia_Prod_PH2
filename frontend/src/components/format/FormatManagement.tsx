@@ -46,6 +46,7 @@ import {
 } from '@/utils/reactFlowToMaiml';
 import { Property, Content } from '@/types/maiml-unified';
 import type { PropertyData } from '@/types/editor';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Title, Text } = Typography;
 
@@ -834,7 +835,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     } catch (error) {
       console.error('❌ [FormatManagement] フォルダ作成エラー:', error);
       message.error({
-        content: (error as Error).message || t('formatManagement.folder_create_error') || 'フォルダの作成に失敗しました',
+        content: extractErrorMessage(error) || t('formatManagement.folder_create_error') || 'フォルダの作成に失敗しました',
         duration: 3,
       });
       throw error;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { App, Button, Table, Modal, Spin, Typography, Tooltip } from 'antd';
+import { App, Button, Table, Spin, Typography, Tooltip } from 'antd';
 import { UploadOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -21,7 +21,7 @@ const { Text, Title } = Typography;
  * グローバル名前空間（prefix + URI）の一覧表示・インポート・エクスポートを提供する。
  */
 const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = ({ viewOnly = false }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { t } = useLanguage();
   const [declarations, setDeclarations] = useState<GlobalNamespaceEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,7 +53,24 @@ const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = ({ viewOnly = fa
     if (csvInputRef.current) csvInputRef.current.value = '';
     if (!file) return;
 
-    Modal.confirm({
+    // ── ヘッダー検証（期待ヘッダー: prefix,uri）
+    const isValidHeader = await new Promise<boolean>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = (ev.target?.result as string).replace(/^\uFEFF/, '');
+        const firstLine = text.split(/\r?\n/)[0]?.trim() ?? '';
+        resolve(firstLine === 'prefix,uri');
+      };
+      reader.onerror = () => resolve(false);
+      reader.readAsText(file, 'utf-8');
+    });
+
+    if (!isValidHeader) {
+      message.error(t('globalNamespace.csvHeaderMismatch'));
+      return;
+    }
+
+    modal.confirm({
       title: t('globalNamespace.importConfirmTitle'),
       content: t('globalNamespace.importConfirmContent'),
       okText: t('globalNamespace.importConfirmOk'),

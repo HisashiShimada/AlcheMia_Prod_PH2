@@ -337,8 +337,12 @@ export class IssueService {
       throw new ValidationError('説明は必須です');
     }
 
-    if (data.issueTitle.length > 200) {
-      throw new ValidationError('タイトルは200文字以内で入力してください');
+    if (data.issueTitle.length > 100) {
+      throw new ValidationError('タイトルは100文字以内で入力してください');
+    }
+
+    if (data.issueContents.length > 1000) {
+      throw new ValidationError('内容は1000文字以内で入力してください');
     }
 
     // issueType の必須チェック
