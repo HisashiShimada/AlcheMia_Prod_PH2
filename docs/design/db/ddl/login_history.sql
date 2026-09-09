@@ -13,7 +13,7 @@ CREATE TABLE login_history (
     -- ログイン情報
     user_id CHARACTER VARYING(50) NOT NULL,
     organization_id UUID NOT NULL,
-    login_at TIMESTAMP,
+    login_at TIMESTAMPTZ,
     login_sf BOOLEAN,
     failure_reason CHARACTER VARYING(100),
     entry_execute_flg BOOLEAN,
@@ -27,8 +27,8 @@ CREATE TABLE login_history (
     update_user_id VARCHAR(50),
     
     -- タイムスタンプ
-    create_at TIMESTAMP,
-    update_at TIMESTAMP,
+    create_at TIMESTAMPTZ,
+    update_at TIMESTAMPTZ,
     
     -- 制約
     CONSTRAINT login_history_PKC PRIMARY KEY (id)

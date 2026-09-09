@@ -41,6 +41,7 @@ import type {
 import type { ProjectFileResponse, GetProjectFilesData, StorageFileEntry } from '../types/file';
 import { nanoid } from 'nanoid';
 import { v4 as uuidv4 } from 'uuid';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * ProjectServiceクラス
@@ -160,9 +161,9 @@ export class ProjectService {
         isCheckedOut: insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy:
           insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? insertResult.owner_user_id ?? null : null,
-        checkedOutAt: insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
-        createdAt: new Date(insertResult.create_at as any).toISOString(),
-        updatedAt: new Date(insertResult.create_at as any).toISOString(),
+        checkedOutAt: insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? toJSTIsoString(new Date()) : null,
+        createdAt: toJSTIsoString(new Date(insertResult.create_at as any)),
+        updatedAt: toJSTIsoString(new Date(insertResult.create_at as any)),
       };
 
       return {
@@ -486,9 +487,9 @@ export class ProjectService {
         organizationGroupName: row.organization_group_name || undefined,
         isCheckedOut: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? row.checkout_user_id : null,
-        checkedOutAt: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
-        createdAt: row.create_at ? row.create_at.toISOString() : '',
-        updatedAt: row.update_at ? row.update_at.toISOString() : '',
+        checkedOutAt: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? toJSTIsoString(new Date()) : null,
+        createdAt: row.create_at ? toJSTIsoString(row.create_at) : '',
+        updatedAt: row.update_at ? toJSTIsoString(row.update_at) : '',
         totalTasks: parseInt(row.task_count, 10),
         completedTasks: parseInt(row.completed_task_count, 10),
         maimlFileKey: row.maiml_file_key || null,
@@ -659,7 +660,7 @@ export class ProjectService {
               projectName: project.project_name,
               isCheckedOut: true,
               checkedOutBy: userId,
-              checkedOutAt: new Date().toISOString(), // 現在時刻を返す
+              checkedOutAt: toJSTIsoString(new Date()), // 現在時刻を返す
             },
           };
         } else {
@@ -681,7 +682,7 @@ export class ProjectService {
               message: 'このプロジェクトは既に他のユーザーによってチェックアウトされています',
               details: {
                 checkedOutBy: checkedOutByName,
-                checkedOutAt: new Date().toISOString(),
+                checkedOutAt: toJSTIsoString(new Date()),
               },
             },
           };
@@ -810,7 +811,7 @@ export class ProjectService {
           projectName: project.project_name,
           isCheckedOut: true,
           checkedOutBy: userId,
-          checkedOutAt: new Date().toISOString(),
+          checkedOutAt: toJSTIsoString(new Date()),
         },
       };
     } catch (error) {
@@ -979,7 +980,7 @@ export class ProjectService {
         projectName: project.project_name,
         isCheckedOut: project.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy: project.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? project.owner_user_id : null,
-        checkedOutAt: project.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
+        checkedOutAt: project.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? toJSTIsoString(new Date()) : null,
       };
 
       return {
@@ -1106,12 +1107,12 @@ export class ProjectService {
                 name: fileName,
                 path: relativePath,
                 size: file.size,
-                lastModified: file.lastModified.toISOString(),
+                lastModified: toJSTIsoString(file.lastModified),
                 type: fileType,
                 isArchive: false,
                 version: null,
                 signedUrl,
-                createdAt: file.lastModified.toISOString(),
+                createdAt: toJSTIsoString(file.lastModified),
               } satisfies ProjectFileResponse;
             })
           );
@@ -1156,12 +1157,12 @@ export class ProjectService {
                   name: fileName,
                   path: relativePath,
                   size: file.size,
-                  lastModified: file.lastModified.toISOString(),
+                  lastModified: toJSTIsoString(file.lastModified),
                   type: fileType,
                   isArchive: isArchiveFolder,
                   version,
                   signedUrl,
-                  createdAt: file.lastModified.toISOString(),
+                  createdAt: toJSTIsoString(file.lastModified),
                 } satisfies ProjectFileResponse;
               })
             );
@@ -1245,7 +1246,7 @@ export class ProjectService {
       organizationId,
       userId,
       comment: sanitizeForLog(comment || ''),
-      timestamp: new Date().toISOString(),
+      timestamp: toJSTIsoString(new Date()),
     });
 
     try {
@@ -1381,7 +1382,7 @@ export class ProjectService {
         organizationId,
         userId,
         error: sanitizeErrorForLog(error as Error),
-        timestamp: new Date().toISOString(),
+        timestamp: toJSTIsoString(new Date()),
       });
 
       return {
@@ -1470,12 +1471,12 @@ export class ProjectService {
           transitionName: `Task ${row.task_no}`,
           workStatus: taskStatus as any,
           assignedAt: row.experiment_start_at
-            ? new Date(row.experiment_start_at).toISOString()
-            : new Date().toISOString(),
+            ? toJSTIsoString(new Date(row.experiment_start_at))
+            : toJSTIsoString(new Date()),
           startedAt: row.experiment_start_at
-            ? new Date(row.experiment_start_at).toISOString()
+            ? toJSTIsoString(new Date(row.experiment_start_at))
             : null,
-          completedAt: row.experiment_end_at ? new Date(row.experiment_end_at).toISOString() : null,
+          completedAt: row.experiment_end_at ? toJSTIsoString(new Date(row.experiment_end_at)) : null,
           progress: taskStatus === 'completed' ? 100 : taskStatus === 'in_progress' ? 50 : 0,
 
           // TaskResultsTable用の追加プロパティ
@@ -1486,9 +1487,9 @@ export class ProjectService {
           progressPercentage:
             taskStatus === 'completed' ? 100 : taskStatus === 'in_progress' ? 50 : 0,
           workCompletedAt: row.experiment_end_at
-            ? new Date(row.experiment_end_at).toISOString()
+            ? toJSTIsoString(new Date(row.experiment_end_at))
             : null,
-          reviewCompletedAt: row.reviewed_at ? new Date(row.reviewed_at).toISOString() : null,
+          reviewCompletedAt: row.reviewed_at ? toJSTIsoString(new Date(row.reviewed_at)) : null,
 
           // バックエンド固有のプロパティ（デバッグ用）
           organizationId: row.organization_id,
@@ -1658,7 +1659,7 @@ export class ProjectService {
           task_no: row.task_no,
           instruction_key: row.instruction_key || null,
           instruction_content: row.instruction_content,
-          create_at: row.create_at.toISOString(),
+          create_at: toJSTIsoString(row.create_at),
           created_by: row.created_by,
           created_by_name: row.created_by_name || '',
           is_acknowledged: row.is_acknowledged,
@@ -1745,7 +1746,7 @@ export class ProjectService {
               organizationId,
               fileSize: fileBuffer.length,
               filePath: relativeFileKey,
-              timestamp: new Date().toISOString(),
+              timestamp: toJSTIsoString(new Date()),
             });
 
             return {
@@ -1775,7 +1776,7 @@ export class ProjectService {
           projectName,
           organizationId,
           filePath,
-          timestamp: new Date().toISOString(),
+          timestamp: toJSTIsoString(new Date()),
         });
 
         return {
@@ -1796,7 +1797,7 @@ export class ProjectService {
           organizationId,
           fileSize: fileBuffer.length,
           filePath,
-          timestamp: new Date().toISOString(),
+          timestamp: toJSTIsoString(new Date()),
         });
 
         // ④ レイジーセット: XMLから <maiml id="..."> の id 属性を取得して DB に保存
@@ -1868,7 +1869,7 @@ export class ProjectService {
             organizationId,
             filePath,
             errorType: s3Error.name || s3Error.code || 'Unknown',
-            timestamp: new Date().toISOString(),
+            timestamp: toJSTIsoString(new Date()),
           });
 
           return {
@@ -1885,7 +1886,7 @@ export class ProjectService {
           projectName,
           organizationId,
           error: sanitizeErrorForLog(s3Error),
-          timestamp: new Date().toISOString(),
+          timestamp: toJSTIsoString(new Date()),
         });
 
         return {
@@ -1902,7 +1903,7 @@ export class ProjectService {
         projectId,
         organizationId,
         error: sanitizeErrorForLog(error as Error),
-        timestamp: new Date().toISOString(),
+        timestamp: toJSTIsoString(new Date()),
       });
 
       return {
@@ -2067,7 +2068,7 @@ export class ProjectService {
         client
       );
 
-      const acknowledgedAt = insertedHistory.acknowledged_at.toISOString();
+      const acknowledgedAt = toJSTIsoString(insertedHistory.acknowledged_at);
 
       // 5-2. maiml_event_log にイベントログを挿入
       const eventLogRepository = new EventLogRepository();
@@ -2257,7 +2258,7 @@ export class ProjectService {
       );
 
       // ③ 各トランジションに lifecycle:transition='ate_abort' の EventLog を記録
-      const terminatedAt = new Date().toISOString();
+      const terminatedAt = toJSTIsoString(new Date());
       const projectName = project.project_name ?? projectId;
       for (const tr of activeTransitions) {
         const logParams = {

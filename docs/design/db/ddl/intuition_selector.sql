@@ -22,9 +22,9 @@ CREATE TABLE intuition_selector (
 
     -- 監査証跡
     create_user_id      VARCHAR(50),
-    create_at           TIMESTAMP,
+    create_at           TIMESTAMPTZ,
     update_user_id      VARCHAR(50),
-    update_at           TIMESTAMP,
+    update_at           TIMESTAMPTZ,
 
     -- 主キー制約
     CONSTRAINT intuition_selector_PKC PRIMARY KEY (

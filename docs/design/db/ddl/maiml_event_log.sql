@@ -20,8 +20,8 @@ CREATE TABLE maiml_event_log (
     update_user_id VARCHAR(50),
     
     -- タイムスタンプ
-    create_at TIMESTAMP,
-    update_at TIMESTAMP,
+    create_at TIMESTAMPTZ,
+    update_at TIMESTAMPTZ,
     
     -- 制約
     CONSTRAINT maiml_event_log_pkey PRIMARY KEY (organization_id, project_id, sequence_no)

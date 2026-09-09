@@ -11,6 +11,7 @@ import type { Result, ServiceError, SessionInfo } from '../types/auth';
 import { RefreshTokenService } from './refreshTokenService';
 import { TokenBlacklistService } from './tokenBlacklistService';
 import { logError } from '../utils/logger';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * セッション管理サービスクラス
@@ -62,7 +63,7 @@ export class SessionService {
         const sessionDuration = this.formatDuration(durationSeconds);
 
         // ログイン時刻をISO 8601形式に変換
-        const loginTime = new Date(token.issuedAt * 1000).toISOString();
+        const loginTime = toJSTIsoString(new Date(token.issuedAt * 1000));
         
         // lastActivityは現在はログイン時刻と同じ（将来的に更新可能）
         const lastActivity = loginTime;

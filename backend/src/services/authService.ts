@@ -13,6 +13,7 @@ import { UserAuthenticationRepository } from '../repositories/userAuthentication
 import { RolePermissionRepository } from '../repositories/rolePermissionRepository';
 import { PasswordResetTokenRepository } from '../repositories/passwordResetTokenRepository';
 import { getInitialScreenFunctionCd } from '../repositories/roleRepository';
+import { toJSTIsoString } from '../utils/dateUtils';
 import * as loginHistoryRepository from '../repositories/loginHistoryRepository';
 import { issueSessionTokens } from '../controllers/authHelpers';
 import { maskEmail } from '../utils/emailUtils';
@@ -618,7 +619,7 @@ export class AuthService {
           },
           session: {
             token: accessToken,
-            expiresAt: expiresAt.toISOString(),
+            expiresAt: toJSTIsoString(expiresAt),
           },
           passwordChangeRequired,
           isTemporaryPassword,

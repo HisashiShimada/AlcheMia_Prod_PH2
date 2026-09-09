@@ -27,6 +27,7 @@ import {
   AutoCorrectResponse,
   CorrectionResult,
 } from '../types/storage';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 const storageService = getStorageService();
 const maimlDraftsRepository = new MaimlDraftsRepository();
@@ -317,7 +318,7 @@ export async function saveMaiML(
     return {
       fileKey: normalizedFileKey,
       size: Buffer.byteLength(content, 'utf-8'),
-      lastModified: new Date().toISOString(),
+      lastModified: toJSTIsoString(new Date()),
       contentHash,
     };
   } catch (error) {
@@ -609,7 +610,7 @@ export async function startEditSession(sessionData: any): Promise<any> {
 
     return {
       sessionId,
-      expiresAt: new Date(Date.now() + timeout).toISOString(),
+      expiresAt: toJSTIsoString(new Date(Date.now() + timeout)),
     };
   } catch (error) {
     console.error('❌ [maimlService] 編集セッション開始エラー:', error);
@@ -914,7 +915,7 @@ function convertRowToDraft(row: MaimlDraftsRow): Draft {
     draftKey: row.draft_key,
     draftName: row.draft_name,
     originalFileKey: row.original_file_key || undefined,
-    lastSavedAt: row.last_saved_at.toISOString(),
+    lastSavedAt: toJSTIsoString(row.last_saved_at),
     projectId: row.project_id || null,
     nodes: safeParseJson(row.nodes),
     edges: safeParseJson(row.arcs), // arcs → edges
@@ -1578,7 +1579,7 @@ export async function listMaimlFilesFromStorage(
       totalCount: processedFiles.length,
       organizationId: organizationId,
       cached: false,
-      timestamp: new Date().toISOString(),
+      timestamp: toJSTIsoString(new Date()),
     };
 
     return response;
@@ -1628,7 +1629,7 @@ export async function getMaimlFileContent(fileKey: string): Promise<FileContentR
         content: content,
         fileKey: fileKey,
         contentLength: content.length,
-        lastModified: new Date().toISOString(),
+        lastModified: toJSTIsoString(new Date()),
         contentType: contentType,
       },
     };
@@ -1689,7 +1690,7 @@ export async function autoCorrectMaiml(
         correctionCount: 0,
         totalAttempted: 0,
         message: '自動修正可能なエラーがありません',
-        timestamp: new Date().toISOString(),
+        timestamp: toJSTIsoString(new Date()),
       };
       return response;
     }
@@ -1753,7 +1754,7 @@ export async function autoCorrectMaiml(
       correctionCount: successCount,
       totalAttempted: correctableErrors.length,
       message: `${successCount}件の修正を適用しました`,
-      timestamp: new Date().toISOString(),
+      timestamp: toJSTIsoString(new Date()),
     };
 
     return response;

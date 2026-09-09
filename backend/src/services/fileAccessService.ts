@@ -40,6 +40,7 @@ import { Project } from '../types/database';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { createMaimlBackup } from '../utils/maimlArchiveHelper';
 import { extractParentUuids, injectParentTag } from '../utils/maimlParentInjector';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -397,7 +398,7 @@ export class FileAccessService {
     // initBatch で事前作成されたバッチID（metadata.batchId）が渡された場合は
     // 新規作成せず既存バッチを再利用する。これにより cancelBatch が正しく機能する。
     const uploadType: UploadType = uploadMode as UploadType;
-    const batchName = metadata?.batchName || `${uploadMode} upload - ${new Date().toISOString()}`;
+    const batchName = metadata?.batchName || `${uploadMode} upload - ${toJSTIsoString(new Date())}`;
 
     let batch;
     const preBatchId = metadata?.batchId;
@@ -749,7 +750,7 @@ export class FileAccessService {
           s3Key,
           fileSize: file.size,
           contentType: file.mimetype,
-          uploadedAt: new Date().toISOString(),
+          uploadedAt: toJSTIsoString(new Date()),
           ...(maimlValidation && { maimlValidation }), // 警告がある場合のみ付加
         };
       },

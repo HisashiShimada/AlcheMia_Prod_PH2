@@ -11,9 +11,9 @@ CREATE TABLE namespace (
   , namespace_id    VARCHAR(20)   NOT NULL
   , scope_key       VARCHAR(100)
   , uri             TEXT          NOT NULL
-  , create_at       TIMESTAMP
+  , create_at       TIMESTAMPTZ
   , create_user_id  VARCHAR(50)
-  , update_at       TIMESTAMP
+  , update_at       TIMESTAMPTZ
   , update_user_id  VARCHAR(50)
   , CONSTRAINT namespace_PKC PRIMARY KEY (organization_id, namespace_id)
   , CONSTRAINT namespace_organization_scope_key_key UNIQUE (organization_id, scope_key)

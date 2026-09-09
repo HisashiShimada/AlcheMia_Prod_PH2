@@ -13,9 +13,9 @@ CREATE TABLE experiment_plan (
   , task_no         NUMERIC(3,0)              NOT NULL
   , planned_values  JSONB                     DEFAULT '{}'::jsonb
   , create_user_id  CHARACTER VARYING(50)
-  , create_at       TIMESTAMP                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+  , create_at       TIMESTAMPTZ                 NOT NULL DEFAULT CURRENT_TIMESTAMP
   , update_user_id  CHARACTER VARYING(50)
-  , update_at       TIMESTAMP                 NOT NULL DEFAULT CURRENT_TIMESTAMP
+  , update_at       TIMESTAMPTZ                 NOT NULL DEFAULT CURRENT_TIMESTAMP
   , CONSTRAINT experiment_plan_PKC PRIMARY KEY (organization_id, project_id, method_id, task_no)
 ) ;
 

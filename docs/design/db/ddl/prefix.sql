@@ -9,8 +9,8 @@ CREATE TABLE prefix (
   , is_active       BOOLEAN
   , create_user_id  VARCHAR(50)
   , update_user_id  VARCHAR(50)
-  , create_at       TIMESTAMP
-  , update_at       TIMESTAMP
+  , create_at       TIMESTAMPTZ
+  , update_at       TIMESTAMPTZ
   , CONSTRAINT prefix_PKC PRIMARY KEY (organization_id, namespace_id, prefix)
 ) ;
 

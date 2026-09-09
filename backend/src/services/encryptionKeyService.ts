@@ -20,6 +20,7 @@ import type {
   UploadKeyFileRequest,
   EncryptionLevelType,
 } from '../types/encryptionTypes';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 // ---------------------------------------------------------------------------
 // 鍵一覧
@@ -65,7 +66,7 @@ export async function generateKey(
   const keyId = uuidv4();
   const keyIdentifier = 'b8e3a7f1d2c94560'; // TODO: 本実装では実際のSHA-256値
   const fileName = `${request.keyName}.key`;
-  const now = new Date().toISOString();
+  const now = toJSTIsoString(new Date());
 
   // DBスタブ登録（本実装では実際のファイル保存後に呼び出す）
   // await encryptionKeyRepository.insert({ ... });
@@ -123,7 +124,7 @@ export async function uploadKeyFile(
   // スタブ: 固定値を返す
   const keyId = uuidv4();
   const keyIdentifier = 'a3f5d9c2e4b81f7a'; // TODO: 本実装では実際のSHA-256値
-  const now = new Date().toISOString();
+  const now = toJSTIsoString(new Date());
 
   return {
     keyId,
@@ -245,9 +246,9 @@ function rowToResponse(row: EncryptionKeyRow): EncryptionKeyResponse {
     keySource: row.key_source,
     fileName: row.file_name,
     isActive: row.is_active,
-    createdAt: row.created_at.toISOString(),
-    expiresAt: row.expires_at ? row.expires_at.toISOString() : null,
-    lastUsedAt: row.last_used_at ? row.last_used_at.toISOString() : null,
+    createdAt: toJSTIsoString(row.created_at),
+    expiresAt: row.expires_at ? toJSTIsoString(row.expires_at) : null,
+    lastUsedAt: row.last_used_at ? toJSTIsoString(row.last_used_at) : null,
     usageCount: row.usage_count,
     description: row.description ?? undefined,
   };

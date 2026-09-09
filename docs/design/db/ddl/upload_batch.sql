@@ -29,10 +29,10 @@ CREATE TABLE IF NOT EXISTS upload_batch (
   -- 'in_progress', 'completed', 'completed_with_errors', 'failed'
   
   -- タイムスタンプ（カラム名を変更）
-  start_time TIMESTAMP NOT NULL DEFAULT NOW(),
-  end_time TIMESTAMP,
-  create_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  update_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  end_time TIMESTAMPTZ,
+  create_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  update_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   
   -- 制約条件
   CONSTRAINT check_completed_files CHECK (completed_files >= 0),

@@ -11,6 +11,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getStorageService } from './storageService';
 import { ingestSingleFile } from './singleFileIngestService';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /** バッチジョブステータス */
 export type BatchJobStatus = 'started' | 'processing' | 'completed' | 'failed' | 'cancelled';
@@ -103,7 +104,7 @@ export async function ingestAllFiles(
     failed_files: 0,
     skipped_files: 0,
     error_message: null,
-    created_at: new Date().toISOString(),
+    created_at: toJSTIsoString(new Date()),
     completed_at: null,
   };
 
@@ -114,7 +115,7 @@ export async function ingestAllFiles(
     console.error('[batchIngestService] 予期しないバッチエラー:', err);
     job.status = 'failed';
     job.error_message = err instanceof Error ? err.message : '不明なエラー';
-    job.completed_at = new Date().toISOString();
+    job.completed_at = toJSTIsoString(new Date());
   });
 
   return jobId;
@@ -171,11 +172,11 @@ async function _runBatch(
       job.status = 'completed';
     }
     cancelledJobs.delete(job.id);
-    job.completed_at = new Date().toISOString();
+    job.completed_at = toJSTIsoString(new Date());
   } catch (err) {
     job.status = 'failed';
     job.error_message = err instanceof Error ? err.message : '不明なエラー';
-    job.completed_at = new Date().toISOString();
+    job.completed_at = toJSTIsoString(new Date());
     throw err;
   }
 }

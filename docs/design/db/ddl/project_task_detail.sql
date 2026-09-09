@@ -7,16 +7,16 @@ CREATE TABLE project_task_detail (
   , method_id character varying NOT NULL
   , task_no numeric(3,0) NOT NULL
   , task_status numeric(2,0)
-  , experiment_start_at timestamp
-  , experiment_end_at timestamp
+  , experiment_start_at TIMESTAMPTZ
+  , experiment_end_at TIMESTAMPTZ
   , experiment_user_id character varying(50)
-  , reviewed_at timestamp
+  , reviewed_at TIMESTAMPTZ
   , review_user_id character varying(50)
   , review_result text DEFAULT NULL
   , create_user_id character varying(50)
-  , create_at timestamp
+  , create_at TIMESTAMPTZ
   , update_user_id character varying(50)
-  , update_at timestamp
+  , update_at TIMESTAMPTZ
   , CONSTRAINT project_task_detail_PKC PRIMARY KEY (organization_id,project_id,method_id,task_no)
 ) ;
 

@@ -25,9 +25,9 @@ CREATE TABLE attribute (
   , organization_gourp_cd character varying(50)
   , is_active BOOLEAN NOT NULL
   , create_user_id character varying(50)
-  , create_at timestamp
+  , create_at TIMESTAMPTZ
   , update_user_id character varying(50)
-  , update_at timestamp
+  , update_at TIMESTAMPTZ
   , CONSTRAINT attribute_PKC PRIMARY KEY (organization_id,attribute_name,attribute_value)
 ) ;
 

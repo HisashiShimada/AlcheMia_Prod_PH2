@@ -20,8 +20,8 @@ CREATE TABLE role_permission (
     update_user_id VARCHAR(50),
     
     -- タイムスタンプ
-    create_at TIMESTAMP,
-    update_at TIMESTAMP,
+    create_at TIMESTAMPTZ,
+    update_at TIMESTAMPTZ,
     
     -- 制約
     CONSTRAINT role_permission_PKC PRIMARY KEY (organization_id,role_cd,function_cd)

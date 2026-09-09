@@ -29,9 +29,9 @@ CREATE TABLE project (
   , checkout_status numeric(2,0)
   , project_uuid uuid
   , create_user_id character varying(50)
-  , create_at timestamp
+  , create_at TIMESTAMPTZ
   , update_user_id character varying(50)
-  , update_at timestamp
+  , update_at TIMESTAMPTZ
   , CONSTRAINT project_PKC PRIMARY KEY (organization_id,project_id)
 ) ;
 
