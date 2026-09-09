@@ -4,9 +4,10 @@
 - **画面ID**: WorkRecordPanel
 - **画面名**: 実験記録パネル（実験記録タブ）
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx`
+- **行数**: 3,730行（2026-09-09 更新）
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-06-22
-- **最終更新日**: 2026-08-27
+- **最終更新日**: 2026-09-09
 
 ---
 
@@ -94,8 +95,15 @@ PropertyCard（Col span={8}）:
 │ 実績値（入力 or 参照表示）     │
 │ ─────────────────────────────  │
 │ 確信度ボタン ※DB登録選択肢使用（qualitativeOptions）  │
+│  ※ confidenceOptionsWithColor（display_color）がある場合はその色を優先 │
+│  ※ 判定結果バッジ（lastJudgeResultMap）: 保存後に「良好」「不良」を表示（2026-09-09 追加）│
+│ ─────────────────────────────  │
+│ 定性評価説明（description/qualitativeNote, 常時表示）（2026-09-09 追加）│
+│ ─────────────────────────────  │
+│ 定性評価理由（qualitativeReason, 入力欄）（2026-09-09 追加）│
 │ ─────────────────────────────  │
 │ 定量評価 [不確かさ基準Select][値Input][✕]  │
+│  ※ quantitativeUncertainties がある場合は基準・許容値・説明をプリセット表示（2026-09-09 追加）│
 │ [＋値の追加]                   │
 └───────────────────────────────┘
 
@@ -133,30 +141,44 @@ PropertyCard（Col span={8}）:
 ```typescript
 interface WorkRecordPanelProps {
   projectName?: string;
+  projectId?: string;
+  methodId?: string;
+  progressRows?: ProgressRow[];
+  projectStatus?: number;
+  useDeemedProgress?: boolean;
+  initialTaskNo?: number;
+  initialTransitionId?: string;
+  allWorkerInstructions?: Instruction[];
+  onConfirmInstruction?: () => void;
+  onStart?: (taskNo: number, transitionId: string) => void;
+  onEnd?: (taskNo: number, transitionId: string) => void;
+  onForceEnd?: () => void;
+  onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
 }
 ```
 
 | Prop名 | 型 | 必須 | 説明 |
 |--------|-----|------|------|
 | `projectName` | `string` | ❌ | 選択中のプロジェクト名 |
-| `projectId` | `string` | ❌ | 選択中のプロジェクトID |
-| `methodId` | `string` | ❌ | メソッドID（`progressRows[0]?.methodId` から渡される） |
+| `projectId` | `string` | ❌ | 選択中のプロジェクトID（コメント保存APIに使用） |
+| `methodId` | `string` | ❌ | メソッドID（コメント保存APIに使用） |
 | `progressRows` | `ProgressRow[]` | ❌ | 親コンポーネント（ExperimentWorkerMenu）から渡される進捗行データ。これを元に `activeEntry` を算出。各行に `isRecorded?: boolean` フィールドを含む |
 | `projectStatus` | `number` | ❌ | プロジェクトステータスコード |
 | `useDeemedProgress` | `boolean` | ❌ | みなし進捗フラグ |
 | `initialTaskNo` | `number` | ❌ | 初期表示タスクNo。進捗確認タブから「作業へ」「詳細確認」で遷移した際に指定 |
 | `initialTransitionId` | `string` | ❌ | 初期表示トランジションID。進捗確認タブから遷移した際に指定 |
-| `projectInstructions` | `string[]` | ❌ | プロジェクト指示テキスト配列 |
+| `allWorkerInstructions` | `Instruction[]` | ❌ | 作業指示一覧（全件）。WorkRecordPanel 内部で現在のトランジションに応じてフィルタリングする（2026-09-09 追加）|
 | `onConfirmInstruction` | `() => void` | ❌ | 指示確認ボタン押下時。省略時はボタン非表示 |
-| `onStart` | `() => void` | ❌ | 「開始」ボタン押下時（`ready` → `IN_PROGRESS` 遷移） |
-| `onEnd` | `() => void` | ❌ | 「終了」ボタン押下時（`in_progress` → `COMPLETED` 遷移） |
-| `onForceEnd` | `() => void` | ❌ | 「異常終了」ボタン押下時（`in_progress` → `ERROR` 遷移） |
+| `onStart` | `(taskNo: number, transitionId: string) => void` | ❌ | 「開始」ボタン押下コールバック（準備完了→動作状態）|
+| `onEnd` | `(taskNo: number, transitionId: string) => void` | ❌ | 「終了」ボタン押下コールバック（動作状態→終状態）|
+| `onForceEnd` | `() => void` | ❌ | 「異常終了」ボタン押下コールバック |
+| `onStatusChange` | `(transitionId: string, status: TransitionStatus) => void` | ❌ | 状態プルダウン変更コールバック（2026-09-09 追加）|
 
 ### 5.2 State（内部状態）
 
 ```typescript
-// タスク一覧（フェーズA: モックデータ INITIAL_TASKS で初期化）
-const [tasks, setTasks] = useState<MockTask[]>(INITIAL_TASKS);
+// タスク一覧（API データから生成）
+const [tasks, setTasks] = useState<WorkTask[]>([]);
 
 // 完了済みトランジション閲覧モード（null: 通常作業、非null: 閲覧対象キー）
 const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(null);
@@ -177,14 +199,14 @@ const [commentDialogOpen, setCommentDialogOpen] = useState(false);
 
 ```typescript
 // 現在の active entry（作業中トランジション）
-// ORDERED_TRANSITION_IDS の順で tasks[activeTaskNo].transitions を走査し、
-// status が completed/error でない最初のものを返す
+// progressRows（API データ）を元に in_progress / ready / preparing を優先して動的決定する
 const activeEntry: { taskNo: number; transitionId: string } | null
 
 // displayKey = viewingKey（閲覧モード）または activeEntry（作業モード）
 const displayKey = viewingKey ?? activeEntry;
+```
 
-`WorkHeader` 内の `Select` コンポーネントで表示。`WorkRecordPanelProps.onStatusChange` は**存在しない**。内部的に `WorkHeaderProps.onStatusChange?(transitionId: string, status: TransitionStatus)` として処理される。
+`WorkHeader` 内の `Select` コンポーネントで状態変更を表示。`WorkRecordPanelProps.onStatusChange` は `(transitionId: string, status: TransitionStatus)` シグネチャで定義されており、外部から `ExperimentWorkerMenu` が状態更新APIを呼び出す（2026-09-09 修正）。
 
 **内部 `TransitionStatus` 型の値と表示ラベル：**
 
@@ -199,6 +221,58 @@ const displayKey = viewingKey ?? activeEntry;
 | `error` | エラー（`progressStatus.error`） | `issue` |
 
 > ⚠️ `ProgressRow.status` の `in_progress` / `on_hold` は、`buildTransitions` 内の `switch` 文で内部値 `running` / `paused` にそれぞれ変換されます。
+
+---
+
+## 4. WorkProperty 型定義（PropertyCard の内部型・2026-09-09 追加）
+
+```typescript
+interface WorkProperty {
+  key: string;
+  label: string;
+  xsiType: 'FloatValue' | 'IntegerValue' | 'StringValue';
+  unit: string;
+  expected: number | string | null;
+  /** 不確かさ基準名（1件・後方互換用） */
+  uncertaintyName?: string;
+  /** 不確かさ値（1件・後方互換用） */
+  uncertaintyValue?: number | string;
+  /** 不確かさ説明（1件・後方互換用） */
+  uncertaintyDescription?: string;
+  /**
+   * 複数の定量評価情報（Phase 3-B 対応）。
+   * 設定されている場合は後方互換フィールドより優先して各入力行にプリセット表示する。
+   */
+  quantitativeUncertainties?: QuantitativeUncertaintyInfo[];
+  /** 定性評価の初期値（保存済みの qualitativeEval 値） */
+  defaultConfidence?: string;
+  /** 定性評価のボタン選択肢（intuition_selector.selector_value 由来） */
+  confidenceOptions?: string[];
+  /**
+   * 定性評価のボタン選択肢（色情報付き・intuition_selector.display_color 由来）。
+   * 設定時は confidenceOptions より優先してボタン色に使用する。
+   */
+  confidenceOptionsWithColor?: Array<{ value: string; color: string }>;
+  /** MAIMLの uncertainty[].description（実験管理者が設定した定性評価説明） */
+  description?: string;
+  /** template_data.property_set の uncertainty[].description（実験作業者が入力した定性評価理由） */
+  qualitativeReason?: string;
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `key` | `string` | プロパティキー |
+| `label` | `string` | 表示ラベル（APIでは `key` と同値） |
+| `xsiType` | `'FloatValue' \| 'IntegerValue' \| 'StringValue'` | 値の型 |
+| `unit` | `string` | 単位（`units` フィールドから） |
+| `expected` | `number \| string \| null` | 想定値（`value` / `plannedValue` から） |
+| `quantitativeUncertainties` | `QuantitativeUncertaintyInfo[]` | 複数定量評価情報（Phase 3-B 追加） |
+| `defaultConfidence` | `string?` | 保存済み定性評価値（初期選択状態） |
+| `confidenceOptions` | `string[]?` | 定性評価選択肢 |
+| `confidenceOptionsWithColor` | `Array<{value, color}>?` | 色付き定性評価選択肢（2026-09-09 追加）|
+| `description` | `string?` | 定性評価説明（常時表示。`qualitativeNote` 由来）（2026-09-09 追加）|
+| `qualitativeReason` | `string?` | 定性評価理由（ユーザー入力欄の初期値）（2026-09-09 追加）|
 
 ---
 
@@ -238,22 +312,15 @@ const displayKey = viewingKey ?? activeEntry;
 
 ### 5.4 モックデータ構成
 
-| 定数名 | 内容 |
+> ⚠️ **[2026-09-09 更新]**: 以下のモック定数は全て削除済み（§10.1 特記事項5を参照）。
+
+| 定数名 | 状態 |
 |--------|------|
-| `MOCK_PROJECT_INSTRUCTIONS` | プロジェクト指示 4件 |
-| `MOCK_TRANSITIONS` | TR_A / TR_B / TR_C / TR_D の 4トランジション |
-| `MOCK_METHODS` | メソッド 1件 |
-| `INITIAL_TASKS` | タスク 3件（全完了済み / TR_B完了・TR_A作業中 / 未着手） |
-| `ASSIGNED_TASK_NO` | `2`（フェーズA固定、フェーズBでProps化予定） |
-
-**トランジション構成:**
-
-| ID | 名称 | 前提 | テンプレート |
-|----|------|------|------------|
-| TR_A | 混合条件 | なし（順序自由） | Condition-Mixing, Material-Reagent（Insertion付き） |
-| TR_B | 加熱条件 | なし（順序自由） | Condition-Heating |
-| TR_C | 分離操作 | なし（順序自由） | Condition-Centrifuge, Material-Solvent |
-| TR_D | 最終評価 | TR_A + TR_B + TR_C 全完了後のみ | Result-Yield |
+| `MOCK_PROJECT_INSTRUCTIONS` | ❌ 削除済み |
+| `MOCK_TRANSITIONS` | ❌ 削除済み |
+| `MOCK_METHODS` | ❌ 削除済み |
+| `INITIAL_TASKS` | ❌ 削除済み |
+| `ASSIGNED_TASK_NO` | ❌ 削除済み（`resolveActiveTaskNo(progressRows, 2)` で動的決定）|
 
 ### 5.5 スキップロジック
 
@@ -269,12 +336,16 @@ const displayKey = viewingKey ?? activeEntry;
 
 ### 5.6 使用するAPI
 
+> ⚠️ **[2026-09-09 更新]**: 各APIの実装状況を更新。
+
 | API | 用途 | 実装状況 |
 |-----|------|---------|
-| S3ファイルアップロード | Insertion ファイルアップロード（`InsertionEditorCompact`） | TODO（フェーズB） |
-| コメント保存API | コメントの永続化 | TODO（フェーズB） |
-| 実績値保存API | トランジションデータの保存 | TODO（フェーズB） |
-| ステータス更新API | トランジションステータスの更新 | TODO（フェーズB） |
+| S3ファイルアップロード | Insertion ファイルアップロード（`InsertionEditorCompact`） | 🔲 TODO |
+| `saveTransitionComment`（`projectApiService`） | コメントの永続化 | ✅ 完了 |
+| `saveBatchExperimentData`（`experimentDataApiService`） | 実績値バッチ保存 | ✅ 完了 |
+| `updateTransitionStatus`（`progressApiService`） | トランジションステータス更新 | ✅ 完了 |
+| `getTransitionStateRecords`（`projectApiService`） | 状態記録履歴取得 | ✅ 完了 |
+| `correctRecord`（`experimentInstructionApiService`） | 実績値の訂正（2026-09-09 追加） | ✅ 完了 |
 
 ---
 
@@ -515,6 +586,8 @@ WorkRecordPanel (PlanB)
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 3.3.0 | 2026-09-09 | ソースコードとの照合に基づき更新（2026-09-09）：①メタデータに行数（3,730行）を追記。②§2.2 PropertyCard レイアウトに定性評価説明・定性評価理由・判定結果バッジ・quantitativeUncertainties プリセット表示を追記。③§3 Props 定義コードブロックを実ソース（`WorkRecordPanelProps`）に合わせて全面更新（`allWorkerInstructions` / `onStatusChange` 追加・`projectInstructions` 削除・`onStart`/`onEnd` シグネチャ修正）。④§4 WorkProperty 型定義セクションを新規追加（`confidenceOptionsWithColor` / `description` / `qualitativeReason` / `quantitativeUncertainties` 含む）。⑤§5.2 State の `MockTask[]` → `WorkTask[]` / `INITIAL_TASKS` → `[]` に修正。⑥§5.3 activeEntry 算出の説明をモック方式 → progressRows API データ方式に修正、`onStatusChange` の正確なシグネチャを記載。⑦§5.4 モックデータ表を「削除済み」表記に更新。⑧§5.6 使用するAPI 表を実装状況に合わせて全面更新（`correctRecord` 追加・未実装フェーズ記述削除）。 | Cline |
+
 | 3.2.0 | 2026-08-27 | ソースコードとの照合に基づき修正（2026-08-27）：①§5.1 activeEntry 選択ロジックを修正（`in_progress` のみ→`in_progress`/`ready`/`preparing` の3ステータスを対象に優先順位ソート・同一ステータス内は `order` 昇順）。②§6.1 スキップ Tooltip テキストを `t('workRecord.skipTooltipAvailable')` = 「このトランジションを後回しにして次へ進みます」/ `t('workRecord.skipTooltipUnavailable')` = 「スキップできる別のトランジションがありません」に修正（3種→2種、`in_progress` 専用テキストは存在しないことを補足注記に明記）。③§9.1 `handleStatusChange` を `useCallback` メモ化対象リストから削除（`WorkRecordPanel` の export default 内に存在しない） | Cline |
 | 3.1.0 | 2026-08-25 | §1.2: 保存時 `is_recorded=TRUE` 更新を主要機能に追記。§3 Props: `progressRows` に `isRecorded?: boolean` フィールドを追記。§6.1 スキップ制御: `in_progress` 時の disabled 条件を追加・優先順位を先頭に変更。§6.3: 承認依頼ボタン活性条件セクション新規追加（全 completed + 全 isRecorded=true）。§10.2: 実装済み機能に7〜10を追加 | Cline |
 | 3.0.2 | 2026-08-26 | §5.7 状態記録ダイアログ仕様を新規追加（ソースコード L2624〜2837 から起こし）：ダイアログレイアウト・固定5行の仕様（準備状態/準備完了状態/動作状態/終状態/異常終了状態・各行Tag色・DatePicker・state変数名）・動的追加行の PauseEntry 型・追加/削除ボタン仕様・保存/キャンセル動作・保存データ構造（現状モック）。§7.3 モーダル遷移図を実装に合わせて更新 | Cline |

@@ -34,10 +34,10 @@ MAIMLファイルをフルスクリーンで編集するためのエディタ画
 ### 2.2 UI要素
 
 #### ヘッダーバー
-- **戻るボタン**: 編集画面を閉じて元の画面に戻る
+- **戻るボタン**: 編集画面を閉じて元の画面に戻る（ラベル: `t('editor.screen.back')`）（2026-09-09 修正: i18n対応）
 - **タイトル**: 
-  - editMode='project': 「実験フロー編集 - {displayTitle}」
-  - editMode='format': 「フォーマット編集 - {displayTitle}」
+  - editMode='project': `t('editor.screen.titleProject') + ' - ' + displayTitle`（2026-09-09 修正: i18n対応）
+  - editMode='format': `t('editor.screen.titleFormat') + ' - ' + displayTitle`（2026-09-09 修正: i18n対応）
 - **サブタイトル**: displaySubtitle（存在する場合のみ表示）
 - **未保存変更インジケーター**: hasUnsavedChangesがtrueの場合に表示
 
@@ -61,16 +61,35 @@ interface PetriNetEditorScreenProps {
   onClose: () => void;
 }
 
-// MaimlEditorParams型の内容
+// MaimlEditorParams型の内容（@/types/maimlEditor.ts で定義）
 interface MaimlEditorParams {
   editMode: 'project' | 'format';
   editingFileName: string;
-  originalFileName?: string;
+  originalFileName: string;
   sourceS3Key: string;
   displayTitle: string;
   displaySubtitle?: string;
   documentId?: string;
   description?: string;
+  /**
+   * エディタ起動時に DraftManager を自動表示するかどうか（任意）。
+   * MAIMLファイルが存在せず、バックエンドDraftがある場合に使用。
+   * （2026-09-09 追加）
+   */
+  openDraftManagerOnStart?: boolean;
+  /**
+   * プロジェクトが属する組織グループCD（任意）。
+   * TemplateEditorDialog の用語スコープ絞り込みに使用する。
+   * （2026-09-09 追加）
+   */
+  organizationGroupCd?: string;
+  /**
+   * MAIMLファイルがS3に登録済みかどうか（任意）。
+   * false の場合、API呼び出しをスキップして新規作成モードで起動する。
+   * undefined の場合は従来通り API を呼び出す（後方互換）。
+   * （2026-09-09 追加）
+   */
+  maimlFileRegistered?: boolean;
 }
 ```
 
@@ -94,28 +113,29 @@ const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
 **トリガー**: useEffect（sourceS3Keyが変更されたとき）
 
 **処理フロー**:
-1. `setIsLoading(true)`
-2. `getFileContentAsText(sourceS3Key)` でS3からファイル取得
-3. 取得成功:
+1. `params.maimlFileRegistered === false` の場合: API呼び出しをスキップして `maimlContent = null` のまま新規作成モードで起動（2026-09-09 追加）
+2. `setIsLoading(true)`
+3. `getFileContentAsText(sourceS3Key)` でS3からファイル取得
+4. 取得成功:
    - `setMaimlContent(content)` - 内容を設定
    - コンソールログ: ✅ 読み込み成功、文字列長を出力
-4. 取得失敗またはnull:
+5. 取得失敗またはnull:
    - `setMaimlContent(null)` - 新規作成モード
    - コンソールログ: ✅ 新規作成モード
-5. `setIsLoading(false)`
+6. `setIsLoading(false)`
 
 **新規作成モード**:
-- ファイルが存在しない場合（404エラーやnull）は、maimlContent=nullで新規作成として扱う
+- `maimlFileRegistered === false` の場合（明示的未登録）: S3 API呼び出し不要なため即座に新規作成モードで開始
+- ファイルが存在しない場合（404エラーやnull）: `maimlContent=null` で新規作成として扱う
 
 #### 3.3.2 戻るボタンの処理
 
-**トリガー**: 戻るボタンクリック
+**トリガー**: 戻るボタンクリック（`useCallback` でメモ化）
 
 **処理フロー**:
 1. `hasUnsavedChanges`をチェック
 2. 未保存変更がある場合:
-   - `window.confirm()` で確認ダイアログ表示
-   - メッセージ: 「保存されていない変更があります。破棄して戻りますか？」
+   - `window.confirm(t('editor.screen.confirmDiscard'))` で確認ダイアログ表示（i18n対応・2026-09-09 修正）
    - ユーザーが「OK」: `onClose()` を呼び出し
    - ユーザーが「キャンセル」: 何もしない
 3. 未保存変更がない場合:
@@ -305,7 +325,7 @@ const hasUnsavedChanges: boolean;
 
 ### 10.3 未保存変更の検知
 
-現在は`handleContentChange`コールバックが定義されているが、PetriNetEditorInnerに渡されていない。将来的には、PetriNetEditorInner側でコンテンツが変更されたときにこのコールバックを呼び出すことで、未保存変更の検知が可能になる。
+`PetriNetEditorInnerProps` に `onContentChange`（未保存変更フラグ設定）と `onContentSaved`（保存完了後フラグリセット）コールバックが追加済み（2026-09-09 更新）。`PetriNetEditorScreen` では `handleContentChange` を `onContentChange` として `PetriNetEditorInner` に渡している。
 
 ### 10.4 ReactFlowProvider
 
@@ -322,6 +342,7 @@ React Flowを使用するため、PetriNetEditorInnerを`<ReactFlowProvider>`で
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースでUI仕様書を新規作成 | Cline |
+| 2026-09-09 | ソースコードとの照合に基づき更新（2026-09-09）：①§2.2 ヘッダーバーのタイトル・戻るボタンラベルを i18n キー（`t('editor.screen.back')` / `t('editor.screen.titleProject')` / `t('editor.screen.titleFormat')`）に修正。②§3.1 `MaimlEditorParams` 型定義に `openDraftManagerOnStart`・`organizationGroupCd`・`maimlFileRegistered` を追加。③§3.3.1 MAIMLファイル読み込みフローに `maimlFileRegistered === false` 時のAPI呼び出しスキップ処理を追記。④§3.3.2 戻るボタンの確認文言を `t('editor.screen.confirmDiscard')` に修正、`useCallback` メモ化を明記。⑤§10.3 未保存変更検知の実装状況を更新（`onContentChange`/`onContentSaved` Props追加済み）| Cline |
 
 ---
 

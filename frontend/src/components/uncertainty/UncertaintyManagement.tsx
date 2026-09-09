@@ -221,7 +221,15 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
   const [activeTab, setActiveTab] = useState<'namespace' | 'prefix' | 'criteria'>('prefix');
   // 名前空間ツリー選択（左ペイン）→ NamespaceMain に連携
   const [selectedNsKey,    setSelectedNsKey]    = useState<string | null>(null);
-
+  // 用語管理タブがアクティブになったタイムスタンプ。用語管理タブへ切り替えた際に Date.now() をセットし、
+  // NamespaceMain の terms と dbPrefixes を強制再取得させるために使用する。
+  const [namespaceTabActivatedAt, setNamespaceTabActivatedAt] = useState<number | undefined>(undefined);
+  // Prefix管理タブがアクティブになったタイムスタンプ。Prefix管理タブへ切り替えた際に Date.now() をセットし、
+  // PrefixManagement の Prefix 一覧を強制再取得させるために使用する。
+  const [prefixTabActivatedAt, setPrefixTabActivatedAt] = useState<number | undefined>(undefined);
+  // 不確かさ基準管理タブがアクティブになったタイムスタンプ。タブへ切り替えた際に Date.now() をセットし、
+  // 不確かさ基準一覧を強制再取得させるために使用する。
+  const [criteriaTabActivatedAt, setCriteriaTabActivatedAt] = useState<number | undefined>(undefined);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -521,6 +529,24 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
       });
     return () => { cancelled = true; };
   }, [selectedNsKey, resolveScopeKey]);
+
+  // ──── criteriaTabActivatedAt 変化時に不確かさ基準一覧を強制再取得
+  // 外部タブから切り替えた際にタイムスタンプを更新することで最新データを反映させる。
+  // undefined の場合はスキップ（初回マウント時は上の useEffect に任せる）。
+  useEffect(() => {
+    if (criteriaTabActivatedAt === undefined) return;
+    let cancelled = false;
+    const scopeKey = resolveScopeKey(selectedNsKey);
+    fetchUncertaintyCriteriaList(scopeKey)
+      .then((data) => {
+        if (!cancelled) setTemplates(data);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('[UncertaintyManagement] 一覧取得エラー:', err);
+      });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [criteriaTabActivatedAt]);
 
   /**
    * バージョン文字列を数値配列に変換（例: "v2.1" → [2, 1]）
@@ -882,7 +908,16 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
           {TAB_LABELS.map((tab) => (
               <div
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => {
+                  // 各タブへの切り替え時（同タブ連打は除く）にタイムスタンプを更新し
+                  // 各コンポーネントの最新データ再取得をトリガーする
+                  if (tab.key !== activeTab) {
+                    if (tab.key === 'namespace') setNamespaceTabActivatedAt(Date.now());
+                    if (tab.key === 'prefix')    setPrefixTabActivatedAt(Date.now());
+                    if (tab.key === 'criteria')  setCriteriaTabActivatedAt(Date.now());
+                  }
+                  setActiveTab(tab.key);
+                }}
                 style={{
                   padding: '12px 20px',
                   cursor: 'pointer',
@@ -907,6 +942,7 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
                 hideTree
                 externalSelectedNsKey={selectedNsKey}
                 viewOnly={isViewOnlyForCompany}
+                tabActivatedAt={namespaceTabActivatedAt}
               />
             </div>
 
@@ -921,6 +957,7 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
                 orgGroupCds={filteredOrgGroupCds}
                 onShareSelected={handleShareSelected}
                 viewOnly={isViewOnlyForCompany}
+                tabActivatedAt={prefixTabActivatedAt}
               />
             </div>
 

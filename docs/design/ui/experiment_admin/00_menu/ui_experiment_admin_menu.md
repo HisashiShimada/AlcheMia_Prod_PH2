@@ -6,22 +6,22 @@
 - **ファイルパス**: `frontend/src/components/menus/ExperimentAdminMenu.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-03-11
-- **最終更新日**: 2026-08-20
+- **最終更新日**: 2026-09-08
 - **担当者**: Development Team
-- **バージョン**: 2.1.0
+- **バージョン**: 2.2.0
 
 ---
 
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-実験管理者（Experiment Admin）のメイン画面として、プロジェクト管理・フォーマット管理・進捗確認・名前空間管理・チーム管理の5つの主要機能へのアクセスを提供します。サブヘッダーに埋め込まれたタブでメニューを切り替え、各機能の画面を表示します。
+実験管理者（Experiment Admin）のメイン画面として、プロジェクト管理・フォーマット管理・進捗確認・名前空間管理・グループ管理の5つの主要機能へのアクセスを提供します。サブヘッダーに埋め込まれたタブでメニューを切り替え、各機能の画面を表示します。
 
 全タブのコンポーネントを `display:none` で常時マウントすることで、タブ切り替え時に state（フィルタ・選択状態等）が失われないようにしています。
 
 ### 1.2 使用場面
 - 実験管理者ロールでログインした際のメイン画面
-- プロジェクトのCRUD操作・フォーマット管理・進捗確認・名前空間管理・チーム管理を行う際に使用
+- プロジェクトのCRUD操作・フォーマット管理・進捗確認・名前空間管理・グループ管理を行う際に使用
 - 実験管理者の全ての主要業務の入口となる画面
 
 ### 1.3 アクセス権限
@@ -43,7 +43,7 @@
 │ SubHeader with Tabs (76px)                                  │
 │ - タイトル: 実験管理                                         │
 │ - タブ: [プロジェクト管理] [フォーマット管理] [進捗確認]     │
-│          [名前空間管理] [チーム管理]                        │
+│          [名前空間管理] [グループ管理]                      │
 ├─────────────────────────────────────────────────────────────┤
 │ Content (calc(100vh - 140px), overflow: hidden)             │
 │                                                             │
@@ -53,7 +53,7 @@
 │ - タブ2: FormatManagement  (display:block/none)            │
 │ - タブ3: ProgressMonitoring (display:block/none)           │
 │ - タブ4: UncertaintyManagement (display:block/none)        │
-│ - タブ5: TeamManagementPanel (display:block/none)          │
+│ - タブ5: GroupManagementPanel (display:block/none)         │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 
@@ -83,7 +83,7 @@
   - タブ2: `'フォーマット管理'`（アイコン: `FileTextOutlined`）
   - タブ3: `'進捗確認'`（アイコン: `LineChartOutlined`）
   - タブ4: `'名前空間管理'`（アイコン: `ExperimentOutlined`）
-  - タブ5: `'チーム管理'`（アイコン: `TeamOutlined`）
+  - タブ5: `'グループ管理'`（アイコン: `TeamOutlined`）
 - メニュー切り替えボタン（`currentMenu="experiment_admin"`）
 - Props: `title`, `tabs`, `activeTabKey`, `onTabChange`, `currentMenu`, `onMenuChange`, `userPermissions`
 
@@ -98,7 +98,7 @@ Content 自体は `overflow: hidden` / `height: calc(100vh - 140px)` で固定�
 | フォーマット管理 | `'2'` | `FormatManagement` | `hidden` |
 | 進捗確認 | `'3'` | `ProgressMonitoring` | `hidden` |
 | 名前空間管理 | `'4'` | `UncertaintyManagement` | `hidden` |
-| チーム管理 | `'5'` | `TeamManagementPanel` | `hidden` + `background: #fff` |
+| グループ管理 | `'5'` | `GroupManagementPanel` | `hidden` + `background: #fff` |
 
 #### 2.2.4 オーバーレイ・モーダル
 - **WorkerScreenOverlay**: 作業者画面のプレビュー（条件付き表示）
@@ -112,10 +112,10 @@ graph TD
     A -->|タブ2選択| C[フォーマット管理]
     A -->|タブ3選択| D[進捗確認]
     A -->|タブ4選択| E[名前空間管理]
-    A -->|タブ5選択| F[チーム管理]
+    A -->|タブ5選択| F[グループ管理]
     B -->|編集ボタン| H[PetriNetEditorScreen（全画面）]
     B -->|作業者画面表示| I[WorkerScreenOverlay]
-    B -->|チーム未所属→チーム管理へ| F
+    B -->|グループ未所属→グループ管理へ| F
     H -->|閉じる| B
     I -->|閉じる| B
 ```
@@ -129,11 +129,17 @@ graph TD
 ```typescript
 const handleTabChange = (key: string) => {
   setCurrentTab(key);
+  // タブ4（名前空間管理）に切り替えた際にタイムスタンプを更新する
+  // → UncertaintyManagement の useEffect がトリガーされ組織ツリーを再取得する
+  if (key === '4') {
+    setNamespaceTabActivatedAt(Date.now());
+  }
 };
 ```
 
 - `display:none` 方式を採用しているため、タブ切り替え時にコンポーネントはアンマウントされない
 - 各子コンポーネントの state（フィルタ・選択状態等）が維持される
+- タブ4（名前空間管理）切り替え時のみ `namespaceTabActivatedAt` を `Date.now()` で更新し、`UncertaintyManagement` の組織ツリー再取得をトリガーする
 
 ### 3.2 メニュー変更
 
@@ -192,10 +198,10 @@ const handleCloseWorkerScreen = () => {
 };
 ```
 
-### 3.7 チーム管理タブへのナビゲーション
+### 3.7 グループ管理タブへのナビゲーション
 
-`ProjectManagement` に `onNavigateToTeamManagement={() => setCurrentTab('5')}` を渡す。
-プロジェクト管理画面でチーム未所属の場合に「チーム管理へ」ボタンが表示され、クリックでタブ5に自動切り替え。
+`ProjectManagement` に `onNavigateToGroupManagement={() => setCurrentTab('5')}` を渡す。
+プロジェクト管理画面でグループ未所属の場合に「グループ管理へ」ボタンが表示され、クリックでタブ5に自動切り替え。
 
 ### 3.8 権限情報の取得
 
@@ -234,6 +240,7 @@ interface ExperimentAdminMenuProps {
 | State名 | 型 | 初期値 | 説明 |
 |---------|---|--------|------|
 | `currentTab` | `string` | `'1'` | 現在選択されているタブのkey |
+| `namespaceTabActivatedAt` | `number \| undefined` | `undefined` | タブ4（名前空間管理）がアクティブになった時刻（`UncertaintyManagement` の組織ツリー再取得トリガー）|
 | `showEditor` | `boolean` | `false` | MAIML編集画面の表示/非表示フラグ |
 | `editorProjectParams` | `MaimlEditorParams \| null` | `null` | 編集対象のプロジェクト情報 |
 | `workerOverlayOpen` | `boolean` | `false` | 作業者画面オーバーレイの表示/非表示フラグ |
@@ -252,21 +259,23 @@ const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + SUBHEADER_HEIGHT; // 140
 
 ```typescript
 const tabItems = [
-  { key: '1', label: t('menu.experiment_admin.tabs.projectManagement'),   icon: <FolderAddOutlined /> },
-  { key: '2', label: t('menu.experiment_admin.tabs.formatManagement'),     icon: <FileTextOutlined /> },
-  { key: '3', label: t('menu.experiment_admin.tabs.progressMonitoring'),   icon: <LineChartOutlined /> },
-  { key: '4', label: t('menu.experiment_admin.tabs.namespaceManagement'),  icon: <ExperimentOutlined /> },
-  { key: '5', label: 'チーム管理',                                          icon: <TeamOutlined /> },
+  { key: '1', label: t('menu.experiment_admin.tabs.projectManagement') || 'プロジェクト管理',  icon: <FolderAddOutlined /> },
+  { key: '2', label: t('menu.experiment_admin.tabs.formatManagement') || 'フォーマット管理',    icon: <FileTextOutlined /> },
+  { key: '3', label: t('menu.experiment_admin.tabs.progressMonitoring') || '進捗確認',          icon: <LineChartOutlined /> },
+  { key: '4', label: t('menu.experiment_admin.tabs.namespaceManagement') || '名前空間管理',     icon: <ExperimentOutlined /> },
+  { key: '5', label: 'グループ管理',                                                             icon: <TeamOutlined /> },
 ];
 ```
 
-> ⚠️ タブ5の「チーム管理」はi18nキー未設定（ハードコード）
+> ⚠️ タブ5の「グループ管理」はi18nキー未設定（ハードコード）
 
 ### 4.5 Context・Hooks
 
 ```typescript
 const { t } = useLanguage();         // 多言語対応
 const { token } = theme.useToken();  // テーマトークン
+const [currentTab, setCurrentTab] = useState('1');
+const [namespaceTabActivatedAt, setNamespaceTabActivatedAt] = useState<number | undefined>(undefined);
 const permissions = getPermissionsFromToken(); // 権限情報
 ```
 
@@ -300,7 +309,7 @@ const permissions = getPermissionsFromToken();
 
 ### 7.1 メインファイル
 - **パス**: `frontend/src/components/menus/ExperimentAdminMenu.tsx`
-- **行数**: 221行
+- **行数**: 230行
 - **エクスポート**: `default function ExperimentAdminMenu`
 
 ### 7.2 関連ファイル
@@ -318,11 +327,11 @@ const permissions = getPermissionsFromToken();
 
 | コンポーネント | パス | タブ | 主なProps |
 |-------------|------|-----|---------|
-| `ProjectManagement` | `../project/ProjectManagement` | タブ1 | `onEdit`, `onOpenWorkerScreen`, `user`, `onNavigateToTeamManagement` |
+| `ProjectManagement` | `../project/ProjectManagement` | タブ1 | `onEdit`, `onOpenWorkerScreen`, `user`, `onNavigateToGroupManagement` |
 | `FormatManagement` | `../format/FormatManagement` | タブ2 | `user` |
 | `ProgressMonitoring` | `../progress/ProgressMonitoring` | タブ3 | なし |
-| `UncertaintyManagement` | `../uncertainty/UncertaintyManagement` | タブ4 | `user` |
-| `TeamManagementPanel` | `../team/TeamManagementPanel` | タブ5 | なし |
+| `UncertaintyManagement` | `../uncertainty/UncertaintyManagement` | タブ4 | `user`, `tabActivatedAt` |
+| `GroupManagementPanel` | `../group/GroupManagementPanel` | タブ5 | なし |
 
 **オーバーレイ・全画面コンポーネント:**
 - `<PetriNetEditorScreen />` - MAIML編集画面（全画面表示）
@@ -340,7 +349,7 @@ const permissions = getPermissionsFromToken();
 - `FileTextOutlined` - フォーマット管理タブ
 - `LineChartOutlined` - 進捗確認タブ
 - `ExperimentOutlined` - 名前空間管理タブ
-- `TeamOutlined` - チーム管理タブ
+- `TeamOutlined` - グループ管理タブ
 
 ---
 
@@ -362,7 +371,7 @@ WorkerScreenOverlay はその間も `<Layout>` 内に存在しないため、エ
 - タブ2: `t('menu.experiment_admin.tabs.formatManagement')`
 - タブ3: `t('menu.experiment_admin.tabs.progressMonitoring')`
 - タブ4: `t('menu.experiment_admin.tabs.namespaceManagement')`
-- タブ5: ハードコード `'チーム管理'`（i18nキー未設定）
+- タブ5: ハードコード `'グループ管理'`（i18nキー未設定）
 
 ### 8.4 コンソールログ
 - エディタ表示時: `✏️ [ExperimentAdminMenu] Edit project:` + params
@@ -374,6 +383,7 @@ WorkerScreenOverlay はその間も `<Layout>` 内に存在しないため、エ
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 2.2.0 | 2026-09-09 | タブ5をチーム管理→グループ管理へ変更（`TeamManagementPanel`→`GroupManagementPanel`、`onNavigateToTeamManagement`→`onNavigateToGroupManagement`）、`namespaceTabActivatedAt` State追加・`handleTabChange`のタブ4トリガー処理追加、`UncertaintyManagement` Propsに`tabActivatedAt`追加、タブ定義スニペットにフォールバック文字列追加 |
 | 2.1.0 | 2026-08-20 | タブ6（鍵管理）を削除（暗号化・署名機能は廃止）、5タブ構成に修正 |
 | 2.0.0 | 2026-08-20 | 実装ベースで全面改訂（6タブ対応・display:none常時マウント方式・ProjectManagement Props追加・チーム管理タブへのナビゲーション追加）|
 | 1.0.0 | 2026-03-11 | 初版作成 |

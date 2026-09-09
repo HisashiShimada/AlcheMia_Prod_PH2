@@ -94,6 +94,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   scopeKey,
   orgGroupCds,
   targetScopeName,
+  tabActivatedAt,
 }) => {
   const { message, modal } = App.useApp();
   const { t } = useLanguage();
@@ -259,6 +260,16 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
     reloadNamespaces();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNsKey, JSON.stringify(orgGroupCds)]);
+
+  // ──── tabActivatedAt 変化時に Prefix 一覧を強制再取得
+  // 外部（UncertaintyManagement 等）でタブへ切り替えた際にタイムスタンプを更新することで
+  // selectedNsKey が変化しなくても最新データを反映させる。
+  // undefined の場合はスキップ（初回マウント時は上の useEffect に任せる）。
+  useEffect(() => {
+    if (tabActivatedAt === undefined) return;
+    reloadNamespaces();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabActivatedAt]);
 
   // ──── タブを離れたときにチェック状態をリセット
   useEffect(() => {

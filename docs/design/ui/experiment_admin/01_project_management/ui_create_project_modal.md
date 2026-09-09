@@ -74,22 +74,17 @@
   - 最大500文字
 - `maxLength={500}` / `showCount` で文字数カウント表示
 
-**3. チーム（必須）**
-- タイプ: Select
-- `data-testid`: `create-project-org-group-select`
-- バリデーション: 必須選択
-- モーダルオープン時に `GET /api/v1/organization-groups` から取得した選択肢を表示
-- 取得中は `loading={teamsLoading}` でローディング表示
-- フィールド下に補足テキスト（`createProject.teamNote`）を表示
-
-**3. チーム（必須）**
+**3. グループ（必須）**（2026-09-09 修正: 旧「チーム」から変更）
 - タイプ: Select（ドロップダウン）
 - `data-testid`: `create-project-org-group-select`
-- データソース: `GET /api/v1/organization-groups` で取得したチーム一覧
+- フォームフィールド名: `organizationGroupCd`
+- ラベル: `t('createProject.groupLabel')`
+- プレースホルダー: `t('createProject.groupPlaceholder')`
+- データソース: `GET /api/v1/organization-groups` で取得したグループ一覧
 - ローディング中はスピナー表示（`loading={teamsLoading}`）
 - バリデーション:
-  - 必須選択
-- フィールド下に補足テキストを表示（`createProject.teamNote`）
+  - 必須選択（`t('createProject.groupRequired')`）
+- フィールド下に補足テキスト（`t('createProject.groupNote')`）を表示
 
 #### 2.2.3 フッターボタン
 - **キャンセルボタン** (`data-testid`: `create-project-cancel-button`): モーダルを閉じる、フォームをリセット
@@ -97,7 +92,7 @@
 
 #### 2.2.4 エラー表示
 - Alert（error）: エラーメッセージ表示
-- `closable` / `showIcon` あり
+- `title` / `description` / `closable` / `showIcon` あり（`title` prop は Ant Design v6 対応）
 
 ---
 
@@ -409,6 +404,7 @@ const handleCreateProject = async (data: CreateProjectData) => {
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
 | 2026-08-23 | ソース実態に合わせて修正（チーム選択フィールド追加・Props/State/型定義更新） | Cline |
+| 2026-09-09 | フィールド3重複記述を統合・「チーム」→「グループ」に修正（i18nキー: `createProject.groupLabel`/`groupPlaceholder`/`groupRequired`/`groupNote`）・Alert の `message` prop → `title` prop に修正（Ant Design v6 対応） | Cline |
 
 ---
 

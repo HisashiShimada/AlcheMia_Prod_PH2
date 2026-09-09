@@ -117,8 +117,18 @@ export async function generateClientCertificate(
     const { caCert, caKey } = loadCACertificates();
 
     // 2. クライアント秘密鍵を生成（RSA 2048bit）
+    // コールバック形式を使うことで Node.js の crypto.generateKeyPair（libuv スレッドプール）が
+    // 使用され、イベントループのブロッキングを回避する
     logger.info(`[certificateService] Step 2: クライアント秘密鍵を生成中...`);
-    const keys = forge.pki.rsa.generateKeyPair(2048);
+    const keys = await new Promise<forge.pki.rsa.KeyPair>((resolve, reject) => {
+      forge.pki.rsa.generateKeyPair(2048, 65537, (err: Error, keypair: forge.pki.rsa.KeyPair) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(keypair);
+        }
+      });
+    });
 
     // 3. クライアント証明書を作成
     logger.info(`[certificateService] Step 3: クライアント証明書を作成中...`);

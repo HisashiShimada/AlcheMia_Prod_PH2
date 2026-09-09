@@ -476,6 +476,35 @@ export class TransitionDataRepository {
   }
 
   /**
+   * プロジェクト配下のトランジション総数を取得（task_no > 0 の実績行のみ対象）
+   *
+   * チェックアウト時のバリデーションで使用。
+   * task_no=0 は順序管理行（status=NULL）のため除外する。
+   *
+   * @param client PoolClient（トランザクション内で呼び出すこと）
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @returns トランジション総数（0件 = トランジション未登録）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async countByProject(
+    client: PoolClient,
+    organizationId: string,
+    projectId: string
+  ): Promise<number> {
+    try {
+      const query = await loadSqlFile('transition_data/countByProject.sql');
+      const result = await client.query(query, [organizationId, projectId]);
+      return parseInt(result.rows[0]?.count ?? '0', 10);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while counting transitions by project',
+        error as Error
+      );
+    }
+  }
+
+  /**
    * チェックアウト時のトランジションステータス一括更新
    *
    * prerequisite_transition_ids が空配列（前提なし）のトランジションを

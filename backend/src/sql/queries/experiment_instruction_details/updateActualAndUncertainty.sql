@@ -10,7 +10,7 @@
 --   $3  method_id
 --   $4  task_no
 --   $5  transition_id
---   $6  template_name
+--   $6  template_id                （MAIMLの template.id: 主キー6番目）
 --   $7  prop_key
 --   $8  actual_value               （NULL 可: 実績値）
 --   $9  name_space_id              （NULL 可: 不確かさ紐づけ時のみ）
@@ -26,7 +26,7 @@ INSERT INTO experiment_instruction_detail (
     method_id,
     task_no,
     transition_id,
-    template_name,
+    template_id,
     prop_key,
     actual_value,
     name_space_id,
@@ -43,7 +43,7 @@ INSERT INTO experiment_instruction_detail (
     $8, $9, $10, $11, $12, $13,
     $14, NOW(), $14, NOW()
 )
-ON CONFLICT (organization_id, project_id, method_id, task_no, transition_id, template_name, prop_key)
+ON CONFLICT (organization_id, project_id, method_id, task_no, transition_id, template_id, prop_key)
 DO UPDATE SET
     actual_value               = COALESCE(EXCLUDED.actual_value, experiment_instruction_detail.actual_value),
     name_space_id              = COALESCE(EXCLUDED.name_space_id, experiment_instruction_detail.name_space_id),
