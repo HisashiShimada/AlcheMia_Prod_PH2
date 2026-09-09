@@ -32,24 +32,34 @@ import {
 } from '../utils/maimlDataWriter';
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
-import { findNamespacesByOrganization } from '../repositories/namespaceTermRepository';
+import { findDeclarationsByProjectScope, findProjectGroupCd } from '../repositories/namespaceTermRepository';
 import { readGlobalDeclarations } from './globalNamespaceFileService';
 import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
 
 /**
- * 組織固有名前空間（DB）とグローバル名前空間（ファイルサーバ）をマージして返す
+ * プロジェクトスコープの名前空間（DB）とグローバル名前空間（ファイルサーバ）をマージして返す
+ *
+ * プロジェクトの organization_group_cd を取得し、そのグループ＋祖先グループに
+ * 紐づく prefix のみを返す。同一 prefix が複数階層に存在する場合は対象グループ
+ * （depth=0）を優先する（findDeclarationsByProjectScope.sql の DISTINCT ON による）。
  *
  * @param organizationId - 組織ID
- * @returns マージされた名前空間エントリ配列（グローバル優先、組織固有が後勝ち）
+ * @param projectId      - プロジェクトID（グループCDの特定に使用）
+ * @returns マージされた名前空間エントリ配列（グローバル優先、プロジェクトスコープが後勝ち）
  */
 async function buildMergedNamespaces(
-  organizationId: string
+  organizationId: string,
+  projectId: string
 ): Promise<Array<{ prefix: string; uri: string }>> {
-  const [orgNamespaces, globalDeclarations] = await Promise.all([
-    findNamespacesByOrganization(organizationId),
+  // プロジェクトの organization_group_cd を取得
+  const projectRow = await findProjectGroupCd(organizationId, projectId);
+  const orgGroupCd: string | null = projectRow?.organization_group_cd ?? null;
+
+  const [projectNamespaces, globalDeclarations] = await Promise.all([
+    findDeclarationsByProjectScope(organizationId, orgGroupCd),
     readGlobalDeclarations(),
   ]);
-  return [...globalDeclarations, ...orgNamespaces];
+  return [...globalDeclarations, ...projectNamespaces];
 }
 
 /**
@@ -210,8 +220,8 @@ export class MaimlWriterService {
     let updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
 
     // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
-    // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
-    const allNamespaces = await buildMergedNamespaces(organizationId);
+    // プロジェクトスコープ（グループ＋祖先）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
+    const allNamespaces = await buildMergedNamespaces(organizationId, projectId);
     updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
@@ -352,8 +362,8 @@ export class MaimlWriterService {
     let updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
 
     // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
-    // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
-    const allNamespaces = await buildMergedNamespaces(organizationId);
+    // プロジェクトスコープ（グループ＋祖先）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
+    const allNamespaces = await buildMergedNamespaces(organizationId, projectId);
     updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
