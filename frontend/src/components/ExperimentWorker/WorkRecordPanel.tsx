@@ -2107,6 +2107,11 @@ interface WorkRecordPanelProps {
   /** プロジェクト指示「確認」ボタン押下コールバック */
   onConfirmInstruction?: () => void;
   /**
+   * プロジェクトが属する組織グループCD（任意）。
+   * 不確かさ基準新規作成ダイアログのKey属性設定プルダウンのスコープ絞り込みに使用する。
+   */
+  organizationGroupCd?: string | null;
+  /**
    * 「開始」ボタン押下コールバック（準備完了→動作状態）
    * displayKey の taskNo / transitionId を受け取る。
    */
@@ -2240,6 +2245,7 @@ export default function WorkRecordPanel({
   initialTransitionId,
   allWorkerInstructions,
   onConfirmInstruction,
+  organizationGroupCd,
   onStart,
   onEnd,
   onForceEnd,

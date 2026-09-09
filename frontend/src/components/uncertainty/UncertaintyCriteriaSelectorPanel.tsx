@@ -89,6 +89,13 @@ interface UncertaintyCriteriaSelectorPanelProps {
   targetProperty: TargetProperty | null;
   /** 付与確定時コールバック */
   onAssign: (payload: AssignPayload) => void;
+  /**
+   * プロジェクトが属する組織グループCD（任意）。
+   * 新規基準作成ダイアログのKey属性設定プルダウンのスコープ絞り込みに使用する。
+   * 指定時: そのグループ＋上位グループスコープ＋個人スコープの用語のみ表示
+   * 未指定時: 個人スコープのみにフォールバック
+   */
+  organizationGroupCd?: string | null;
 }
 
 // ============================================================================
@@ -107,6 +114,7 @@ interface UncertaintyCriteriaSelectorPanelProps {
 export default function UncertaintyCriteriaSelectorPanel({
   targetProperty,
   onAssign,
+  organizationGroupCd,
 }: UncertaintyCriteriaSelectorPanelProps) {
   const { message } = App.useApp();
   const { t } = useLanguage();
@@ -213,7 +221,7 @@ export default function UncertaintyCriteriaSelectorPanel({
         if (filter.evalType !== 'all' && c.evalType !== filter.evalType) return false;
         if (filter.section !== 'all' && !c.targetSections.includes(filter.section as never)) return false;
         if (filter.tag !== 'all' && c.targetTag !== filter.tag) return false;
-        if (ns && !c.key.toLowerCase().includes(ns)) return false;
+        if (ns && !c.key.toLowerCase().includes(ns) && !c.name.toLowerCase().includes(ns)) return false;
         if (filter.evalType === 'quantitative' && filter.typeMatch === 'match') {
           if (c.typeMatches.length === 0) return false;
           if (!c.typeMatches.some((t) => t.toLowerCase() === nodeType)) return false;
@@ -841,6 +849,7 @@ export default function UncertaintyCriteriaSelectorPanel({
       <UncertaintyCreateModal
         open={createModalOpen}
         allCriteria={[]}
+        organizationGroupCd={organizationGroupCd}
         onClose={() => setCreateModalOpen(false)}
       />
     </div>

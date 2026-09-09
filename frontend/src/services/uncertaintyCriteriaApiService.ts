@@ -71,6 +71,10 @@ interface UncertaintyCriteriaApiRow {
   termDisplayName: string | null;
   /** namespace_term の説明（uncertainty_key に紐づく） */
   termDescription: string | null;
+  /** namespace.scope_key（organization_group_cd または user_id） */
+  scopeKey: string | null;
+  /** スコープ表示名（organization_group.organization_group_name または organization_user.user_name） */
+  scopeName: string | null;
 }
 
 /** 定性評価選択肢の API レスポンス型（intuition_selector に対応） */
@@ -109,7 +113,7 @@ export async function fetchUncertaintyCriteriaList(scopeKey?: string): Promise<U
     id: index + 1,                                          // 画面用の連番ID
     name: row.uncertaintyName,                              // uncertainty_name カラムから取得
     key: row.uncertaintyKey,
-    scope: row.nameSpaceId,                                 // nameSpaceId をスコープ表示に使用
+    scope: row.scopeName ?? row.scopeKey ?? row.nameSpaceId,  // スコープ表示名（グループ名 > scopeKey > nameSpaceId の優先順）
     eval: toEvalMethod(row.evaluationMethod),
     type: row.xsiType ?? '',
     desc: row.description ?? '',
