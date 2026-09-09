@@ -160,7 +160,9 @@
     "task": "タスク{n}",
     "saveSuccess": "実験計画を保存しました",
     "saveFailed": "保存に失敗しました",
-    "cannotChangeOrder": "順序を変更できません"
+    "cannotChangeOrder": "順序を変更できません",
+    "saveDisabledNoTransitions": "トランジションが存在しないため保存できません",
+    "saveDisabledNoTemplates": "Placeに紐づくテンプレートが存在しないため保存できません"
   },
   "evaluationRegistration": {
     "title": "評価登録",
@@ -315,9 +317,9 @@
     "executeButton": "実行",
     "cancelButton": "キャンセル",
     "status": {
-      "waiting": "待機中",
-      "inProgress": "進行中",
-      "running": "実行中",
+      "pending": "実行待ち",
+      "inProgress": "実行中",
+      "forcedTerminated": "異常終了",
       "reviewWaiting": "レビュー待ち",
       "completed": "完了",
       "ng": "NG"
@@ -2607,6 +2609,8 @@
     "E7011": "処理が既に実行中です",
     "E7012": "公開済みアセットが存在しません",
     "E7013": "アップロード先プロジェクトに異なるMAIMLが登録済みの可能性があります",
+    "E7014": "トランジションが登録されていません",
+    "E7015": "実験計画が登録されていません",
     "E9999": "エラーが発生しました。しばらくしてから再度お試しください",
     "AUTH_PIN_INVALID": "PINコードが正しくありません",
     "PIN_VERIFY_FAILED": "PINコードの検証に失敗しました。再度お試しください",
@@ -2620,6 +2624,8 @@
     "CHECKOUT_INVALID_STATUS": "プロジェクトのステータスが操作を許可していません",
     "CHECKOUT_NO_TASKS": "タスクが登録されていません",
     "CHECKOUT_UNSENT_INSTRUCTIONS": "未送信の指示が存在します",
+    "CHECKOUT_NO_TRANSITIONS": "トランジションが登録されていません",
+    "CHECKOUT_NO_EXPERIMENT_PLAN": "実験計画が登録されていません",
     "TASK_NOT_COMPLETED": "チェックイン可能なタスクステータスではありません",
     "BUSINESS_MAIML_FILE_EXISTS": "MAIMLファイルが存在するためプロジェクトを削除できません",
     "PROJECT_ALREADY_CHECKED_OUT": "このプロジェクトは既に他のユーザーによってチェックアウトされています",
@@ -2676,6 +2682,8 @@
     "checkoutErrorInvalidStatus": "プロジェクトステータスがタスク実行待ちではありません",
     "checkoutErrorNoTasks": "タスクが登録されていません。先にタスクを登録してください",
     "checkoutErrorUnsentInstructions": "未送信の指示が存在します。指示を送信してからチェックアウトしてください",
+    "checkoutErrorNoTransitions": "トランジションが登録されていません。トランジションを含むMAIMLを設定してからタスク登録してください",
+    "checkoutErrorNoExperimentPlan": "実験計画が登録されていません。実験計画ダイアログで計画を保存してからチェックアウトしてください",
     "checkoutWarningAlreadyCheckedOut": "このプロジェクトは既に{user}によってチェックアウトされています。",
     "notFound": "プロジェクトが見つかりません",
     "infoNotFound": "プロジェクト情報が見つかりません",

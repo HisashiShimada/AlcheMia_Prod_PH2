@@ -80,6 +80,8 @@ export const E7010 = 'E7010'; // タスク未完了
 export const E7011 = 'E7011'; // 処理中
 export const E7012 = 'E7012'; // 非公開済み
 export const E7013 = 'E7013'; // MAIML UUID重複（別プロジェクトに登録済み）
+export const E7014 = 'E7014'; // トランジション未登録
+export const E7015 = 'E7015'; // 実験計画未登録
 
 // ===== E9xxx: UNKNOWN =====
 export const E9999 = 'E9999'; // 予期しないエラー
@@ -99,7 +101,7 @@ export type ErrorCode =
   | typeof E6001 | typeof E6002 | typeof E6003 | typeof E6004 | typeof E6005 | typeof E6006
   | typeof E7001 | typeof E7002 | typeof E7003 | typeof E7004 | typeof E7005
   | typeof E7006 | typeof E7007 | typeof E7008 | typeof E7009 | typeof E7010
-  | typeof E7011 | typeof E7012 | typeof E7013
+  | typeof E7011 | typeof E7012 | typeof E7013 | typeof E7014 | typeof E7015
   | typeof E9999;
 
 /**
@@ -174,6 +176,8 @@ export const LEGACY_CODE_MAP: Record<string, ErrorCode> = {
   PROJECT_NOT_FOUND: E6001,
   PROJECT_NOT_CHECKED_OUT: E7002,
   MAIML_NOT_FOUND: E6002,
+  CHECKOUT_NO_TRANSITIONS: E7014,
+  CHECKOUT_NO_EXPERIMENT_PLAN: E7015,
 };
 
 /**

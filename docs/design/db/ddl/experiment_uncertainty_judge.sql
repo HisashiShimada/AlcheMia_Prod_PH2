@@ -24,7 +24,7 @@ CREATE TABLE experiment_uncertainty_judge (
   , method_id character varying
   , task_no numeric(3,0)
   , transition_id character varying
-  , place_id character varying
+  , template_id character varying
   , property_key character varying
   , uncertainty_key character varying
   , uncertainty_version integer
@@ -46,7 +46,7 @@ COMMENT ON COLUMN experiment_uncertainty_judge.judge_seq IS '判定連番';
 COMMENT ON COLUMN experiment_uncertainty_judge.method_id IS 'メソッドID';
 COMMENT ON COLUMN experiment_uncertainty_judge.task_no IS 'タスクNo';
 COMMENT ON COLUMN experiment_uncertainty_judge.transition_id IS 'トランジションID';
-COMMENT ON COLUMN experiment_uncertainty_judge.place_id IS 'プレースID';
+COMMENT ON COLUMN experiment_uncertainty_judge.template_id IS 'テンプレートID（MAIMLの template.id）';
 COMMENT ON COLUMN experiment_uncertainty_judge.property_key IS 'プロパティキー';
 COMMENT ON COLUMN experiment_uncertainty_judge.uncertainty_key IS '不確かさ基準キー';
 COMMENT ON COLUMN experiment_uncertainty_judge.uncertainty_version IS '不確かさバージョン';

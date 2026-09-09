@@ -21,8 +21,8 @@ import { judgeUncertainty } from '../utils/uncertaintyJudge';
 export interface UncertaintyValueInput {
   /** プロパティKey（template_data の property key） */
   propertyKey: string;
-  /** Place ID（テンプレートが紐づく place） */
-  placeId: string;
+  /** Template ID（MAIMLの template.id） */
+  templateId: string;
   /** 不確かさ基準Key */
   uncertaintyKey: string;
   /** 作業者が入力した不確かさ値 */
@@ -34,7 +34,7 @@ export interface UncertaintyValueInput {
  */
 export interface UncertaintyJudgeResult {
   propertyKey: string;
-  placeId: string;
+  templateId: string;
   uncertaintyKey: string;
   recordedValue: number;
   judgeResult: '良好' | '不良';
@@ -125,7 +125,7 @@ export async function runJudge(
       methodId,
       taskNo,
       transitionId,
-      placeId:            input.placeId,
+      templateId:         input.templateId,
       propertyKey:        input.propertyKey,
       uncertaintyKey:     input.uncertaintyKey,
       uncertaintyVersion: criteria.version,
@@ -140,7 +140,7 @@ export async function runJudge(
 
     results.push({
       propertyKey:    input.propertyKey,
-      placeId:        input.placeId,
+      templateId:     input.templateId,
       uncertaintyKey: input.uncertaintyKey,
       recordedValue:  input.value,
       judgeResult:    judgeResultValue,
