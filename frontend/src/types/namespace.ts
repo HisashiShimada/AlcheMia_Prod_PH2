@@ -414,8 +414,6 @@ export interface PrefixRowLocal {
    * グローバル名前空間の場合は null
    */
   scopeKey?: string | null;
-  /** ノードの階層ラベルパス（スコープ列表示用） */
-  scopePath?: string;
 }
 
 /**

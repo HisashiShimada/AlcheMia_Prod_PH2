@@ -50,12 +50,13 @@ import {
   recordNg,
   correctRecord,
 } from '@/services/experimentInstructionApiService';
-import { getProjectMaiml } from '@/services/projectApiService';
+import { getProjectMaiml, getTaskRegistration } from '@/services/projectApiService';
 import type {
   InstructionMethodResponse,
   ProjectMethod,
   UncertaintyJudgeSummary,
 } from '@/types/experimentInstruction';
+import type { TaskRegistrationItem } from '@/types/taskRegistration';
 import type { FileData } from '@/types/editor';
 
 const { Text } = Typography;
@@ -426,6 +427,8 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   // ── ExperimentPlanDialog ──
   const [planDialogOpen, setPlanDialogOpen]       = useState(false);
   const [planDialogMethodId, setPlanDialogMethodId] = useState<string>('');
+  /** タスク登録情報（project_task ベース）。ExperimentPlanDialog の taskNumbers 算出に使用 */
+  const [taskRegistrations, setTaskRegistrations] = useState<TaskRegistrationItem[]>([]);
 
   // ── 列カスタマイズ ──
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>([...ALL_COLUMN_KEYS]);
@@ -452,15 +455,32 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     if (!projectId) return;
     setLoading(true);
     try {
-      const [instData, methodData] = await Promise.all([
+      // Promise.allSettled: 1つが失敗しても他のAPIの結果を捨てない
+      const [instResult, methodResult, taskRegResult] = await Promise.allSettled([
         getExperimentInstructions(projectId),
         getProjectMethods(projectId),
+        getTaskRegistration(projectId),
       ]);
-      setInstructions(instData);
-      setMethods(methodData);
-    } catch (err) {
-      console.error('[ExperimentInstructionTab] fetchData error:', err);
-      message.error(t('experimentInstruction.fetchError'));
+
+      if (instResult.status === 'fulfilled') {
+        setInstructions(instResult.value);
+      } else {
+        console.error('[ExperimentInstructionTab] getExperimentInstructions failed:', instResult.reason);
+        message.error(t('experimentInstruction.fetchError'));
+      }
+
+      if (methodResult.status === 'fulfilled') {
+        setMethods(methodResult.value);
+      } else {
+        console.error('[ExperimentInstructionTab] getProjectMethods failed:', methodResult.reason);
+      }
+
+      if (taskRegResult.status === 'fulfilled') {
+        setTaskRegistrations(taskRegResult.value.tasks);
+      } else {
+        // タスク登録情報取得失敗は非致命的: taskNumbers が空になるだけで他表示には影響しない
+        console.warn('[ExperimentInstructionTab] getTaskRegistration failed (non-fatal):', taskRegResult.reason);
+      }
     } finally {
       setLoading(false);
     }
@@ -1396,10 +1416,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           projectId={projectId}
           methodId={planDialogMethodId}
           taskNumbers={
-            uniq(
-              (instructions.find((m) => m.methodId === planDialogMethodId)?.tasks ?? [])
-                .map((t) => t.taskNo)
-            ).sort((a, b) => a - b)
+            taskRegistrations
+              .filter((t) => t.methodId === planDialogMethodId)
+              .flatMap((t) => Array.from({ length: t.trialCount }, (_, i) => i + 1))
           }
           allowMethodSelection
           methodOptions={methods.map((m) => ({ id: m.id, name: m.name ?? m.id }))}

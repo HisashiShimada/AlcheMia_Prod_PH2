@@ -1,4 +1,4 @@
-/**
+﻿/**
  * organization_group（グループ管理）API Service
  *
  * @remarks
@@ -27,18 +27,22 @@ import type {
  * バックエンドの GET /api/v1/organization-groups を呼び出す。
  *
  * @param search - 検索キーワード（グループ名の部分一致）
+ * @param options.memberOf - true の場合、ログインユーザーが所属するグループ＋祖先グループを返す（?memberOf=true）
  * @returns 組織階層グループ行の配列
  */
 export const getOrganizationGroups = async (
-  search?: string
+  search?: string,
+  options?: { memberOf?: boolean }
 ): Promise<OrganizationGroupRow[]> => {
   const client = createApiClient();
 
   try {
-    console.log('🏢 [organizationGroupApiService] 組織階層グループ一覧取得');
+    console.log('🏢 [organizationGroupApiService] 組織階層グループ一覧取得', options);
 
     const params: Record<string, string> = {};
     if (search) params.search = search;
+    // memberOf=true を渡すとログインユーザーが所属するグループ＋全祖先グループを返す
+    if (options?.memberOf) params.memberOf = 'true';
 
     const response = await client.get<{ success: boolean; data: OrganizationGroupRow[] }>(
       '/organization-groups',

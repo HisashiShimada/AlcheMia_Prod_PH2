@@ -1823,6 +1823,16 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         if (lines.length < 2) { message.error(t('namespaceMain.csvEmpty2')); return; }
 
+        // ── ヘッダー検証（期待ヘッダー: qname,prefix,localName,displayName,description,type,unitHint）
+        const expectedHeader = 'qname,prefix,localName,displayName,description,type,unitHint';
+        const actualHeaderCols = parseCsvLine(lines[0]);
+        const actualHeader = actualHeaderCols.join(',');
+        if (actualHeader !== expectedHeader) {
+          message.error(t('namespaceMain.csvHeaderMismatch2'));
+          if (csvInputRef.current) csvInputRef.current.value = '';
+          return;
+        }
+
         // CSV パース（parseCsvLine: RFC 4180 準拠、クォートあり・なし・空列・"" エスケープ対応）
         const rows: TermCsvParsedRow[] = [];
         for (let i = 1; i < lines.length; i++) {

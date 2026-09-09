@@ -1247,6 +1247,7 @@
       "issueTypePlaceholder": "Select issue type",
       "contentRequired": "Please enter content",
       "contentMinLength": "Content must be at least 10 characters",
+      "contentMaxLength": "Content must be 1000 characters or less",
       "save": "Save",
       "cancel": "Cancel"
     },
@@ -4581,6 +4582,7 @@
     "toggleActiveError": "Failed to toggle active status",
     "exportEmptyError": "No data to export",
     "csvEmpty": "CSV data is empty",
+    "csvHeaderMismatch": "CSV header is invalid. Expected format: prefix,localName,displayName,description,type,unitHint",
     "selectPlaceholder": "Select Prefix...",
     "localNamePlaceholder": "Enter local name",
     "displayNamePlaceholder": "Enter display name",
@@ -4992,7 +4994,8 @@
     "importSuccess": "Global namespace declarations imported successfully",
     "importError": "Import failed",
     "exportSuccess": "Export completed",
-    "exportError": "Export failed"
+    "exportError": "Export failed",
+    "csvHeaderMismatch": "CSV header is invalid. Expected format: prefix,uri"
   },
   "namespaceAdd": {
     "title": "Add Namespace",
@@ -5110,6 +5113,7 @@
     "memberUpdated": "Members ({count}) of \"{name}\" updated",
     "csvEmpty2": "No data in the CSV file",
     "csvNoData2": "No valid data rows found",
+    "csvHeaderMismatch2": "CSV header is invalid. Expected format: qname,prefix,localName,displayName,description,type,unitHint",
     "csvImportPartial2": "Saved {saved} item(s) ({failCount} failed: {names})",
     "csvImportSuccess2": "Imported {count} term(s) from CSV",
     "csvParseError2": "Failed to parse CSV",
@@ -5292,6 +5296,7 @@
     "exportEmptyError": "No data to export",
     "csvEmpty": "No data found in CSV file",
     "csvNoData": "No valid rows found",
+    "csvHeaderMismatch": "CSV header is invalid. Expected format: prefix,uri,description",
     "csvImportPartial": "Registered {saved} item(s) ({failCount} failed)",
     "csvImportSuccess": "Registered {count} item(s)",
     "csvParseError": "Failed to parse CSV",

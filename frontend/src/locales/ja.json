@@ -1249,6 +1249,7 @@
       "issueTypePlaceholder": "問題タイプを選択",
       "contentRequired": "内容を入力してください",
       "contentMinLength": "内容は10文字以上で入力してください",
+      "contentMaxLength": "内容は1000文字以内で入力してください",
       "save": "保存",
       "cancel": "キャンセル"
     },
@@ -4583,6 +4584,7 @@
     "toggleActiveError": "アクティブ状態の更新に失敗しました",
     "exportEmptyError": "エクスポートする用語がありません",
     "csvEmpty": "CSVファイルにデータが存在しません",
+    "csvHeaderMismatch": "CSVのヘッダーが正しくありません。期待する形式: prefix,localName,displayName,description,type,unitHint",
     "selectPlaceholder": "Prefixを選択",
     "localNamePlaceholder": "ローカル名",
     "displayNamePlaceholder": "表示名",
@@ -4994,7 +4996,8 @@
     "importSuccess": "グローバル名前空間宣言をインポートしました",
     "importError": "インポートに失敗しました",
     "exportSuccess": "エクスポートが完了しました",
-    "exportError": "エクスポートに失敗しました"
+    "exportError": "エクスポートに失敗しました",
+    "csvHeaderMismatch": "CSVのヘッダーが正しくありません。期待する形式: prefix,uri"
   },
   "namespaceAdd": {
     "title": "名前空間追加",
@@ -5112,6 +5115,7 @@
     "memberUpdated": "「{name}」のメンバー({count}名)を更新しました",
     "csvEmpty2": "CSVファイルにデータがありません",
     "csvNoData2": "有効なデータ行が見つかりません",
+    "csvHeaderMismatch2": "CSVのヘッダーが正しくありません。期待する形式: qname,prefix,localName,displayName,description,type,unitHint",
     "csvImportPartial2": "{saved}件を登録しました（{failCount}件失敗: {names}）",
     "csvImportSuccess2": "{count}件の用語をCSVからインポートしました",
     "csvParseError2": "CSVの解析に失敗しました",
@@ -5294,6 +5298,7 @@
     "exportEmptyError": "エクスポートするデータがありません",
     "csvEmpty": "CSVファイルにデータがありません",
     "csvNoData": "有効な行が1件もありませんでした",
+    "csvHeaderMismatch": "CSVのヘッダーが正しくありません。期待する形式: prefix,uri,description",
     "csvImportPartial": "{saved} 件を登録しました（{failCount} 件失敗）",
     "csvImportSuccess": "{count} 件を登録しました",
     "csvParseError": "CSVの解析に失敗しました",

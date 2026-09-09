@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -14,7 +14,7 @@ import {
 import { FolderAddOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { CreateProjectData } from '@/types/project';
-import { createApiClient } from '@/utils/authUtils';
+import { getOrganizationGroups } from '@/services/organizationGroupApiService';
 
 const { Text } = Typography;
 
@@ -69,13 +69,10 @@ export default function CreateProjectModal({
     const fetchTeams = async () => {
       setTeamsLoading(true);
       try {
-        const client = createApiClient();
-        const response = await client.get<{
-          success: boolean;
-          data: Array<{ organization_group_cd: string; organization_group_name: string }>;
-        }>('/organization-groups');
+        // services/ 経由で呼び出し（ログインユーザーが所属するグループ＋祖先グループを取得）
+        const groups = await getOrganizationGroups(undefined, { memberOf: true });
         setTeams(
-          (response.data?.data ?? []).map((g) => ({
+          groups.map((g) => ({
             organizationGroupCd: g.organization_group_cd,
             organizationGroupName: g.organization_group_name,
           }))

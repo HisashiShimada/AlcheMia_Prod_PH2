@@ -626,6 +626,16 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           return;
         }
 
+        // ── ヘッダー検証（期待ヘッダー: prefix,uri,description）
+        const expectedHeader = 'prefix,uri,description';
+        const actualHeaderCols = parseCsvLine(lines[0]);
+        const actualHeader = actualHeaderCols.join(',');
+        if (actualHeader !== expectedHeader) {
+          message.error(t('prefixManagement.csvHeaderMismatch'));
+          if (csvInputRef.current) csvInputRef.current.value = '';
+          return;
+        }
+
         const parsedRows: Array<{ prefix: string; uri: string; description: string }> = [];
         for (let i = 1; i < lines.length; i++) {
           const cols = parseCsvLine(lines[i]);
@@ -663,14 +673,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           }
         }
 
-        if (added.length > 0) {
-          setRows((prev) => [...prev, ...added]);
-        }
         if (failed.length > 0) {
           message.warning(t('prefixManagement.csvImportPartial', { saved: String(added.length), failCount: String(failed.length) }));
         } else {
           message.success(t('prefixManagement.csvImportSuccess', { count: String(added.length) }));
         }
+        // インポート後に DB から最新データを再取得してUIと同期させる
+        reloadNamespaces();
       } catch {
         message.error(t('prefixManagement.csvParseError'));
       } finally {
