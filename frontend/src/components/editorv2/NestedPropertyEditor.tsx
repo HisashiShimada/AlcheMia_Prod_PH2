@@ -114,11 +114,11 @@ export interface NestedPropertyEditorProps {
    */
   termTypeUnitMap?: Map<string, { type?: string; unitHint?: string }>;
   /**
-   * key 属性選択時の選択肢一覧（qname → displayName）
+   * key 属性選択時の選択肢一覧（qname → 表示情報）
    * 指定時: key 属性の値入力欄を Select プルダウンに変更して用語マップから選択させる
    * 未指定または空配列: 従来通り Input 手入力にフォールバック
    */
-  termKeyOptions?: Array<{ value: string; label: string }>;
+  termKeyOptions?: Array<{ value: string; label: string; type?: string; unitHint?: string }>;
   /**
    * key 属性変更時のリネームコールバック
    * 指定時: key 属性の確定時に onUpdateNestedAttribute ではなくこちらを呼び出す
@@ -767,16 +767,49 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                   style={{ width: '100%' }}
                   placeholder={t('nestedPropertyEditor.placeholderKeySelect')}
                   value={newAttributeValue || undefined}
+                  optionLabelProp="value"
                   onChange={setNewAttributeValue}
                   filterOption={(input, option) => {
                     if (!option) return false;
                     const val = String(option.value ?? '').toLowerCase();
-                    const lbl = String(option.label ?? '').toLowerCase();
+                    const displayName = String(option['data-display'] ?? '').toLowerCase();
                     const q = input.toLowerCase();
-                    return val.includes(q) || lbl.includes(q);
+                    return val.includes(q) || displayName.includes(q);
                   }}
-                  options={termKeyOptions}
-                />
+                >
+                  {termKeyOptions.map((opt) => (
+                    <Option
+                      key={opt.value}
+                      value={opt.value}
+                      data-display={opt.label}
+                    >
+                      <div style={{ lineHeight: 1.4 }}>
+                        {opt.label && opt.label.trim() !== '' && opt.label !== opt.value && (
+                          <div style={{ fontWeight: 600 }}>{opt.label}</div>
+                        )}
+                        <div style={{ fontSize: 11, color: '#888' }}>
+                          {opt.value}
+                          {opt.type && (
+                            <Tag
+                              color="blue"
+                              style={{ marginLeft: 6, fontSize: 10, padding: '0 4px' }}
+                            >
+                              {opt.type}
+                            </Tag>
+                          )}
+                          {opt.unitHint && (
+                            <Tag
+                              color="green"
+                              style={{ marginLeft: 2, fontSize: 10, padding: '0 4px' }}
+                            >
+                              {opt.unitHint}
+                            </Tag>
+                          )}
+                        </div>
+                      </div>
+                    </Option>
+                  ))}
+                </Select>
               ) : (
                 /* termKeyOptions 未提供時のフォールバック（後方互換性） */
                 <Input
