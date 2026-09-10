@@ -222,17 +222,14 @@ export const getOrganizationNamespaces = async (
     if (userInfo?.id) {
       const personal = await getNamespaceList({ scopeKey: userInfo.id as string });
       if (personal.length > 0) {
-        // 個人スコープの正規 URI を取得（https://{org_cd}.Alchemia.co.jp/{login_name}）
-        // fetchSuggestedUri() を scopeKey なしで呼ぶとログインユーザーの個人スコープ URI を返す
-        const personalUri = await fetchSuggestedUri();
-        console.log(
-          `🔖 [namespaceApiService] 個人スコープ Prefix 取得: ${personal.length} 件 (userId=${userInfo.id}), 正規URI=${personalUri}`
-        );
+        // DB に登録済みの entry.uri をそのまま使用する
         // 非アクティブ Prefix は XML 注入対象外とするためフィルタする
-        const correctedPersonal = personal
-          .filter((entry) => (entry as any).isActive !== false)
-          .map((entry) => ({ ...entry, uri: personalUri }));
-        personalNamespaces.push(...correctedPersonal);
+        const activePersonal = personal
+          .filter((entry) => (entry as any).isActive !== false);
+        personalNamespaces.push(...activePersonal);
+        console.log(
+          `🔖 [namespaceApiService] 個人スコープ Prefix 取得: ${activePersonal.length} 件 (userId=${userInfo.id})`
+        );
       }
     }
 
@@ -251,33 +248,13 @@ export const getOrganizationNamespaces = async (
       // 対象グループ（depth=0）が同一 prefix の先頭に来るよう保証されている
       const group = await getNamespaceList({ scopeKey: targetGroupCd, withAncestors: true });
       if (group.length > 0) {
-        // scopeKey ごとの正規 URI をキャッシュしながら取得
-        // 同一 scopeKey への fetchSuggestedUri 呼び出しを重複排除する
-        const uriCache = new Map<string, string>();
-        const getUriForScopeKey = async (scopeKey: string): Promise<string> => {
-          if (uriCache.has(scopeKey)) {
-            return uriCache.get(scopeKey)!;
-          }
-          const uri = await fetchSuggestedUri(scopeKey);
-          uriCache.set(scopeKey, uri);
-          return uri;
-        };
-
-        // 各 entry の scopeKey に対応する正規 URI を割り当て
+        // DB に登録済みの entry.uri をそのまま使用する
         // 非アクティブ Prefix は XML 注入対象外とするためフィルタする
         const activeGroup = group.filter((entry) => (entry as any).isActive !== false);
-        const correctedGroup: NamespaceEntry[] = [];
-        for (const entry of activeGroup) {
-          const scopeKey = (entry as any).scopeKey as string | undefined;
-          if (!scopeKey) continue;
-          const correctUri = await getUriForScopeKey(scopeKey);
-          correctedGroup.push({ ...entry, uri: correctUri });
-        }
-
+        allScopedNamespaces.push(...activeGroup);
         console.log(
-          `🔖 [namespaceApiService] グループスコープ Prefix 取得: ${correctedGroup.length} 件 (targetGroupCd=${targetGroupCd}, withAncestors=true)`
+          `🔖 [namespaceApiService] グループスコープ Prefix 取得: ${activeGroup.length} 件 (targetGroupCd=${targetGroupCd}, withAncestors=true)`
         );
-        allScopedNamespaces.push(...correctedGroup);
       }
     }
 
