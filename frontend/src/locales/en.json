@@ -5257,7 +5257,7 @@
     "uriRequired": "Please enter a URI",
     "errorDuplicateGlobalPrefix": "\"{prefix}\" is already registered in the global scope",
     "warnTitle": "Duplicate Prefix detected",
-    "warnAlreadyRegistered": "\"{prefix}\" is already registered in \"{scopeName}\". Overwrite?",
+    "warnAlreadyRegistered": "\"{prefix}\" is already registered in the parent scope \"{scopeName}\". Register in the current scope as well?",
     "warnOk": "Register",
     "warnCancel": "Cancel",
     "prefixRequiredEdit": "Please enter a Prefix",
