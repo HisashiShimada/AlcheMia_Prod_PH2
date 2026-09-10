@@ -197,6 +197,150 @@ for (const finding of hardcodeFindings) {
   hardcodeByFile.get(finding.filePath).push(finding);
 }
 
+// ========== 【7】JSX属性ハードコード検出 ==========
+
+/**
+ * JSX の props に英語文字列リテラルが直接渡されているケースを検出する
+ *
+ * 対象属性: message / description / title / label / placeholder / content
+ * 検出条件: 属性値が英語大文字始まり (A-Z) で4文字以上の文字列リテラル
+ *
+ * 除外:
+ *   - mock/ ディレクトリ配下（モックUI）
+ *   - 同一行に t(' / t(" が含まれる行（既にi18n済み）
+ *   - コメント行
+ *   - 翻訳不要な固有名詞・技術名（jsxAttrWhitelist）
+ */
+
+// JSX属性のハードコード検出正規表現
+const jsxAttrHardcodeRe = /\b(message|description|title|label|placeholder|content)\s*=\s*"([A-Z][^"]{3,})"/g;
+
+// 翻訳不要とみなす固有名詞・技術用語ホワイトリスト（前方一致）
+const jsxAttrWhitelist = [
+  // MAIML固有名詞
+  'Creator', 'Vendor', 'Owner', 'Instrument', 'Material', 'Condition', 'Result', 'Transition',
+  // フォームフィールド技術名（MAIMLスキーマ由来）
+  'Document ID', 'UUID', 'Name', 'Description', 'Date', 'Arc ID', 'Method ID',
+  'Annotation', 'Insertion URI', 'Insertion Hash', 'Results ID', 'Results UUID',
+  'Results Name', 'Results URI', 'Results Hash', 'Instruction ID', 'Instruction UUID',
+  'Node ID', 'Template ID', 'Node Desc', 'Node Name', 'Template Desc', 'Template Name',
+  // ショートカットキー表記（値が "Undo (Ctrl+Z)" のように Ctrl を含む場合）
+  'Ctrl+', 'Ctrl-', 'Undo', 'Redo',
+  // UIコンポーネント固有操作名
+  'Add new method', 'Generate UUID', 'Select vendor', 'Select instrument',
+  'Sample Identifier',
+  // 日本語テキストだが大文字英字（PIN等）で始まる場合の誤検知抑制
+  'PIN',
+  // XML技術用語
+  'XML',
+  // プロジェクト固有の技術略語（日本語テキストの先頭に使われるケース）
+  'UPA', 'MAIML',
+];
+
+// mock/ ディレクトリを除外するためのパス判定
+const mockDirSegment = path.sep + 'mock' + path.sep;
+
+// JSX属性ハードコード検出結果
+const jsxAttrFindings = [];
+
+for (const filePath of sourceFiles) {
+  // mock/ ディレクトリは除外
+  if (filePath.includes(mockDirSegment)) continue;
+
+  const fileContent = fs.readFileSync(filePath, 'utf-8');
+  const fileLines = fileContent.split('\n');
+
+  for (let i = 0; i < fileLines.length; i++) {
+    const line = fileLines[i];
+
+    // コメント行はスキップ
+    if (/^\s*(\/\/|\/\*)/.test(line)) continue;
+
+    // 既にi18n済みの行はスキップ
+    if (line.includes("t('") || line.includes('t("')) continue;
+
+    // JSX属性のハードコード検出
+    jsxAttrHardcodeRe.lastIndex = 0;
+    let m;
+    while ((m = jsxAttrHardcodeRe.exec(line)) !== null) {
+      const attrValue = m[2];
+
+      // ホワイトリストに含まれる値はスキップ（完全一致 or ホワイトリスト語が先頭に含まれる場合）
+      if (jsxAttrWhitelist.some(w => attrValue === w || attrValue.startsWith(w))) continue;
+
+      jsxAttrFindings.push({
+        filePath: path.relative(path.join(__dirname, '..'), filePath),
+        lineNo: i + 1,
+        lineContent: line.trim(),
+        attr: m[1],
+        value: attrValue,
+      });
+      break; // 同一行の重複登録を防ぐ
+    }
+  }
+}
+
+// ファイルパス → 検出一覧 のマップに整理
+const jsxAttrByFile = new Map();
+for (const finding of jsxAttrFindings) {
+  if (!jsxAttrByFile.has(finding.filePath)) {
+    jsxAttrByFile.set(finding.filePath, []);
+  }
+  jsxAttrByFile.get(finding.filePath).push(finding);
+}
+
+// ========== 【8】message オブジェクト引数ハードコード検出 ==========
+
+/**
+ * message.xxx({ content: '...' }) のオブジェクト形式で
+ * content に文字列リテラルが直接渡されているケースを検出する
+ *
+ * 複数行にまたがるケースに対応するため、
+ * ファイル全体テキストに対して正規表現を適用する
+ */
+
+// message.xxx({ ... content: '固定文字列' ... }) を検出（複数行対応・s フラグ使用）
+const msgObjContentRe = /message\s*\.\s*(?:error|success|warning|info|loading)\s*\(\s*\{[^}]*?content\s*:\s*(?!t\()(['"`])([A-Z][^'"`\n]{3,})\1/gs;
+
+// message オブジェクト引数ハードコード検出結果
+const msgObjFindings = [];
+
+for (const filePath of sourceFiles) {
+  // mock/ ディレクトリは除外
+  if (filePath.includes(mockDirSegment)) continue;
+
+  const fileContent = fs.readFileSync(filePath, 'utf-8');
+  const relPath = path.relative(path.join(__dirname, '..'), filePath);
+
+  msgObjContentRe.lastIndex = 0;
+  let m;
+  while ((m = msgObjContentRe.exec(fileContent)) !== null) {
+    const contentValue = m[2];
+
+    // t( を含む場合はスキップ
+    if (m[0].includes("t('") || m[0].includes('t("')) continue;
+
+    // マッチ位置から行番号を計算
+    const lineNo = fileContent.slice(0, m.index).split('\n').length;
+
+    msgObjFindings.push({
+      filePath: relPath,
+      lineNo,
+      lineContent: m[0].replace(/\s+/g, ' ').slice(0, 120),
+      value: contentValue,
+    });
+  }
+}
+
+// ファイルパス → 検出一覧 のマップに整理
+const msgObjByFile = new Map();
+for (const finding of msgObjFindings) {
+  if (!msgObjByFile.has(finding.filePath)) {
+    msgObjByFile.set(finding.filePath, []);
+  }
+  msgObjByFile.get(finding.filePath).push(finding);
+}
+
 // ========== レポート生成 ==========
 
 const SEP = '='.repeat(60);
@@ -290,6 +434,47 @@ if (hardcodeFindings.length === 0) {
   }
 }
 
+// 【7】
+push(SEP);
+push(`【7】JSX属性ハードコード（i18n化推奨）: ${jsxAttrFindings.length} 件`);
+push(SEP);
+push('');
+push('  ※ message/description/title/label/placeholder 属性に英語文字列リテラルが直接渡されている箇所です。');
+push('  ※ t("key") を使って i18n化することを推奨します。');
+push('  ※ MAIML固有名詞・技術用語（Creator, Vendor 等）はホワイトリストで除外済みです。');
+push('');
+if (jsxAttrFindings.length === 0) {
+  push('  （なし）');
+} else {
+  for (const [filePath, findings] of jsxAttrByFile) {
+    push(`📁 ${filePath}`);
+    for (const f of findings) {
+      push(`    行 ${f.lineNo} [${f.attr}="${f.value}"]: ${f.lineContent}`);
+    }
+    push('');
+  }
+}
+
+// 【8】
+push(SEP);
+push(`【8】message オブジェクト引数ハードコード（i18n化推奨）: ${msgObjFindings.length} 件`);
+push(SEP);
+push('');
+push('  ※ message.xxx({ content: "固定文字列" }) のオブジェクト形式で文字列リテラルが渡されている箇所です。');
+push('  ※ t("key") で翻訳した値を変数に入れてから渡すことを推奨します。');
+push('');
+if (msgObjFindings.length === 0) {
+  push('  （なし）');
+} else {
+  for (const [filePath, findings] of msgObjByFile) {
+    push(`📁 ${filePath}`);
+    for (const f of findings) {
+      push(`    行 ${f.lineNo} [content="${f.value}"]: ${f.lineContent}`);
+    }
+    push('');
+  }
+}
+
 push(SEP);
 push('チェック完了');
 push(SEP);
@@ -314,6 +499,8 @@ console.log(`【3】MISSING_EN   (en のみ未定義):    ${missingInEn.length} 
 console.log(`【4】JA_ONLY      (ja にあって en 無): ${inJaNotEn.length} 件`);
 console.log(`【5】EN_ONLY      (en にあって ja 無): ${inEnNotJa.length} 件`);
 console.log(`【6】ハードコード  (message 直書き):   ${hardcodeFindings.length} 件`);
+console.log(`【7】JSX属性HC    (props 直書き):      ${jsxAttrFindings.length} 件`);
+console.log(`【8】msgObj HC    (content 直書き):    ${msgObjFindings.length} 件`);
 console.log('');
 
 // ========== ファイル出力 ==========
