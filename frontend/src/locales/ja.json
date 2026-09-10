@@ -3882,7 +3882,7 @@
     "evalQuantitative": "定量（数値）",
     "evalQualitative": "定性（選択肢）",
     "inheritanceFetchFailed": "参照元データの取得に失敗しました",
-    "savedAs": "V{{version}} として保存しました",
+    "savedAs": "V{version} として保存しました",
     "saveFailed": "保存に失敗しました。再度お試しください。",
     "nameReadOnlyPlaceholder": "（Key属性設定を選択すると自動入力されます）",
     "descReadOnlyPlaceholder": "（Key属性設定を選択すると自動入力されます）",

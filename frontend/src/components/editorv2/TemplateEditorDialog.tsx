@@ -2497,6 +2497,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         targetProperty={criteriaTargetProperty}
         onAssign={handleCriteriaAssign}
         initialPayload={criteriaEditPayload ?? undefined}
+        organizationGroupCd={organizationGroupCd}
       />
     </Modal>
   );

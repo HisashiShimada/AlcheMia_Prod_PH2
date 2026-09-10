@@ -102,6 +102,13 @@ interface UncertaintyCriteriaSelectorModalProps {
    * 指定時はモーダルの初期値としてセットされる。
    */
   initialPayload?: AssignPayload;
+  /**
+   * プロジェクトが属する組織グループCD（任意）。
+   * 新規基準作成ダイアログのKey属性設定プルダウンのスコープ絞り込みに使用する。
+   * 指定時: そのグループ＋上位グループスコープ＋個人スコープの用語のみ表示
+   * 未指定時: 個人スコープのみにフォールバック
+   */
+  organizationGroupCd?: string | null;
 }
 
 // ============================================================================
@@ -179,6 +186,7 @@ export default function UncertaintyCriteriaSelectorModal({
   targetProperty,
   onAssign,
   initialPayload,
+  organizationGroupCd,
 }: UncertaintyCriteriaSelectorModalProps) {
   const { message } = App.useApp();
   const { t } = useLanguage();
@@ -314,8 +322,8 @@ export default function UncertaintyCriteriaSelectorModal({
         if (filter.section !== 'all' && !c.targetSections.includes(filter.section as never)) return false;
         // タグ種類フィルタ
         if (filter.tag !== 'all' && c.targetTag !== filter.tag) return false;
-        // 名前空間フィルタ（keyの部分一致）
-        if (ns && !c.key.toLowerCase().includes(ns)) return false;
+        // 名前空間フィルタ（keyまたはnameの部分一致）
+        if (ns && !c.key.toLowerCase().includes(ns) && !c.name.toLowerCase().includes(ns)) return false;
         // 型マッチフィルタ（定量のみ）
         if (filter.evalType === 'quantitative' && filter.typeMatch === 'match') {
           if (c.typeMatches.length === 0) return false;
@@ -709,6 +717,7 @@ export default function UncertaintyCriteriaSelectorModal({
       <UncertaintyCreateModal
         open={createModalOpen}
         allCriteria={[]}
+        organizationGroupCd={organizationGroupCd}
         onClose={() => setCreateModalOpen(false)}
       />
     </Modal>
