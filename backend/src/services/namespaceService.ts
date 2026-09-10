@@ -385,6 +385,23 @@ export async function createTerm(
   // 指示用語同時登録あり
   // SupervisorDirective（17文字）+ localName が 255 文字を超える場合は 422 エラー
   const SUPERVISOR_DIRECTIVE_PREFIX = 'SupervisorDirective';
+
+  // localName が既に 'SupervisorDirective' で始まる場合は二重プレフィックスを防ぐため
+  // 指示用語の同時登録をスキップして通常の1件のみ登録する
+  if (input.localName.startsWith(SUPERVISOR_DIRECTIVE_PREFIX)) {
+    return namespaceTermRepository.create({
+      organizationId: input.organizationId,
+      prefix: input.prefix,
+      localName: input.localName,
+      displayName: input.displayName,
+      description: input.description,
+      typeHint: input.typeHint,
+      unitHint: input.unitHint,
+      hasDirectiveTerm: false,
+      scopeKey: input.scopeKey,
+    });
+  }
+
   const directiveLocalName = `${SUPERVISOR_DIRECTIVE_PREFIX}${input.localName}`;
   if (directiveLocalName.length > 255) {
     const err: any = new Error(getMessage(lang, 'namespace.directiveLocalNameTooLong'));

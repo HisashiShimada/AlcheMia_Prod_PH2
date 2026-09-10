@@ -685,6 +685,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // 複数行入力用配列（空配列 = 入力行なし）
   const [newTerms, setNewTerms] = useState<NewTermRow[]>([]);
+  // 保存処理中フラグ（二重送信防止）
+  const [isSaving, setIsSaving] = useState(false);
 
   const [modalOpen,       setModalOpen]       = useState(false);
   const [modalTarget,     setModalTarget]     = useState<DetailTarget | null>(null);
@@ -1170,9 +1172,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setNewTerms((prev) => [...prev, makeEmptyRow()]);
   };
 
-  // ──── 入力行の値更新（dept-rd 選択時は prefix:localName の重複チェックを実施）
+  // ──── 入力行の値更新（全ノードで prefix:localName の重複チェックを実施）
   const updateNewTerm = (rowId: string, field: keyof Omit<NewTermRow, '_rowId'>, value: string | boolean) => {
-    const isDeptRd = effectiveNsKey === 'dept-rd';
     setNewTerms((prev) => prev.map((r) => {
       if (r._rowId !== rowId) return r;
       const updated = { ...r, [field]: value };
@@ -1180,13 +1181,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       if (field === 'type' && !isUnitAllowed(value as string)) {
         updated.unitHint = '';
       }
-      if (isDeptRd) {
-        const p = field === 'prefix'    ? (value as string) : updated.prefix;
-        const l = field === 'localName' ? (value as string) : updated.localName;
-        updated._isDuplicate = !!(p && l && terms.some((t) => t.prefix === p && t.localName === l));
-      } else {
-        updated._isDuplicate = false;
-      }
+      // 現在の登録先スコープ（scopeKeyForCreate）内の用語のみを重複チェック対象にする
+      // withAncestors=true で取得した terms には上位グループの用語も含まれるため、
+      // scopeKey フィルタで現在の登録先スコープの用語のみに絞り込む
+      const p = field === 'prefix'    ? (value as string) : updated.prefix;
+      const l = field === 'localName' ? (value as string) : updated.localName;
+      updated._isDuplicate = !!(p && l && terms.some(
+        (t) => t.prefix === p && t.localName === l && t.scopeKey === scopeKeyForCreate
+      ));
       return updated;
     }));
   };
@@ -1199,6 +1201,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // ──── 「保存」ボタン：全入力行を API POST でDBに保存
   const handleAddSave = async () => {
     if (newTerms.length === 0) return;
+    // 二重送信防止：既に保存処理中なら何もしない
+    if (isSaving) return;
     for (const row of newTerms) {
       if (!row.prefix)    { message.error(t('namespaceMain.prefixRequired')); return; }
       if (!row.localName) { message.error(t('namespaceMain.localNameRequired')); return; }
@@ -1223,24 +1227,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       if (!confirmed) return;
     }
 
-    // Personal ノードの場合は 'personal-' プレフィックスを除去して userId のみ scopeKey として渡す
-    // DB の namespace.scope_key には userId（例: 'user-abc123'）が格納されており、
-    // ツリーノードキー（例: 'personal-user-abc123'）のままでは SQL がヒットしないため変換が必要
-    const PERSONAL_ROOT_KEY = 'personal';
-    const personalKeySetForSave = new Set(personalChildren.map((n) => n.key));
-    let scopeKeyForCreate: string | undefined;
-    if (!effectiveNsKey || effectiveNsKey === PERSONAL_ROOT_KEY) {
-      // personal ルートノード選択中: ログインユーザー自身の userId を使用
-      scopeKeyForCreate = currentUserPersonalKey || undefined;
-    } else if (personalKeySetForSave.has(effectiveNsKey)) {
-      // personal-{userId} 形式: 'personal-' プレフィックスを除去して userId のみ取り出す
-      scopeKeyForCreate = effectiveNsKey.replace(/^personal-/, '') || undefined;
-    } else {
-      // 組織グループノード / Global ノード: そのまま使用
-      scopeKeyForCreate = effectiveNsKey ?? undefined;
-    }
-
     const added: Term[] = [];
+    setIsSaving(true);
+    try {
     for (const row of newTerms) {
       try {
         const createTermRequest: Parameters<typeof createTerm>[0] = {
@@ -1291,6 +1280,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       fetchTermsForCurrentNsKey(effectiveNsKey);
     }
     setNewTerms([]);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const startEditTerm = (record: Term) => {
@@ -1625,6 +1617,26 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // 外部キーが渡された場合はそちらを優先
   const effectiveNsKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+
+  // ──── 登録先スコープキー（用語追加・重複チェック共用）
+  // Personal ノードの場合は 'personal-' プレフィックスを除去して userId のみ scopeKey として渡す
+  // DB の namespace.scope_key には userId（例: 'user-abc123'）が格納されており、
+  // ツリーノードキー（例: 'personal-user-abc123'）のままでは SQL がヒットしないため変換が必要
+  // handleAddSave（API 送信）と updateNewTerm（_isDuplicate 判定）の両方から参照する
+  const scopeKeyForCreate = useMemo((): string | undefined => {
+    const PERSONAL_ROOT_KEY = 'personal';
+    const personalKeySet = new Set(personalChildren.map((n) => n.key));
+    if (!effectiveNsKey || effectiveNsKey === PERSONAL_ROOT_KEY) {
+      // personal ルートノード選択中: ログインユーザー自身の userId を使用
+      return currentUserPersonalKey || undefined;
+    }
+    if (personalKeySet.has(effectiveNsKey)) {
+      // personal-{userId} 形式: 'personal-' プレフィックスを除去して userId のみ取り出す
+      return effectiveNsKey.replace(/^personal-/, '') || undefined;
+    }
+    // 組織グループノード / Global ノード: そのまま使用
+    return effectiveNsKey ?? undefined;
+  }, [effectiveNsKey, personalChildren, currentUserPersonalKey]);
 
   // ツリーで選択中のノードに対応する prefix を特定
   const selectedPrefix = useMemo(() => {
@@ -2384,7 +2396,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               </Button>
             </Tooltip>
             <Tooltip title={newTerms.some((r) => r._isDuplicate) ? t('namespaceMain.duplicateTooltip') : ''}>
-              <Button type="primary" onClick={handleAddSave} disabled={effectiveViewOnly || newTerms.length === 0 || newTerms.some((r) => r._isDuplicate)}>
+              <Button type="primary" onClick={handleAddSave} loading={isSaving} disabled={effectiveViewOnly || isSaving || newTerms.length === 0 || newTerms.some((r) => r._isDuplicate)}>
                 {t('namespaceMain.btnSave')}
               </Button>
             </Tooltip>
