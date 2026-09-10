@@ -40,7 +40,7 @@ import {
 import { fetchMasters as fetchRoles } from '@/services/roleApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
+import { extractErrorMessage, extractErrorCode, extractErrorDetails } from '@/utils/errorUtils';
 import { generateNamespaceUri } from '@/utils/namespaceUriGenerator';
 
 const { Text } = Typography;
@@ -428,7 +428,10 @@ export default function UserManagement() {
           message.success(t('userManagement.messages.csvUploadSuccess'));
         } catch (error) {
           console.error('CSVアップロードに失敗:', error);
-          message.error(extractErrorMessage(error, t('userManagement.messages.csvUploadError')));
+          const mainMsg = extractErrorMessage(error, t('userManagement.messages.csvUploadError'));
+          const details = extractErrorDetails(error, mainMsg);
+          const fullMsg = details.length > 0 ? `${mainMsg}\n${details.join('\n')}` : mainMsg;
+          message.error(fullMsg);
         } finally {
           setLoading(false);
         }

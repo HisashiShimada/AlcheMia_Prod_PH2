@@ -6,6 +6,8 @@ import { Router } from 'express';
 import { query, param, body } from 'express-validator';
 import * as userController from '../controllers/userController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { tenantIsolation } from '../middleware/tenantIsolation';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import cors from 'cors';
 import multer from 'multer';
@@ -43,7 +45,9 @@ router.use(cors(corsOptions));
  */
 router.get(
   '/user',
-  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
+  authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 0), // システム管理者メニュー、読取専用
   [
     query('search')
       .optional()
@@ -79,6 +83,8 @@ router.get(
 router.get(
   '/user/download-csv',
   authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 0), // システム管理者メニュー、読取専用
   userController.downloadUsersCsv
 );
 
@@ -91,6 +97,8 @@ router.get(
 router.post(
   '/user/upload-csv',
   authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 1), // システム管理者メニュー、書込可
   upload.single('file'),
   userController.uploadUsersCsv
 );
@@ -102,6 +110,8 @@ router.post(
 router.get(
   '/user/:userId',
   authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 0), // システム管理者メニュー、読取専用
   [
     param('userId')
       .notEmpty()
@@ -122,6 +132,8 @@ router.get(
 router.post(
   '/user',
   authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 1), // システム管理者メニュー、書込可
   [
     body('userId')
       .notEmpty()
@@ -167,6 +179,8 @@ router.post(
 router.put(
   '/user/:userId',
   authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 1), // システム管理者メニュー、書込可
   [
     param('userId')
       .notEmpty()
@@ -197,6 +211,8 @@ router.put(
 router.patch(
   '/user/:userId/status',
   authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 1), // システム管理者メニュー、書込可
   [
     param('userId')
       .notEmpty()

@@ -51,6 +51,7 @@ type Messages = {
     };
   };
   role: {
+    providerFunctionNotAllowed: string;
     csv: {
       parseError: string;
       emptyData: string;
@@ -172,6 +173,7 @@ const ja: Messages = {
     },
   },
   role: {
+    providerFunctionNotAllowed: 'ロールにプロバイダーメニュー（010000）の権限を設定することはできません',
     csv: {
       parseError: 'CSVファイルの形式が不正です',
       emptyData: 'CSVファイルにデータが含まれていません',
@@ -293,6 +295,7 @@ const en: Messages = {
     },
   },
   role: {
+    providerFunctionNotAllowed: 'The provider menu (010000) permission cannot be set on a role',
     csv: {
       parseError: 'The CSV file format is invalid',
       emptyData: 'The CSV file contains no data',

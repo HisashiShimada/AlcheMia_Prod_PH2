@@ -8,6 +8,7 @@ import Papa from 'papaparse';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { getMessage } from '../utils/messages';
+import { FunctionList } from '../enums/roleFunctionPermission.enum';
 
 /**
  * 機能情報の型
@@ -138,7 +139,8 @@ export async function updateRolePermissions(
   roleId: string,
   functionName: string,
   functionWritePermissions: string,
-  userId: string
+  userId: string,
+  lang: string = 'ja'
 ): Promise<void> {
   console.log('=== roleService.updateRolePermissions called ===');
   console.log('organizationId:', organizationId);
@@ -157,6 +159,16 @@ export async function updateRolePermissions(
     .split('/')
     .map(name => name.trim())
     .filter(Boolean);
+
+  // プロバイダーメニュー（010000）の設定禁止チェック
+  const providerFunctionName = FunctionList['010000'];
+  if (functionNames.includes(providerFunctionName)) {
+    throw {
+      statusCode: 400,
+      code: 'PROVIDER_FUNCTION_NOT_ALLOWED',
+      message: getMessage(lang, 'role.providerFunctionNotAllowed'),
+    };
+  }
 
   // 権限配列を構築
   const permissions = functionNames.map(name => ({
@@ -190,7 +202,9 @@ export async function uploadRolesCsv(
       statusCode: 400,
       code: 'CSV_PARSE_ERROR',
       message: getMessage(lang, 'role.csv.parseError'),
-      details: parseResult.errors,
+      details: parseResult.errors.map((e: any) => ({
+        message: e.message ?? String(e),
+      })),
     };
   }
 
@@ -206,6 +220,21 @@ export async function uploadRolesCsv(
 
   // バリデーション
   const errors: any[] = [];
+
+  // プロバイダーメニュー（010000）の設定禁止チェック
+  const providerFunctionName = FunctionList['010000'];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNumber = i + 2;
+    const functionCd = row['function_cd']?.trim();
+    if (functionCd === providerFunctionName) {
+      throw {
+        statusCode: 400,
+        code: 'PROVIDER_FUNCTION_NOT_ALLOWED',
+        message: getMessage(lang, 'role.providerFunctionNotAllowed'),
+      };
+    }
+  }
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
