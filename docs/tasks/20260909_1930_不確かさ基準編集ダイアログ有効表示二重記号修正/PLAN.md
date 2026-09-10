@@ -39,26 +39,21 @@
 
 ## 3. 修正方針
 
-**翻訳値から記号（`●` / `○`）を除去する。**
+**コンポーネント側のハードコード記号（`●` / `○`）を除去する。記号は翻訳値（`ja.json` / `en.json`）側で管理する。**
 
-- コンポーネント側の Tag では `● {t('...')}` と記号をハードコードしているため、翻訳値を `"有効"` のみにすることで正しく `● 有効` と表示される。
-- Switch の `checkedChildren` / `unCheckedChildren` には記号不要なため、既存の専用キー `statusActiveOn` / `statusDeprecatedOff` に切り替える（記号なしの `"有効"` / `"無効"` が定義済み）。
+- Tag では `{t('uncertaintyDetail.statusActive')}` のみにすることで、翻訳値 `"● 有効"` がそのまま表示される。
+- Switch の `checkedChildren` / `unCheckedChildren` には記号不要なため、既存の専用キー `statusActiveOn` / `statusDeprecatedOff` を使用（記号なしの `"有効"` / `"無効"` が定義済み）。
 
 ---
 
 ## 4. 実装ステップ
 
-- [x] 調査完了（`UncertaintyDetailModal.tsx` / `ja.json` / `en.json` の該当箇所特定）
-- [ ] **STEP-1**: `frontend/src/locales/ja.json` 修正
-  - `uncertaintyDetail.statusActive`: `"● 有効"` → `"有効"`
-  - `uncertaintyDetail.statusDeprecated`: `"○ 無効"` → `"無効"`
-- [ ] **STEP-2**: `frontend/src/locales/en.json` 修正
-  - `uncertaintyDetail.statusActive`: `"● Active"` → `"Active"`
-  - `uncertaintyDetail.statusDeprecated`: `"○ Deprecated"` → `"Deprecated"`
-- [ ] **STEP-3**: `frontend/src/components/uncertainty/UncertaintyDetailModal.tsx` 修正
-  - Switch `checkedChildren`（3箇所）: `t('uncertaintyDetail.statusActive')` → `t('uncertaintyDetail.statusActiveOn')`
-  - Switch `unCheckedChildren`（3箇所）: `t('uncertaintyDetail.statusDeprecated')` → `t('uncertaintyDetail.statusDeprecatedOff')`
-- [ ] **STEP-4**: 修正後の表示確認（コードレビュー）
+- [x] **STEP-1**: `frontend/src/locales/ja.json` → 変更なし（翻訳値 `"● 有効"` / `"○ 無効"` は正しい状態に維持）
+- [x] **STEP-2**: `frontend/src/locales/en.json` → 変更なし（翻訳値 `"● Active"` / `"○ Deprecated"` は正しい状態に維持）
+- [x] **STEP-3**: `frontend/src/components/uncertainty/UncertaintyDetailModal.tsx` 修正
+  - Tag のハードコード記号 `●` / `○` を除去（計5箇所）
+  - Switch `checkedChildren`（3箇所）: `statusActive` → `statusActiveOn` に変更（前回修正済み）
+  - Switch `unCheckedChildren`（3箇所）: `statusDeprecated` → `statusDeprecatedOff` に変更（前回修正済み）
 
 ---
 
@@ -121,7 +116,7 @@
 
 ### 最終的な成果物
 
-- [x] PLAN.md 作成
-- [x] ja.json 修正（`uncertaintyDetail.statusActive`: `"● 有効"` → `"有効"`、`statusDeprecated`: `"○ 無効"` → `"無効"`）
-- [x] en.json 修正（`uncertaintyDetail.statusActive`: `"● Active"` → `"Active"`、`statusDeprecated`: `"○ Deprecated"` → `"Deprecated"`）
-- [x] UncertaintyDetailModal.tsx 修正（Switch checkedChildren/unCheckedChildren を statusActiveOn/statusDeprecatedOff に変更、3箇所ずつ）
+- [x] PLAN.md 作成・更新
+- [x] ja.json: `uncertaintyDetail.statusActive` = `"● 有効"`、`statusDeprecated` = `"○ 無効"` を維持（記号は翻訳値で管理）
+- [x] en.json: `uncertaintyDetail.statusActive` = `"● Active"`、`statusDeprecated` = `"○ Deprecated"` を維持
+- [x] UncertaintyDetailModal.tsx: Tag のハードコード記号 `●` / `○` を除去（5箇所）、Switch を `statusActiveOn` / `statusDeprecatedOff` キーに変更（6箇所）
