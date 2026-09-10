@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
@@ -1209,6 +1209,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       if (!isValidNCName(row.localName)) { message.error(t('namespaceMain.localNameNcnameInvalid')); return; }
     }
 
+    // 二重送信防止：確認ダイアログ表示中もボタンを disabled にするため、
+    // ダイアログ開始前に setIsSaving(true) を設定する
+    setIsSaving(true);
+    try {
     // createDirectiveTerm が false の行がある場合、確認警告を表示
     const uncheckedRows = newTerms.filter((r) => !r.createDirectiveTerm);
     if (uncheckedRows.length > 0) {
@@ -1224,12 +1228,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         };
         modal.confirm(modalConfig);
       });
-      if (!confirmed) return;
+      if (!confirmed) return; // finally ブロックで setIsSaving(false) が自動実行される
     }
 
     const added: Term[] = [];
-    setIsSaving(true);
-    try {
     for (const row of newTerms) {
       try {
         const createTermRequest: Parameters<typeof createTerm>[0] = {

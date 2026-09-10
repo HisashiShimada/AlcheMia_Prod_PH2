@@ -1,4 +1,4 @@
-# タスク計画書: 用語管理 多重登録バグ修正
+# タスク計画書: 用語管理 多重登録バグ修正（v2：完全修正）
 
 ## メタデータ
 - **作成日時**: 2026-09-10 10:00
@@ -117,7 +117,60 @@
 
 ---
 
-## 10. 承認記録
+## 補足: v2 修正（2026-09-10 追加調査・実施）
+
+### 残存バグの特定
+
+v1 修正（2026-09-10 10:00-14:00）では `isSaving` state と `try/finally` を実装したが、
+`setIsSaving(true)` の設定タイミングが確認ダイアログ（`modal.confirm`）の**後**であったため、
+バグが完全に解消されていなかった。
+
+#### 問題のフロー（v1 修正後も残存）
+
+```
+1. if (isSaving) return;            ← チェックあり
+2. バリデーション
+3. modal.confirm の await 開始      ← この間 isSaving = false のまま
+   ↑ ★ ダイアログ中に保存ボタンを再クリックすると 2 回目の handleAddSave が並走
+4. setIsSaving(true)               ← 遅すぎる（ダイアログ後）
+5. for (const row of newTerms) { API呼び出し }
+```
+
+#### v2 修正内容
+
+`setIsSaving(true)` をバリデーション直後（確認ダイアログの**前**）に移動し、
+`try/finally` でダイアログを含む全ブロックを囲む。
+
+```typescript
+// v2 修正後（正しいフロー）
+setIsSaving(true);          // ← ダイアログ前に移動
+try {
+  // 確認ダイアログ（この間も isSaving = true → ボタン disabled）
+  if (hasUncheckedRows) {
+    const confirmed = await modal.confirm(...)
+    if (!confirmed) return; // finally で setIsSaving(false) 自動実行
+  }
+  // API 呼び出し
+} finally {
+  setIsSaving(false);       // 成功・失敗・キャンセルすべての場合で解除
+}
+```
+
+### v2 変更ファイル
+
+| # | ファイル | 変更内容 |
+|---|---------|---------|
+| 1 | `frontend/src/components/namespace/NamespaceMain.tsx` | `setIsSaving(true)` をダイアログ前（1214行）に移動、`try {` でダイアログを囲む |
+| 2 | `frontend/src/components/namespace/__tests__/handleAddSave.unit.test.ts` | **新規作成**: 二重送信防止ロジックと SupervisorDirective ガードの単体テスト（9件） |
+
+### v2 テスト結果
+
+- フロントエンド TS チェック（ビルド）: exit code 0 ✅
+- バックエンドビルド: exit code 0 ✅
+- バックエンドテスト（namespaceService.phase2.test.ts）: 18件全 PASS ✅
+- フロントエンドテスト（handleAddSave.unit.test.ts）: 9件全 PASS ✅
+
+
 
 - **計画書提示日時**: 2026-09-10 10:00
 - **承認日時**: 2026-09-10（ユーザー承認済み）
