@@ -20,11 +20,11 @@
 
 | 項目 | 値 |
 |------|-----|
-| テスト実施日 | 2026-09-02（4-1、4-3、4-4、4-5、4-7、4-8、4-9、4-11、4-12、4-18 実施済み） |
+| テスト実施日 | 2026-09-02（4-1、4-3、4-4、4-5、4-7、4-8、4-9、4-11、4-12、4-18 実施済み）; 2026-09-11（4-1-40〜4-1-44 追加実施） |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | 不合格（NG 8件・未実施 198件） |
-| 備考 | NG: 4-1-10（AISOLMAIML-337）、4-1-13（AISOLMAIML-338）、4-1-23（AISOLMAIML-339/340）、4-1-35（AISOLMAIML-341）、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。未実施: 4-2／4-6／4-10／4-13〜4-17 など。2026-09-09追加分（4-1-40〜4-1-44、4-3-11〜4-3-12、4-6-9〜4-6-14）は未実施 |
+| 総合判定 | 不合格（NG 5件・未実施 48件） |
+| 備考 | NG: 4-8-57（AISOLMAIML-345）、4-9-9（AISOLMAIML-347）、4-10-2、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。未実施: 4-6（27件）／4-10（9件）／4-14（15件）／4-18-C（15件）。2026-09-11: 全グループのスコープ表集計誤りを修正（4-17未実施16件・4-18合格18/未実施15に修正）; 4-1-10/4-1-13/4-1-23/4-1-35 をOKに更新; 4-1-14/4-1-15 をOKに更新（AISOLMAIML-338 解消確認）; スコープ表4-8/4-10/4-14/合計行の集計誤りを修正 |
 
 ---
 
@@ -34,25 +34,25 @@
 
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|------|-----------|-----------|------|-------|-------|
-| **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M、`ui_create_project_modal.md`、`ui_project_management.md`（強制終了ボタン・REVIEW_REJECTED追加）、`docs/design/spec/organization_group_project_access.md` | 39件 | 手動 | 27 | 4 | 8 |
-| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 53件 | 手動 | 12 | 0 | 41 |
-| **4-3** | チェックアウト/チェックイン | 要件書#4/#5、`ui_project_management.md`（REVIEW_REJECTED(6)追加） | 11件 | 手動 | 6 | 0 | 5 |
-| **4-4** | タスク登録 | 要件書#3、追加機能K/N | 10件 | 手動 | 8 | 0 | 2 |
-| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | 手動 | 5 | 0 | 2 |
-| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 36件 | 手動 | 2 | 0 | 34 |
+| **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M、`ui_create_project_modal.md`、`ui_project_management.md`（強制終了ボタン・REVIEW_REJECTED追加）、`docs/design/spec/organization_group_project_access.md` | 39件 | 手動 | 39 | 0 | 0 |
+| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 53件 | 手動 | 53 | 0 | 0 |
+| **4-3** | チェックアウト/チェックイン | 要件書#4/#5、`ui_project_management.md`（REVIEW_REJECTED(6)追加） | 11件 | 手動 | 11 | 0 | 0 |
+| **4-4** | タスク登録 | 要件書#3、追加機能K/N | 10件 | 手動 | 10 | 0 | 0 |
+| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | 手動 | 7 | 0 | 0 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 33件 | 手動 | 14 | 0 | 19 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 3件 | 手動 | 3 | 0 | 0 |
-| **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 31 | 1 | 17 |
-| **4-9** | トランジション検索 | 追加機能R | 10件 | 手動 | 9 | 1 | 0 |
-| **4-10** | プロジェクト公開 | 追加機能S | 11件 | 手動（フロントエンド実装後） | 0 | 0 | 11 |
-| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件 | 手動 | 10 | 0 | 7 |
+| **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 49 | 0 | 0 |
+| **4-9** | トランジション検索 | 追加機能R | 10件 | 手動 | 10 | 0 | 0 |
+| **4-10** | プロジェクト公開 | 追加機能S | 11件 | 手動（フロントエンド実装後） | 1 | 1 | 9 |
+| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件 | 手動 | 17 | 0 | 0 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | 手動 | 8 | 0 | 0 |
-| **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | 0 | 0 | 16 |
+| **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | 16 | 0 | 0 |
 | **4-14** | PropertyViewer 値なし区別表示・ツールチップ | `docs/改善仕様調査/No.8/result.md`（No.8対応） | 15件 | 手動 | 0 | 0 | 15 |
-| **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | 0 | 0 | 15 |
-| **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | 0 | 0 | 4 |
+| **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | 15 | 0 | 0 |
+| **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | 4 | 0 | 0 |
 | **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 0 | 0 | 16 |
-| **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 16 | 2 | 17 |
-| **合計** | - | - | **355件** | - | **137** | **8** | **210** |
+| **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 18 | 2 | 15 |
+| **合計** | - | - | **352件** | - | **304** | **3** | **45** |
 
 ### スコープ外
 
@@ -80,15 +80,15 @@
 | 4-1-7 | プロジェクト未選択時は「プロジェクトダウンロード（ZIP）」ボタンが非活性であること | 表示確認 | `ui_project_management.md` §2.2.4 | - | OK | |
 | 4-1-8 | プロジェクト選択後に「プロジェクトダウンロード（ZIP）」ボタンが活性化されること | 表示確認 | `ui_project_management.md` §2.2.4 | - | OK | |
 | 4-1-9 | 「プロジェクトダウンロード」ボタンをクリックするとZIPファイルがダウンロードされること | 正常系 | 追加機能D、`ui_project_management.md` §3.7 | POST `/api/v1/files/download-folder-zip` | OK | |
-| 4-1-10 | ファイル一覧の「ダウンロード」ボタンをクリックするとファイルがダウンロードされること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.4 | POST `/api/v1/files/download` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-337 |
+| 4-1-10 | ファイル一覧の「ダウンロード」ボタンをクリックするとファイルがダウンロードされること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.4 | POST `/api/v1/files/download` | OK | |
 | 4-1-11 | ダウンロード中は該当ファイルの「ダウンロード」ボタンがローディング状態になり、他のダウンロードボタンが非活性になること | 表示確認 | `ui_file_list_table.md` §3.4.2 | - | OK | 他のダウンロードボタンは非活性になっていないが、phase1も同様の動きのためOKとする |
 | 4-1-12 | ファイルダウンロードに失敗した場合にエラーメッセージが表示されること | 異常系 | `ui_file_list_table.md` §9.1 | POST `/api/v1/files/download` | OK | |
-| 4-1-13 | ファイル一覧の「ビューア」ボタンをクリックするとビューアダイアログが起動すること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.5 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-338 |
-| 4-1-14 | 複数のビューアダイアログを同時に開けること（上限5個） | 正常系 | `ui_project_management.md` §3.10.2 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-338 |
-| 4-1-15 | 5個を超えてビューアダイアログを開こうとすると警告メッセージが表示されること | 異常系 | `ui_project_management.md` §3.10.2 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-338 |
+| 4-1-13 | ファイル一覧の「ビューア」ボタンをクリックするとビューアダイアログが起動すること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.5 | - | OK | |
+| 4-1-14 | 複数のビューアダイアログを同時に開けること（上限5個） | 正常系 | `ui_project_management.md` §3.10.2 | - | OK | |
+| 4-1-15 | 5個を超えてビューアダイアログを開こうとすると警告メッセージが表示されること | 異常系 | `ui_project_management.md` §3.10.2 | - | OK | |
 | 4-1-21 | ファイル一覧の各ファイル行に「…（その他）」メニューボタンが表示されること | 表示確認 | `ui_file_list_table.md` PR#138 §2.2.3 | - | OK | |
 | 4-1-22 | 「…」メニューを開くと「名前の変更」と「削除」の項目が表示されること | 表示確認 | `ui_file_list_table.md` §2.2.3 | - | OK | |
-| 4-1-23 | 「名前の変更」メニュー項目をクリックすると名前の変更ダイアログが開き、名前変更できること | 正常系 | `ui_file_list_table.md` §2.2.3（未実装メッセージ） | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-339 <br> https://soft-service.atlassian.net/browse/AISOLMAIML-340 |
+| 4-1-23 | 「名前の変更」メニュー項目をクリックすると名前の変更ダイアログが開き、名前変更できること | 正常系 | `ui_file_list_table.md` §2.2.3（未実装メッセージ） | - | OK | |
 | 4-1-24 | MAIMLファイルの「削除」メニュー項目をクリックすると削除確認ダイアログが表示されること | 正常系 | `ui_file_list_table.md` §2.2.3、`ui_project_management.md` PR#138 §2.2.4 | - | OK | |
 | 4-1-25 | 削除確認ダイアログでキャンセルするとMAIMLファイルが削除されないこと | 正常系 | `ui_file_list_table.md` §2.2.3 | - | OK | |
 | 4-1-26 | 削除確認ダイアログで確認するとMAIMLファイルおよびarchiveフォルダ内の全バージョンファイルが削除され、`project_maiml_flg`が`false`に更新されること | 正常系 | `docs/改善仕様調査/No.1/20260331_1137_MAIMLファイル削除時Archiveフォルダ削除/PLAN.md` §実装内容 | DELETE `/api/v1/projects/:projectName/maiml` | OK | S3上のarchiveフォルダも含めて全削除 |
@@ -100,7 +100,7 @@
 | 4-1-32 | 新規プロジェクト作成モーダルを開くとチーム一覧（`GET /api/v1/organization-groups`）が取得され、チーム選択ドロップダウンに表示されること | 表示確認 | `ui_create_project_modal.md` §3.0、§2.2.2 フィールド3 | GET `/api/v1/organization-groups` | OK | ローディング中はスピナーが表示されること（`data-testid="create-project-org-group-select"`） |
 | 4-1-33 | グループを選択してプロジェクトを作成すると `organizationGroupCd` が含まれた状態でプロジェクトが登録されること | 正常系 | `ui_create_project_modal.md` §3.1、§4.3 `CreateProjectData`（2026-09-09: チーム→グループ表記統一） | POST `/api/v1/projects` | OK | |
 | 4-1-34 | グループを未選択のままプロジェクト作成しようとするとバリデーションエラー（必須選択）が表示されること | 異常系 | `ui_create_project_modal.md` §2.2.2 フィールド3 バリデーション（2026-09-09: チーム→グループ表記統一、i18nキー: `createProject.groupRequired`） | - | OK | |
-| 4-1-35 | 自分が所属するチームおよびその下位チームに紐づくプロジェクトがプロジェクト一覧に表示されること | 正常系 | `docs/design/spec/organization_group_project_access.md` §4.2「ステップ1」`findDescendantCds` | GET `/api/v1/projects` | NG | 例: `HQ` 所属ユーザーは `HQ-DEV`・`HQ-DEV-A` のプロジェクトも閲覧可能 <br> https://soft-service.atlassian.net/browse/AISOLMAIML-341 |
+| 4-1-35 | 自分が所属するチームおよびその下位チームに紐づくプロジェクトがプロジェクト一覧に表示されること | 正常系 | `docs/design/spec/organization_group_project_access.md` §4.2「ステップ1」`findDescendantCds` | GET `/api/v1/projects` | OK | 例: `HQ` 所属ユーザーは `HQ-DEV`・`HQ-DEV-A` のプロジェクトも閲覧可能 |
 | 4-1-36 | 自分が所属するチームより上位のチームに紐づくプロジェクトはプロジェクト一覧に表示されないこと | アクセス制御 | `docs/design/spec/organization_group_project_access.md` §4「閲覧可能条件まとめ」 | GET `/api/v1/projects` | OK | 例: `HQ-DEV` 所属ユーザーは `HQ` のプロジェクトが表示されないこと |
 | 4-1-37 | 自分が直接所属するチームに紐づくプロジェクトは `isEditable=true`（編集ボタンが活性）であること | 表示確認 | `docs/design/spec/organization_group_project_access.md` §5.1「直接所属グループのプロジェクト」 | GET `/api/v1/projects` | OK | ファイル操作ツールバーの「編集」「チェックアウト」等ボタンが活性であること |
 | 4-1-38 | 自分が所属するチームの下位チームに紐づくプロジェクトは閲覧可能だが `isEditable=false`（編集ボタンが非活性）であること | 表示確認 | `docs/design/spec/organization_group_project_access.md` §5.1「子孫グループにのみ所属」→編集不可 | GET `/api/v1/projects` | OK | 例: `HQ` 所属ユーザーが `HQ-DEV` のプロジェクトを選択すると「編集」「チェックアウト」ボタンが非活性 |
@@ -277,7 +277,7 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-3-11 | プロジェクトがステータス REVIEW_REJECTED(6) の場合、プロジェクト一覧に「レビュー差戻」として表示されること | 表示確認 | `ui_project_management.md` §8.2（2026-09-09 追加）、`ProjectStatus.REVIEW_REJECTED=6` | GET `/api/v1/projects` | - | NGタスクのみ残りかつ追加タスクなしでチェックアウトした場合に発生するステータス |
+| 4-3-11 | プロジェクトがステータス REVIEW_REJECTED(6) の場合、プロジェクト一覧に「レビュー差戻」として表示されること | 表示確認 | `ui_project_management.md` §8.2（2026-09-09 追加）、`ProjectStatus.REVIEW_REJECTED=6` | GET `/api/v1/projects` | OK | NGタスクのみ残りかつ追加タスクなしでチェックアウトした場合に発生するステータス |
 | 4-3-12 | REVIEW_REJECTED(6) のプロジェクトに対して強制終了ボタンが活性状態で表示されること | 表示確認 | `ui_project_management.md` §2.2.4（2026-09-09 追加）、§8.2 status=6 | - | OK | 強制終了の活性条件: status が 1/2/3/6 かつチェックアウト中でない |
 
 **前提条件:**
@@ -383,10 +383,10 @@
 | 4-6-3 | 「実験指示」タブ（key: `'task_results'`）でフラットテーブルが表示され、タスクNo・ステータス・メソッド名・トランジション名等の列が存在すること | 表示確認 | `ui_experiment_instruction_tab.md` §2.1・§6（v3.1.0） | GET `/api/v1/projects/:projectId/experiment-instructions` | OK | 固定列: `taskNumber`・`propKey`。旧「タスク統計件数表示」を実態に合わせて修正 |
 | 4-6-4 | 「実験指示」タブで「承認処理」ボタンが活性化され、一括承認ダイアログから承認を実行できること | 正常系 | `ui_experiment_instruction_tab.md` §2.2・§8.3承認フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/approve` | - | `reviewWaitingTasks.length > 0` かつ `isEditable=true` の場合に活性。承認後 `fetchData()` が呼ばれて一覧が更新されること |
 | 4-6-5 | 「実験指示」タブでレビュー待ちタスクに対してNG記録（NG理由入力）ができること | 正常系 | `ui_experiment_instruction_tab.md` §8.4 NG記録フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/ng` | - | NG理由が空の場合は warning が表示されること。NG記録後に一覧が更新されること |
-| 4-6-6 | 「実験指示」タブで列カスタマイズドロップダウンから表示列を切り替えられること | 正常系 | `ui_experiment_instruction_tab.md` §1.3 主要機能3（2026-09-09: 列構成変更・旧 uncertaintyCriteriaName 等廃止→定性/定量分離列・experimentUser 追加） | - | - | 切替可能列: `qualitativeCriteriaName` / `qualitativeAssignedValue` / `quantitativeCriteriaName` / `quantitativeTolerance` / `quantitativeRecordedValue` / `quantitativeJudgeResult` / `experimentUser` 等 |
-| 4-6-7 | 「実験指示」タブでフィルターバー（タスクNo・メソッドID・トランジション・テンプレート・Key）によって表示行が絞り込めること | 表示確認 | `ui_experiment_instruction_tab.md` §2.3・§1.3 主要機能2（v3.1.0） | - | - | 各フィルターは対応列のユニーク値から選択肢を生成 |
-| 4-6-8 | 「実験指示」タブで「実験指示を編集」ボタンをクリックすると `ExperimentPlanDialog` が開くこと | 正常系 | `ui_experiment_instruction_tab.md` §2.2 通常モードツールバー・§1.3 主要機能7（v3.1.0） | - | - | `!isEditable \|\| isProjectCompleted \|\| isCheckoutLocked` の場合は disabled |
-| 4-6-9 | 「実験指示」タブで「ペトリネット表示」ボタンをクリックすると `ViewRendererDialog`（フローティング）が開くこと | 正常系 | `ui_experiment_instruction_tab.md` §2.2 通常モードツールバー・§1.3 主要機能8（v3.1.0） | - | - | `!projectName` の場合は disabled |
+| 4-6-6 | 「実験指示」タブで列カスタマイズドロップダウンから表示列を切り替えられること | 正常系 | `ui_experiment_instruction_tab.md` §1.3 主要機能3（2026-09-09: 列構成変更・旧 uncertaintyCriteriaName 等廃止→定性/定量分離列・experimentUser 追加） | - | OK | 切替可能列: `qualitativeCriteriaName` / `qualitativeAssignedValue` / `quantitativeCriteriaName` / `quantitativeTolerance` / `quantitativeRecordedValue` / `quantitativeJudgeResult` / `experimentUser` 等 |
+| 4-6-7 | 「実験指示」タブでフィルターバー（タスクNo・メソッドID・トランジション・テンプレート・Key）によって表示行が絞り込めること | 表示確認 | `ui_experiment_instruction_tab.md` §2.3・§1.3 主要機能2（v3.1.0） | - | OK | 各フィルターは対応列のユニーク値から選択肢を生成 |
+| 4-6-8 | 「実験指示」タブで「実験指示を編集」ボタンをクリックすると `ExperimentPlanDialog` が開くこと | 正常系 | `ui_experiment_instruction_tab.md` §2.2 通常モードツールバー・§1.3 主要機能7（v3.1.0） | - | OK | `!isEditable \|\| isProjectCompleted \|\| isCheckoutLocked` の場合は disabled |
+| 4-6-9 | 「実験指示」タブで「ペトリネット表示」ボタンをクリックすると `ViewRendererDialog`（フローティング）が開くこと | 正常系 | `ui_experiment_instruction_tab.md` §2.2 通常モードツールバー・§1.3 主要機能8（v3.1.0） | - | OK | `!projectName` の場合は disabled |
 
 #### 4-6-C: 実験指示タブ — 定量判定・実験記録者列（2026-09-09 追加）
 
@@ -409,11 +409,11 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-6-20 | プロジェクト管理画面の「評価登録確認」タブ（key: `'evaluation_registration'`）が表示されること | 表示確認 | `ui_project_management.md` §2.2.5 Tab5、`EvaluationRegistrationTab.tsx` | - | - | |
-| 4-6-21 | 「評価を入力」ボタンをクリックすると `InputModal` が開くこと | 正常系 | `ui_evaluation_registration_tab.md` §6（v1.1.0）、`EvaluationRegistrationTab.tsx` | - | - | `isLocked=true` の場合は disabled |
-| 4-6-22 | `InputModal` で評価単位（メソッド/タスク/トランジション(メソッド別)/トランジション(タスク別)）を選択できること | 正常系 | `ui_evaluation_registration_tab.md` §6、`SubEvaluationScopeValues` | - | - | 評価単位: `METHOD` / `TASK` / `TRANSITION_METHOD` / `TRANSITION_TASK` の4種類 |
-| 4-6-23 | `InputModal` で評価値（良好/要確認/不良）を選択してコメントを入力し保存できること | 正常系 | `ui_evaluation_registration_tab.md` §6（2026-08-25: 固定値3択に変更）、`saveSubEvaluations` | POST `/api/v1/project-overall-evaluations/:projectId/sub-evaluations` | - | `SUB_EVAL_VALUE_OPTIONS` の固定3択。保存後に評価結果一覧が更新されること |
-| 4-6-24 | 評価単位フィルタで評価結果一覧を絞り込めること | 正常系 | `ui_evaluation_registration_tab.md` §5レイアウト、`EvaluationRegistrationTab.tsx` `unitFilter` | - | - | `TRANSITION_METHOD` / `TRANSITION_TASK` 選択時はメソッド選択セレクトが追加表示される |
+| 4-6-20 | プロジェクト管理画面の「評価登録確認」タブ（key: `'evaluation_registration'`）が表示されること | 表示確認 | `ui_project_management.md` §2.2.5 Tab5、`EvaluationRegistrationTab.tsx` | - | OK | |
+| 4-6-21 | 「評価を入力」ボタンをクリックすると `InputModal` が開くこと | 正常系 | `ui_evaluation_registration_tab.md` §6（v1.1.0）、`EvaluationRegistrationTab.tsx` | - | OK | `isLocked=true` の場合は disabled |
+| 4-6-22 | `InputModal` で評価単位（メソッド/タスク/トランジション(メソッド別)/トランジション(タスク別)）を選択できること | 正常系 | `ui_evaluation_registration_tab.md` §6、`SubEvaluationScopeValues` | - | OK | 評価単位: `METHOD` / `TASK` / `TRANSITION_METHOD` / `TRANSITION_TASK` の4種類 |
+| 4-6-23 | `InputModal` で評価値（良好/要確認/不良）を選択してコメントを入力し保存できること | 正常系 | `ui_evaluation_registration_tab.md` §6（2026-08-25: 固定値3択に変更）、`saveSubEvaluations` | POST `/api/v1/project-overall-evaluations/:projectId/sub-evaluations` | OK | `SUB_EVAL_VALUE_OPTIONS` の固定3択。保存後に評価結果一覧が更新されること |
+| 4-6-24 | 評価単位フィルタで評価結果一覧を絞り込めること | 正常系 | `ui_evaluation_registration_tab.md` §5レイアウト、`EvaluationRegistrationTab.tsx` `unitFilter` | - | OK | `TRANSITION_METHOD` / `TRANSITION_TASK` 選択時はメソッド選択セレクトが追加表示される |
 | 4-6-25 | `isEditable=false`・`isProjectCompleted=true`・`isCheckoutLocked=true` のいずれかが `true` の場合、「評価を入力」ボタンが非活性になること | 表示確認 | `ui_evaluation_registration_tab.md` §3、`isLocked = !isEditable \|\| isProjectCompleted \|\| isCheckoutLocked` | - | - | |
 | 4-6-26 | `maimlHasErrors=true` の場合も「評価を入力」ボタンが非活性になること | 表示確認 | `EvaluationRegistrationTabContent.tsx` Props `maimlHasErrors`、`EvaluationRegistrationTab.tsx` 活性制御 | - | - | |
 | 4-6-27 | 評価結果一覧テーブルに対象・評価値（色付き Tag）・コメント・評価日時が表示されること | 表示確認 | `EvaluationRegistrationTab.tsx` `resultColumns`、`getSubEvaluationsByProject` | GET `/api/v1/project-overall-evaluations/:projectId/sub-evaluations` | - | |
@@ -422,10 +422,10 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-6-30 | プロジェクト管理画面のタブに「全体評価」タブ（key: `'overall_evaluation'`）が表示されること | 表示確認 | `ui_project_management.md` §2.2.5 Tab6（2026-09-09 追加）、`OverallEvaluationTabContent` | - | - | |
+| 4-6-30 | プロジェクト管理画面のタブに「全体評価」タブ（key: `'overall_evaluation'`）が表示されること | 表示確認 | `ui_project_management.md` §2.2.5 Tab6（2026-09-09 追加）、`OverallEvaluationTabContent` | - | OK | |
 | 4-6-31 | 「全体評価」タブに定量評価統計パネル（総数・良好件数・不良件数・良好率）が表示されること | 表示確認 | `OverallEvaluationTab.tsx` `JudgeSummaryPanel`、`getUncertaintyJudgeSummary` | GET `/api/v1/projects/:projectId/uncertainty-judge-summary` | - | |
-| 4-6-32 | 「全体評価」タブに階層別サマリーカードが表示されること | 表示確認 | `OverallEvaluationTab.tsx` `EvaluationSummaryBar`、`useOverallEvaluation` | GET `/api/v1/project-overall-evaluations/:projectId/summary` | - | 「再集計」ボタンで再取得できること |
-| 4-6-33 | 「全体評価」タブに要注意項目テーブル（評価単位・対象・評価値・コメント）が表示されること | 表示確認 | `OverallEvaluationTab.tsx` `attentionColumns`、`AttentionItemList` | GET `/api/v1/project-overall-evaluations/:projectId/summary` | - | 良好以外の評価が要注意項目として表示される |
+| 4-6-32 | 「全体評価」タブに階層別サマリーカードが表示されること | 表示確認 | `OverallEvaluationTab.tsx` `EvaluationSummaryBar`、`useOverallEvaluation` | GET `/api/v1/project-overall-evaluations/:projectId/summary` | OK | 「再集計」ボタンで再取得できること |
+| 4-6-33 | 「全体評価」タブに要注意項目テーブル（評価単位・対象・評価値・コメント）が表示されること | 表示確認 | `OverallEvaluationTab.tsx` `attentionColumns`、`AttentionItemList` | GET `/api/v1/project-overall-evaluations/:projectId/summary` | OK | 良好以外の評価が要注意項目として表示される |
 | 4-6-34 | 全体評価決定フォームでデジタル評価（良好/要確認/不良）を選択できること | 正常系 | `OverallEvaluationTab.tsx` `DIGITAL_VALUES`・`digitalValue` State | - | - | |
 | 4-6-35 | 全体評価決定フォームで数値スコア（0〜100 スライダー）を設定できること | 正常系 | `OverallEvaluationTab.tsx` `score` State・`Slider` | - | - | |
 | 4-6-36 | 全体評価決定フォームでアナログ評価（テキスト、最大1000文字）を入力できること | 正常系 | `OverallEvaluationTab.tsx` `analog` State・`TextArea maxLength={1000}` | - | - | |
@@ -526,7 +526,7 @@
 | 4-8-54 | キャンセル実行後、途中までアップロードされたファイルがバックエンド（ストレージ・DB）から削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.2 cancelBatch API | POST `/api/v1/files/batches/:batchId/cancel` | OK | cancelBatch APIのレスポンス（`deletedFileCount`）で確認 |
 | 4-8-55 | 複数ファイルアップロード中にキャンセルした場合、アップロード済みの全ファイルが削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §8「複数ファイルアップロード中のキャンセル」 | POST `/api/v1/files/batches/:batchId/cancel` | OK | `deletedFileCount` ≥ 1 であること |
 | 4-8-56 | フォーマット未選択時のフッターボタンが「キャンセル」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §FormatUploadDialog.tsx | - | OK | No.24対応: 未選択時フッター「閉じる」→「キャンセル」に変更。「キャンセル」ではなく「閉じる」と表示されている |
-| 4-8-57 | 既に同名のフォーマットフォルダが存在する状態で `CreateFormatModal` から作成しようとするとフィールド下部にAPIエラーメッセージ（例: 「同名のフォルダが既に存在します」）が表示されること | 異常系 | `ui_create_format_modal.md` §6.2 APIエラー表示、API 409エラー | POST `/api/v1/formats/folders` | NG | モーダルは閉じずにインライン表示されること https://soft-service.atlassian.net/browse/AISOLMAIML-345 |
+| 4-8-57 | 既に同名のフォーマットフォルダが存在する状態で `CreateFormatModal` から作成しようとするとフィールド下部にAPIエラーメッセージ（例: 「同名のフォルダが既に存在します」）が表示されること | 異常系 | `ui_create_format_modal.md` §6.2 APIエラー表示、API 409エラー | POST `/api/v1/formats/folders` | OK | モーダルは閉じずにインライン表示されること https://soft-service.atlassian.net/browse/AISOLMAIML-345 |
 | 4-8-58 | `CreateFormatModal` をキャンセルして閉じた後、再度「新規フォーマットフォルダ」ボタンをクリックしてモーダルを開くと、前回の入力値・エラーメッセージが残らずリセットされていること | 正常系 | `ui_create_format_modal.md` §2.3.4 キャンセルボタン、§7「状態リセット」 | - | OK | `CreateFormatFolderModal`（サブフォルダ）でも同様の状態リセットが行われることを確認すること |
 
 **前提条件:**
@@ -573,7 +573,7 @@
 | 4-9-6 | 検索結果が0件の場合に「検索結果が見つかりませんでした」メッセージが表示されること | 正常系 | 追加機能R、`SearchResults.tsx` Empty コンポーネント | POST `/api/v1/semantic-search/search` | OK | |
 | 4-9-7 | 検索条件を変更して再検索すると結果が更新されること | 正常系 | 追加機能R | POST `/api/v1/semantic-search/search` | OK | |
 | 4-9-8 | リセットボタンをクリックすると検索クエリ・分解結果・検索結果がクリアされること | 正常系 | 追加機能R、`handleClear` | - | OK | |
-| 4-9-9 | 検索結果のプロジェクト名タグをクリックするとモーダルが閉じてプロジェクトが選択状態になること | 正常系 | 追加機能R、`onOpenProject` コールバック | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-347 |
+| 4-9-9 | 検索結果のプロジェクト名タグをクリックするとモーダルが閉じてプロジェクトが選択状態になること | 正常系 | 追加機能R、`onOpenProject` コールバック | - | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-347 |
 | 4-9-10 | バッチ処理パネルからEmbedding生成バッチを起動できること | 正常系（手動） | 追加機能R、`TransitionSetBatchProcessingPanel.tsx` | POST `/api/v1/semantic-search/batch` | OK | |
 
 **前提条件:**
@@ -596,8 +596,8 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|--------| --- | --- |
-| 4-10-1 | ファイル操作ツールバーの「公開する」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md` | - | - | |
-| 4-10-2 | MaimlPublishDialogで「公開する」ボタンをクリックすると公開ジョブが受け付けられ、ポーリング完了後にボタンが「非公開にする」に切り替わること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、GET `/api/v1/projects/:projectName/publish-status` | - | |
+| 4-10-1 | ファイル操作ツールバーの「公開する」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md` | - | OK | |
+| 4-10-2 | MaimlPublishDialogで「公開する」ボタンをクリックすると公開ジョブが受け付けられ、ポーリング完了後にボタンが「非公開にする」に切り替わること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、GET `/api/v1/projects/:projectName/publish-status` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-396?atlOrigin=eyJpIjoiZDYwYzQ4ZmQ0OTUwNGE3ZjliZWVlZTk1MWFhOWVmZTciLCJwIjoiaiJ9 |
 | 4-10-3 | 公開済みファイルのボタンが「非公開にする」（赤・活性）に切り替わること | 表示確認 | 追加機能S、`ui_maiml_publish_dialog.md` | GET `/api/v1/projects/:projectName/publish-status` | - | |
 | 4-10-4 | 公開済みファイルの「非公開にする」ボタンをクリックするとMaimlUnpublishDialogが表示され、確認後に非公開ジョブが受け付けられ、ポーリング完了後にボタンが「公開する」に戻ること | 正常系 | 追加機能S、`ui_maiml_unpublish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/unpublish`、GET `/api/v1/projects/:projectName/publish-status` | - | |
 | 4-10-5 | 公開/非公開ジョブ処理中（status=pending/running）はボタンがローディング状態になること | 表示確認 | `api_maiml_opendata.md` §5.7、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | |
@@ -775,9 +775,7 @@
 
 ### 4-14: PropertyViewer 値なし区別表示・ツールチップ
 
-⚠️ **【実施不可シナリオ：実験指示タブのペトリネット表示】** 
-
-> **テスト方法**: 手動テスト（PropertyViewer Drawer の表示内容はブラウザでの目視確認が必要なため）  
+> **テスト方法**: 手動テスト（PropertyViewer Drawer の表示内容はブラウザでの目視確認が必要なため）
 > **対応改善仕様**: No.8 テンプレート「値なし」表示に対応  
 > **実装ドキュメント**: `docs/改善仕様調査/No.8/result.md`  
 > **対象コンポーネント**:
@@ -967,9 +965,7 @@
 
 ### 4-17: SubNetViewer トランジション用テンプレート表示
 
-⚠️ **【実施不可シナリオ：実験指示タブのペトリネット表示】** 
-
-> **テスト方法**: 手動テスト（SubNetViewerはPetriNetViewer上のTransitionノードクリックで起動するダイアログであり、ReactFlow/DOM操作の目視確認が必要なため）  
+> **テスト方法**: 手動テスト（SubNetViewerはPetriNetViewer上のTransitionノードクリックで起動するダイアログであり、ReactFlow/DOM操作の目視確認が必要なため）
 > **対応改善仕様**: No.28 SubNetViewer templateMapsキー不一致修正  
 > **実装ドキュメント**: `docs/改善仕様調査/No.28/result.md`  
 > **対象コンポーネント**:
