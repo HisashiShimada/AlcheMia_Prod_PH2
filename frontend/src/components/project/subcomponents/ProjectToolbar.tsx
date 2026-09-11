@@ -67,6 +67,7 @@ const ProjectToolbar: React.FC<ProjectToolbarProps> = ({
                 { value: '3', label: t('projectManagement.status_review_waiting') },
                 { value: '4', label: t('projectManagement.status_completed') },
                 { value: '5', label: t('projectManagement.status_error') },
+                { value: '6', label: t('projectManagement.status_review_rejected') },
               ]}
             />
           </Space>

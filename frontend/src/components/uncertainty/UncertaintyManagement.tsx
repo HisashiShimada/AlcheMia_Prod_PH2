@@ -1106,10 +1106,19 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
       <UncertaintyImportModal
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
+        onImported={() => {
+          const scopeKey = resolveScopeKey(selectedNsKey);
+          fetchUncertaintyCriteriaList(scopeKey)
+            .then((data) => setTemplates(data))
+            .catch((err) => console.error('[UncertaintyManagement] インポート後再取得エラー:', err));
+        }}
       />
       <UncertaintyExportModal
         open={exportModalOpen}
         selectedCount={selectedIds.length}
+        selectedKeys={templates
+          .filter((tpl) => selectedIds.includes(tpl.id))
+          .map((tpl) => tpl.key)}
         onClose={() => setExportModalOpen(false)}
       />
 

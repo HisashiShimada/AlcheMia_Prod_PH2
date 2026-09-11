@@ -928,8 +928,105 @@ export function replaceDataAndEventLogInMaiml(
 }
 
 // ============================================================
-// updateDocumentUuidAndParent
+// extractOwnerIdsFromEventLogs
 // ============================================================
+
+/**
+ * maiml_event_log の log JSON 配列から ownerRef の @ref 値を全件抽出する。
+ *
+ * JSON 構造は任意の深さに ownerRef が存在しうるため再帰的にたどる。
+ * ownerRef は単体オブジェクトまたは配列のどちらの場合もある。
+ * 抽出した値を重複排除して返す。
+ *
+ * @param logJsonArray - maiml_event_log の log カラム値の配列
+ * @returns ownerRef の @ref 値の重複排除済みセット
+ */
+export function extractOwnerIdsFromEventLogs(
+  logJsonArray: Record<string, unknown>[]
+): Set<string> {
+  const ownerIds = new Set<string>();
+
+  const traverse = (obj: unknown): void => {
+    if (!obj || typeof obj !== 'object') return;
+
+    if (Array.isArray(obj)) {
+      obj.forEach(traverse);
+      return;
+    }
+
+    const record = obj as Record<string, unknown>;
+
+    // ownerRef キーを処理
+    if ('ownerRef' in record) {
+      const ownerRef = record['ownerRef'];
+      if (Array.isArray(ownerRef)) {
+        ownerRef.forEach((item) => {
+          const ref = (item as Record<string, unknown>)?.['@ref'];
+          if (typeof ref === 'string' && ref) ownerIds.add(ref);
+        });
+      } else if (ownerRef && typeof ownerRef === 'object') {
+        const ref = (ownerRef as Record<string, unknown>)?.['@ref'];
+        if (typeof ref === 'string' && ref) ownerIds.add(ref);
+      }
+    }
+
+    // 子オブジェクトを再帰的にたどる（ownerRef 自身は処理済みなのでスキップ）
+    Object.entries(record).forEach(([key, value]) => {
+      if (key !== 'ownerRef') traverse(value);
+    });
+  };
+
+  logJsonArray.forEach(traverse);
+  return ownerIds;
+}
+
+// ============================================================
+// appendOwnerToDocument
+// ============================================================
+
+/**
+ * MAIML XML 文字列の `<document>` タグ内に `<owner>` タグを追記する。
+ *
+ * 同一 `id` の `<owner>` が既に存在する場合はスキップ（重複防止）。
+ * `<document>` タグが存在しない場合はそのまま返す。
+ *
+ * @param maimlContent - 更新前の MAIML XML 文字列
+ * @param ownerId - 追記する owner の id 属性値（`@` → `_` 変換済みの userId）
+ * @param ownerName - 追記する owner の name 要素値
+ * @returns 更新後の MAIML XML 文字列
+ */
+export function appendOwnerToDocument(
+  maimlContent: string,
+  ownerId: string,
+  ownerName: string
+): string {
+  // <document> タグが存在しない場合はそのまま返す
+  if (!/<document[^>]*>/.test(maimlContent)) {
+    return maimlContent;
+  }
+
+  // 同一 id の <owner> が既に存在する場合はスキップ
+  const escapedId = ownerId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const existingOwnerPattern = new RegExp(`<owner[^>]*\\sid="${escapedId}"[^>]*>`);
+  if (existingOwnerPattern.test(maimlContent)) {
+    return maimlContent;
+  }
+
+  // 追記する <owner> XML を組み立て
+  const ownerXml = [
+    `  <owner id="${escapeXml(ownerId)}">`,
+    `    <name>${escapeXml(ownerName)}</name>`,
+    `  </owner>`,
+  ].join('\n');
+
+  // </document> の直前に挿入
+  return maimlContent.replace(
+    /(\s*)<\/document>/,
+    `\n${ownerXml}\n$1</document>`
+  );
+}
+
+
 
 /**
  * MAIML XML 文字列の <document> タグ直下の <uuid> を新しい UUID に更新し、

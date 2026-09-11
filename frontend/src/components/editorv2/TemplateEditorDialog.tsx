@@ -476,16 +476,19 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   }, [termMap]);
 
   /**
-   * key 属性選択モーダルの選択肢一覧（qname → ラベル文字列）
+   * key 属性選択モーダルの選択肢一覧（qname → 表示情報）
    * NestedPropertyEditor の属性追加モーダルで key 選択時に使用する
    */
-  const termKeyOptions = useMemo<Array<{ value: string; label: string }>>(() => {
-    const options: Array<{ value: string; label: string }> = [];
+  const termKeyOptions = useMemo<Array<{ value: string; label: string; type?: string; unitHint?: string }>>(() => {
+    const options: Array<{ value: string; label: string; type?: string; unitHint?: string }> = [];
     termMap.forEach((term, qname) => {
       const label = term.displayName && term.displayName.trim() !== ''
-        ? `${term.displayName}（${qname}）`
+        ? term.displayName
         : qname;
-      options.push({ value: qname, label });
+      const opt: { value: string; label: string; type?: string; unitHint?: string } = { value: qname, label };
+      if (term.type && term.type.trim() !== '') opt.type = term.type;
+      if (term.unitHint && term.unitHint.trim() !== '') opt.unitHint = term.unitHint;
+      options.push(opt);
     });
     return options;
   }, [termMap]);
@@ -2277,7 +2280,25 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     {term.displayName && term.displayName.trim() !== '' && (
                       <div style={{ fontWeight: 600 }}>{term.displayName}</div>
                     )}
-                    <div style={{ fontSize: 11, color: '#888' }}>{qname}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>
+                      {qname}
+                      {term.type && term.type.trim() !== '' && (
+                        <Tag
+                          color="blue"
+                          style={{ marginLeft: 6, fontSize: 10, padding: '0 4px' }}
+                        >
+                          {term.type}
+                        </Tag>
+                      )}
+                      {term.unitHint && term.unitHint.trim() !== '' && (
+                        <Tag
+                          color="green"
+                          style={{ marginLeft: 2, fontSize: 10, padding: '0 4px' }}
+                        >
+                          {term.unitHint}
+                        </Tag>
+                      )}
+                    </div>
                   </div>
                 </Option>
               ))}

@@ -101,6 +101,7 @@ const NoSelectionView: React.FC<{
   isMobileDevice?: boolean;
   isTabletDevice?: boolean;
 }> = ({ enhancedMode, deviceType = 'desktop', isMobileDevice, isTabletDevice }) => {
+  const { t } = useLanguage();
   // デバイスアイコン
   const DeviceIcon = deviceType === 'mobile' 
     ? MobileOutlined 
@@ -119,30 +120,30 @@ const NoSelectionView: React.FC<{
         <RocketOutlined style={{ fontSize: 64, color: '#CF0027' }} />
         
         <Title level={2}>
-          MAIML Viewer Enhanced v2.0
+          {t('viewer.noSelectionTitle')}
         </Title>
         
         <Text type="secondary">
-          Unified Desktop/Mobile Experiment Recording System
+          {t('viewer.noSelectionSubtitle')}
         </Text>
         
         <Paragraph>
-          Please select a file
+          {t('viewer.noSelectionHint')}
         </Paragraph>
         
         <Card>
           <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-            <Text strong>🎯 Unified UX Flow (Desktop/Mobile)</Text>
-            <Text>• Select a MAIML file from the File Explorer or search on the left → Petri net diagram view</Text>
-            <Text>• Click "Start Editing" button (top right) → Choose new/existing → Edit screen</Text>
-            <Text>• Click "🧪 Experiment Record" button (top right) → Launch unified desktop/mobile experiment recording system</Text>
+            <Text strong>{t('viewer.noSelectionFlowTitle')}</Text>
+            <Text>{t('viewer.noSelectionFlow1')}</Text>
+            <Text>{t('viewer.noSelectionFlow2')}</Text>
+            <Text>{t('viewer.noSelectionFlow3')}</Text>
           </Space>
         </Card>
         
         {enhancedMode && (
           <Alert
-            message="Enhanced v2.0 Mode Enabled"
-            description="Parquet/Glue-based high-speed search supported"
+            message={t('viewer.enhancedModeTitle')}
+            description={t('viewer.enhancedModeDesc')}
             type="success"
             showIcon
             icon={<RocketOutlined />}
@@ -153,27 +154,27 @@ const NoSelectionView: React.FC<{
           title={
             <Space>
               <DeviceIcon />
-          <Text>Device Info</Text>
+          <Text>{t('viewer.deviceInfoTitle')}</Text>
             </Space>
           }
           size="small"
         >
           <Space orientation="vertical" size="small" style={{ width: '100%' }}>
             <Text>
-              <Text strong>Type:</Text> {deviceType}
+              <Text strong>{t('viewer.deviceType')}</Text> {deviceType}
             </Text>
             <Text>
-              <Text strong>Mobile:</Text> <Tag color={isMobileDevice ? 'green' : 'default'}>
-                {isMobileDevice ? 'Yes' : 'No'}
+              <Text strong>{t('viewer.deviceMobile')}</Text> <Tag color={isMobileDevice ? 'green' : 'default'}>
+                {isMobileDevice ? t('viewer.yes') : t('viewer.no')}
               </Tag>
             </Text>
             <Text>
-              <Text strong>Tablet:</Text> <Tag color={isTabletDevice ? 'blue' : 'default'}>
-                {isTabletDevice ? 'Yes' : 'No'}
+              <Text strong>{t('viewer.deviceTablet')}</Text> <Tag color={isTabletDevice ? 'blue' : 'default'}>
+                {isTabletDevice ? t('viewer.yes') : t('viewer.no')}
               </Tag>
             </Text>
             <Text>
-              <Text strong>Screen Size:</Text> {typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'N/A'}
+              <Text strong>{t('viewer.deviceScreenSize')}</Text> {typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'N/A'}
             </Text>
           </Space>
         </Card>
@@ -190,6 +191,7 @@ const UnsupportedFileView: React.FC<{
   downloadingFile?: boolean;
   onFileDownload?: (fileKey: string, fileName: string) => void;
 }> = ({ selectedFile, downloadingFile, onFileDownload }) => {
+  const { t } = useLanguage();
   return (
     <div style={{ 
       padding: '48px 24px',
@@ -201,11 +203,11 @@ const UnsupportedFileView: React.FC<{
         <FileTextOutlined style={{ fontSize: 64, color: '#8c8c8c' }} />
         
         <Title level={3}>
-          This file type cannot be displayed in the viewer
+          {t('viewer.unsupportedFileTitle')}
         </Title>
         
         <Paragraph type="secondary">
-          You can download it and open it with another application.
+          {t('viewer.unsupportedFileDesc')}
         </Paragraph>
         
         <Button
@@ -215,7 +217,7 @@ const UnsupportedFileView: React.FC<{
           loading={downloadingFile}
           onClick={() => onFileDownload?.(selectedFile.key, selectedFile.name ?? '')}
         >
-          {downloadingFile ? 'Downloading...' : 'Download File'}
+          {downloadingFile ? t('viewer.downloading') : t('viewer.downloadFile')}
         </Button>
       </Space>
     </div>
@@ -290,7 +292,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
           const methodDataList: MethodData[] = parsedMethods.map((m, index) => ({
             methodId: m.id || `method_${index}`,
             methodIndex: index,
-            name: m.name || m.id || `Method ${index + 1}`,
+            name: m.name || m.id || t('viewer.methodLabel', { index: String(index + 1) }),
             places: (m.pnml.places || []).map((p) => ({
               id: p.id,
               type: 'place',
@@ -312,11 +314,13 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
           setIsMultiMethod(true);
           setSelectedMethodIndex(0);
 
-          message.success({
-            content: `${methodDataList.length} method(s) detected`,
+          const methodsDetectedContent = t('viewer.methodsDetected', { count: String(methodDataList.length) });
+          const methodsDetectedParams = {
+            content: methodsDetectedContent,
             key: 'multiple-methods-detected',
             duration: 3,
-          });
+          };
+          message.success(methodsDetectedParams);
         } else {
           console.log('ℹ️ [ViewRenderer] Single method');
           setMethods([]);
@@ -369,9 +373,9 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
                     key: String(index),
                     label: (
                       <span>
-                        <Text strong>{method.name || `Method ${index + 1}`}</Text>
+                        <Text strong>{method.name || t('viewer.methodLabel', { index: String(index + 1) })}</Text>
                         <Tag color="blue" style={{ marginLeft: 8 }}>
-                          {method.places?.length || 0} nodes, {method.transitions?.length || 0} transitions
+                          {t('viewer.methodNodeTransitions', { nodes: String(method.places?.length || 0), transitions: String(method.transitions?.length || 0) })}
                         </Tag>
                       </span>
                     ),
@@ -484,13 +488,13 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
       <div style={{ padding: 24 }}>
         <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           <Alert
-            message="Experiment Recording System"
-            description="Experiment recording feature is not yet implemented"
+            message={t('viewer.experimentRecordTitle')}
+            description={t('viewer.experimentRecordDesc')}
             type="warning"
             showIcon
             action={
               <Button size="small" onClick={onExitExperiment}>
-                Back to Main
+                {t('viewer.backToMain')}
               </Button>
             }
           />
@@ -507,13 +511,13 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
       <div style={{ padding: 24 }}>
         <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           <Alert
-            message="Experiment Control (Experiment Manager)"
-            description="Experiment control feature is not yet implemented"
+            message={t('viewer.experimentControlTitle')}
+            description={t('viewer.experimentControlDesc')}
             type="warning"
             showIcon
             action={
               <Button size="small" onClick={onExitExperimentControl}>
-                Back to Main
+                {t('viewer.backToMain')}
               </Button>
             }
           />

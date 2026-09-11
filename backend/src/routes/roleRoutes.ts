@@ -6,6 +6,8 @@ import { Router } from 'express';
 import { param, body } from 'express-validator';
 import * as roleController from '../controllers/roleController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { tenantIsolation } from '../middleware/tenantIsolation';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import cors from 'cors';
 import multer from 'multer';
@@ -32,7 +34,9 @@ router.use(cors(corsOptions));
  */
 router.get(
   '/role',
-  authMiddleware, // 認証ミドルウェア有効化
+  authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 0), // システム管理者メニュー、読取専用
   roleController.getRoles
 );
 
@@ -44,6 +48,8 @@ router.get(
 router.get(
   '/role/download-csv',
   authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 0), // システム管理者メニュー、読取専用
   roleController.downloadRoleCsv
 );
 
@@ -53,7 +59,9 @@ router.get(
  */
 router.get(
   '/role/:roleId',
-  authMiddleware, // 認証ミドルウェア有効化
+  authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 0), // システム管理者メニュー、読取専用
   [
     param('roleId')
       .notEmpty()
@@ -71,7 +79,9 @@ router.get(
  */
 router.post(
   '/role',
-  authMiddleware, // 認証ミドルウェア有効化
+  authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 1), // システム管理者メニュー、書込可
   [
     body('role')
       .notEmpty()
@@ -105,6 +115,8 @@ router.post(
 router.post(
   '/role/upload-csv',
   authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 1), // システム管理者メニュー、書込可
   upload.single('file'),
   roleController.uploadRoleCsv
 );
@@ -115,7 +127,9 @@ router.post(
  */
 router.put(
   '/role/:roleId',
-  authMiddleware, // 認証ミドルウェア有効化
+  authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 1), // システム管理者メニュー、書込可
   [
     param('roleId')
       .notEmpty()
@@ -147,7 +161,9 @@ router.put(
  */
 router.put(
   '/role/:roleId/permissions',
-  authMiddleware, // 認証ミドルウェア有効化
+  authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 1), // システム管理者メニュー、書込可
   [
     param('roleId')
       .notEmpty()
@@ -172,7 +188,9 @@ router.put(
  */
 router.patch(
   '/role/:roleId/status',
-  authMiddleware, // 認証ミドルウェア有効化
+  authMiddleware,
+  tenantIsolation,
+  checkPermission('020000', 1), // システム管理者メニュー、書込可
   [
     param('roleId')
       .notEmpty()

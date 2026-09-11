@@ -510,9 +510,9 @@ export default function UncertaintyDetailModal({
 
   const statusTag =
     statusState === 'active' ? (
-      <Tag color="success" style={{ fontWeight: 600 }}>● {t('uncertaintyDetail.statusActive')}</Tag>
+      <Tag color="success" style={{ fontWeight: 600 }}>{t('uncertaintyDetail.statusActive')}</Tag>
     ) : (
-      <Tag color="default" style={{ fontWeight: 600 }}>○ {t('uncertaintyDetail.statusDeprecated')}</Tag>
+      <Tag color="default" style={{ fontWeight: 600 }}>{t('uncertaintyDetail.statusDeprecated')}</Tag>
     );
 
   return (
@@ -589,11 +589,11 @@ export default function UncertaintyDetailModal({
               <Space align="center">
                 {!isLatestVersion ? (
                   <>
-                    <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ {t('uncertaintyDetail.statusDeprecated')}</Tag>
+                    <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>{t('uncertaintyDetail.statusDeprecated')}</Tag>
                     <Switch
                       checked={false}
-                      checkedChildren={t('uncertaintyDetail.statusActive')}
-                      unCheckedChildren={t('uncertaintyDetail.statusDeprecated')}
+                      checkedChildren={t('uncertaintyDetail.statusActiveOn')}
+                      unCheckedChildren={t('uncertaintyDetail.statusDeprecatedOff')}
                       disabled
                     />
                     <span style={{ fontSize: 12, color: '#aaa' }}>
@@ -602,11 +602,11 @@ export default function UncertaintyDetailModal({
                   </>
                 ) : statusState === 'active' ? (
                   <>
-                    <Tag color="success" style={{ fontWeight: 600, marginRight: 8 }}>● {t('uncertaintyDetail.statusActive')}</Tag>
+                    <Tag color="success" style={{ fontWeight: 600, marginRight: 8 }}>{t('uncertaintyDetail.statusActive')}</Tag>
                     <Switch
                       checked={true}
-                      checkedChildren={t('uncertaintyDetail.statusActive')}
-                      unCheckedChildren={t('uncertaintyDetail.statusDeprecated')}
+                      checkedChildren={t('uncertaintyDetail.statusActiveOn')}
+                      unCheckedChildren={t('uncertaintyDetail.statusDeprecatedOff')}
                       onChange={(checked) =>
                         setStatusState(checked ? 'active' : 'deprecated')
                       }
@@ -617,11 +617,11 @@ export default function UncertaintyDetailModal({
                   </>
                 ) : (
                   <>
-                    <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ {t('uncertaintyDetail.statusDeprecated')}</Tag>
+                    <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>{t('uncertaintyDetail.statusDeprecated')}</Tag>
                     <Switch
                       checked={false}
-                      checkedChildren={t('uncertaintyDetail.statusActive')}
-                      unCheckedChildren={t('uncertaintyDetail.statusDeprecated')}
+                      checkedChildren={t('uncertaintyDetail.statusActiveOn')}
+                      unCheckedChildren={t('uncertaintyDetail.statusDeprecatedOff')}
                       onChange={(checked) =>
                         setStatusState(checked ? 'active' : 'deprecated')
                       }

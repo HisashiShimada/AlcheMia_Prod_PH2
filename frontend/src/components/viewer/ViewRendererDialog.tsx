@@ -119,7 +119,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
     if (contentType === 'edit' && file) {
       return `🚀 Edit: ${file.name}`;
     }
-    return 'Unknown';
+    return t('viewer.dialogTitleUnknown');
   };
 
   // コンテンツ描画
@@ -304,7 +304,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
                 e.stopPropagation();
                 setIsMinimized(!isMinimized);
               }}
-              title={isMinimized ? 'Expand' : 'Minimize'}
+              title={isMinimized ? t('viewer.dialogExpand') : t('viewer.dialogMinimize')}
             />
             <Button
               type="text"
@@ -313,7 +313,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
                 e.stopPropagation();
                 onClose(id);
               }}
-              title="Close"
+              title={t('viewer.dialogClose')}
             />
           </div>
         </div>

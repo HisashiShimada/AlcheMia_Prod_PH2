@@ -8,6 +8,7 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   MinusCircleOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { Transition, ProgressStatus } from '@/types/experimentWorker';
 
@@ -43,12 +44,24 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
       };
     }
 
-    const configs = {
+    const configs: Record<ProgressStatus, { color: string; bgColor: string; icon: React.ReactNode; text: string }> = {
       not_started: {
         color: token.colorBorder,
         bgColor: token.colorBgContainer,
         icon: <MinusCircleOutlined />,
         text: '未開始',
+      },
+      preparing: {
+        color: token.colorInfo,
+        bgColor: '#e6f4ff',
+        icon: <SyncOutlined />,
+        text: '準備中',
+      },
+      ready: {
+        color: token.colorSuccess,
+        bgColor: '#f6ffed',
+        icon: <CheckCircleOutlined />,
+        text: '準備完了',
       },
       in_progress: {
         color: token.colorWarning,
@@ -76,7 +89,7 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
       },
     };
 
-    return configs[status] || configs.not_started;
+    return configs[status] ?? configs.not_started;
   };
 
   const statusConfig = getStatusConfig(transition.status);
@@ -207,11 +220,15 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
           {/* ボタンエリア */}
           <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
             {/* 記録ボタン */}
+            {/* disabled 条件:
+                - isProjectRecordable=false: プロジェクトが記録操作不可状態（承認待ち外など）
+                - transition.status === 'not_started': 初期状態（前提未完了）のトランジションは操作不可
+                  ※リスト表示と同じ判定ロジックに統一 */}
             <Button
               type="primary"
               size="small"
               onClick={handleRecordClick}
-              disabled={!isProjectRecordable}
+              disabled={!isProjectRecordable || transition.status === 'not_started'}
               style={{
                 flex: 1,
                 fontSize: 12,

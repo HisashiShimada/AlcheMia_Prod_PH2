@@ -241,7 +241,8 @@ export const parsePetriNetStructure = async (
 export const saveMaiml = async (
   fileKey : string,
   content: string,
-  archive: boolean = true
+  archive: boolean = true,
+  organizationGroupCd?: string
 ): Promise<ServiceApiResponse<SaveMaimlResult>> => {
   const client = createApiClient();
   
@@ -252,7 +253,7 @@ export const saveMaiml = async (
     // content は Base64エンコード済み文字列のため、一度デコードしてから注入し再エンコードする
     let contentToSave = content;
     try {
-      const namespaces = await getOrganizationNamespaces();
+      const namespaces = await getOrganizationNamespaces(organizationGroupCd);
       if (namespaces.length > 0) {
         // Base64デコード → xmlns注入 → Base64再エンコード
         const decodedXml = decodeURIComponent(escape(atob(content)));
