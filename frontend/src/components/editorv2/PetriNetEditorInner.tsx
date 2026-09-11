@@ -3842,6 +3842,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           documentData={documentData}
           onClose={handleCloseDocumentEditor}
           onSave={handleSaveDocument}
+          projectId={projectId}
         />
 
         {/* Week2: ValidationPanel */}

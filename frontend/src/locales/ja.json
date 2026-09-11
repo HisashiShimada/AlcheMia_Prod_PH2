@@ -2833,6 +2833,7 @@
     "unsavedChangesContent": "変更を破棄しますか？",
     "discardButton": "破棄",
     "masterDataLoadFailed": "マスタデータの取得に失敗しました",
+  "ownerUsersLoadFailed": "Owner候補ユーザーの取得に失敗しました",
     "uuidGenerated": "UUID を生成しました",
     "currentTimeSet": "現在時刻を設定しました",
     "saved": "Document を保存しました",

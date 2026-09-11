@@ -2833,6 +2833,7 @@
     "unsavedChangesContent": "Discard changes?",
     "discardButton": "Discard",
     "masterDataLoadFailed": "Failed to load master data",
+  "ownerUsersLoadFailed": "Failed to load owner user candidates",
     "uuidGenerated": "UUID generated",
     "currentTimeSet": "Current time set",
     "saved": "Document saved",

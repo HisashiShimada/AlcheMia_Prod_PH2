@@ -46,8 +46,8 @@ export default function FunctionPermissionDialog({
   
   // FunctionListに基づいた機能データ（カテゴリ分けなし、説明文削除）
   // label: 画面表示用（翻訳済み）、dbValue: DB/API送信用（日本語固定値）
+  // ※ プロバイダーメニュー（010000）はシステム管理者が設定不可のため除外
   const baseFunctions: FunctionItem[] = [
-    { key: '010000', label: t('functionPermissionDialog.functions.010000'), dbValue: 'プロバイダーメニュー',      checked: false, writable: false },
     { key: '020000', label: t('functionPermissionDialog.functions.020000'), dbValue: 'システム管理者メニュー',    checked: false, writable: false },
     { key: '030000', label: t('functionPermissionDialog.functions.030000'), dbValue: 'データ管理者メニュー',      checked: false, writable: false },
     { key: '040000', label: t('functionPermissionDialog.functions.040000'), dbValue: '実験管理者メニュー',        checked: false, writable: false },

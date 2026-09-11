@@ -29,12 +29,15 @@ import {
   replaceEventLogInMaiml,
   updateDocumentUuidAndParent,
   injectNamespaceDeclarations,
+  appendOwnerToDocument,
+  extractOwnerIdsFromEventLogs,
 } from '../utils/maimlDataWriter';
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { findDeclarationsByProjectScope, findProjectGroupCd } from '../repositories/namespaceTermRepository';
 import { readGlobalDeclarations } from './globalNamespaceFileService';
 import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
+import { OrganizationUserRepository } from '../repositories/organizationUserRepository';
 
 /**
  * プロジェクトスコープの名前空間（DB）とグローバル名前空間（ファイルサーバ）をマージして返す
@@ -227,6 +230,33 @@ export class MaimlWriterService {
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
 
+    // ★ maiml_event_log の ownerRef から作業者を抽出して <document> の <owner> に追記
+    // organization_user テーブルから userName を取得し、存在しない id のみ追記する
+    try {
+      const ownerIds = extractOwnerIdsFromEventLogs(logJsonArray);
+      if (ownerIds.size > 0) {
+        const orgUserRepo = new OrganizationUserRepository();
+        for (const ownerId of ownerIds) {
+          // ownerId は @→_ 変換済み。DB検索は元のユーザーID形式（_→@ 逆変換）が必要なため
+          // organization_user.user_id と照合する際は変換前の値を試みる
+          const rawUserId = ownerId.replace(/_/g, '@');
+          const userResult = await pool.query<{ user_name: string }>(
+            `SELECT user_name FROM organization_user
+             WHERE organization_id = $1 AND (user_id = $2 OR user_id = $3)
+             LIMIT 1`,
+            [organizationId, rawUserId, ownerId]
+          );
+          const userName = userResult.rows[0]?.user_name ?? ownerId;
+          updatedMaiml = appendOwnerToDocument(updatedMaiml, ownerId, userName);
+        }
+      }
+    } catch (ownerAppendErr) {
+      console.warn(
+        '[MaimlWriterService.writeDataAndEventLog] Owner追記に失敗しました（処理継続）:',
+        ownerAppendErr
+      );
+    }
+
     // --- 9. 上書き保存前にアーカイブ処理 ---
     // 既存ファイルを archive/{projectName}_v{n}.maiml として保存する。
     // 命名規則: {baseName}_v{n}.maiml （s3_structure.md 規約準拠）
@@ -368,6 +398,30 @@ export class MaimlWriterService {
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
+
+    // ★ maiml_event_log の ownerRef から作業者を抽出して <document> の <owner> に追記
+    // organization_user テーブルから userName を取得し、存在しない id のみ追記する
+    try {
+      const ownerIds = extractOwnerIdsFromEventLogs(logJsonArray);
+      if (ownerIds.size > 0) {
+        for (const ownerId of ownerIds) {
+          const rawUserId = ownerId.replace(/_/g, '@');
+          const userResult = await pool.query<{ user_name: string }>(
+            `SELECT user_name FROM organization_user
+             WHERE organization_id = $1 AND (user_id = $2 OR user_id = $3)
+             LIMIT 1`,
+            [organizationId, rawUserId, ownerId]
+          );
+          const userName = userResult.rows[0]?.user_name ?? ownerId;
+          updatedMaiml = appendOwnerToDocument(updatedMaiml, ownerId, userName);
+        }
+      }
+    } catch (ownerAppendErr) {
+      console.warn(
+        '[MaimlWriterService.writeEventLogOnly] Owner追記に失敗しました（処理継続）:',
+        ownerAppendErr
+      );
+    }
 
     // --- 8. 上書き保存前にアーカイブ処理 ---
     try {
@@ -817,5 +871,73 @@ export class MaimlWriterService {
     });
 
     return maimlContent;
+  }
+
+  /**
+   * MAIML の `<document>` タグ内に作業者の `<owner>` タグを追記して保存する。
+   *
+   * 同一 id の `<owner>` が既に存在する場合はスキップ（重複防止）。
+   * MAIML ファイルが存在しない場合は処理をスキップする（エラーにしない）。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @param projectName    - プロジェクト名（S3 パス生成に使用）
+   * @param userId         - 追記するユーザーID（元の形式: `@` 含む可）
+   * @param userName       - 追記するユーザー名
+   */
+  async appendOwnerToDocument(
+    organizationId: string,
+    projectId: string,
+    projectName: string,
+    userId: string,
+    userName: string
+  ): Promise<void> {
+    const storageService = getStorageService();
+
+    // userId を MAIML owner id 仕様に合わせて @ → _ 変換
+    const ownerId = userId.replace(/@/g, '_');
+
+    try {
+      // MAIML ファイルパスを解決
+      const filePath = await resolveMaimlFilePath(organizationId, projectId, projectName);
+
+      // MAIML ファイルをダウンロード
+      let maimlBuffer: Buffer;
+      try {
+        maimlBuffer = await storageService.downloadFile(organizationId, filePath);
+      } catch {
+        console.log(
+          `[MaimlWriterService.appendOwnerToDocument] MAIMLファイルが存在しないためスキップ: ${filePath}`
+        );
+        return;
+      }
+
+      const maimlContent = maimlBuffer.toString('utf-8');
+
+      // <owner> を追記（同一 id 存在時はスキップ）
+      const updatedMaiml = appendOwnerToDocument(maimlContent, ownerId, userName);
+
+      // 変更がなければアップロードスキップ
+      if (updatedMaiml === maimlContent) {
+        console.log(
+          `[MaimlWriterService.appendOwnerToDocument] Owner(id=${ownerId}) は既に存在するためスキップ`
+        );
+        return;
+      }
+
+      // MAIML ファイルを上書き保存
+      const uploadBuffer = Buffer.from(updatedMaiml, 'utf-8');
+      await storageService.uploadFile(organizationId, filePath, uploadBuffer, { contentType: 'application/xml' });
+
+      console.log(
+        `[MaimlWriterService.appendOwnerToDocument] Owner(id=${ownerId}) を追記しました: ${filePath}`
+      );
+    } catch (error) {
+      // エラーはメイン処理に影響させず警告ログのみ
+      console.warn(
+        `[MaimlWriterService.appendOwnerToDocument] Owner追記に失敗しました（処理継続）:`,
+        error
+      );
+    }
   }
 }
