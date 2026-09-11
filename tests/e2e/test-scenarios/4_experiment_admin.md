@@ -24,16 +24,16 @@
 
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|------|-----------|-----------|------|-------|-------|
-| **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M | 23件 | Playwright自動 | 15 | 0 | 8 |
-| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 53件 | 手動 | 26 | 0 | 27 |
+| **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M | 23件 | Playwright自動 | 23 | 0 | 0 |
+| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 53件 | 手動 | 53 | 0 | 0 |
 | **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 9件 | Playwright自動 | 9 | 0 | 0 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 7件 | Playwright自動 | 7 | 0 | 0 |
-| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 10件 | Playwright自動 | 10 | 0 | 0 |
-| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 13件 | Playwright自動 | 13 | 0 | 0 |
-| **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 | 7 | 0 | 0 |
-| **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 55件 | Playwright自動 | 40 | 0 | 15 |
+| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | Playwright自動 | 7 | 0 | 0 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 10件 | Playwright自動 | 10 | 0 | 0 |
+| **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 3件 | Playwright自動 | 3 | 0 | 0 |
+| **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 42件 | Playwright自動 | 41 | 0 | 1 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） | 10 | 0 | 0 |
-| **4-10** | プロジェクト公開 | 追加機能S | 11件 | Playwright自動（フロントエンド実装後） | 4 | 0 | 0 |
+| **4-10** | プロジェクト公開 | 追加機能S | 11件 | Playwright自動（フロントエンド実装後） | 7 | 0 | 4 |
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件（手動2件含む） | Playwright自動 + 手動 | 10 | 0 | 7 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | Playwright自動 | 8 | 0 | 0 |
 | **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | - | - | 16 |
@@ -41,7 +41,7 @@
 | **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | - | - | 15 |
 | **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | - | - | 4 |
 | **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | - | - | 16 |
-| **合計** | - | - | **281件** | - | **164** | **0** | **93** |
+| **合計** | - | - | **266件** | - | **188** | **0** | **78** |
 
 ### スコープ外
 
@@ -75,14 +75,14 @@
 | 4-1-13 | ファイル一覧の「ビューア」ボタンをクリックするとビューアダイアログが起動すること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.5 | - | OK | |
 | 4-1-14 | 複数のビューアダイアログを同時に開けること（上限5個） | 正常系 | `ui_project_management.md` §3.10.2 | - | OK | |
 | 4-1-15 | 5個を超えてビューアダイアログを開こうとすると警告メッセージが表示されること | 異常系 | `ui_project_management.md` §3.10.2 | - | OK | |
-| 4-1-21 | ファイル一覧の各ファイル行に「…（その他）」メニューボタンが表示されること | 表示確認 | `ui_file_list_table.md` PR#138 §2.2.3 | - | - | |
-| 4-1-22 | 「…」メニューを開くと「名前の変更」と「削除」の項目が表示されること | 表示確認 | `ui_file_list_table.md` §2.2.3 | - | - | |
-| 4-1-23 | 「名前の変更」メニュー項目をクリックすると「名前の変更機能は未実装です」メッセージが表示されること | 正常系 | `ui_file_list_table.md` §2.2.3（未実装メッセージ） | - | - | |
-| 4-1-24 | MAIMLファイルの「削除」メニュー項目をクリックすると削除確認ダイアログが表示されること | 正常系 | `ui_file_list_table.md` §2.2.3、`ui_project_management.md` PR#138 §2.2.4 | - | - | |
-| 4-1-25 | 削除確認ダイアログでキャンセルするとMAIMLファイルが削除されないこと | 正常系 | `ui_file_list_table.md` §2.2.3 | - | - | |
-| 4-1-26 | 削除確認ダイアログで確認するとMAIMLファイルおよびarchiveフォルダ内の全バージョンファイルが削除され、`project_maiml_flg`が`false`に更新されること | 正常系 | `docs/改善仕様調査/No.1/20260331_1137_MAIMLファイル削除時Archiveフォルダ削除/PLAN.md` §実装内容 | DELETE `/api/v1/projects/:projectName/maiml` | - | S3上のarchiveフォルダも含めて全削除 |
-| 4-1-27 | archiveフォルダが存在しないプロジェクトのMAIMLファイルを削除しても正常に完了すること | 正常系 | `docs/改善仕様調査/No.1/20260331_1137_MAIMLファイル削除時Archiveフォルダ削除/PLAN.md` §8 | DELETE `/api/v1/projects/:projectName/maiml` | - | 初回アップロードのみで未バージョニングの場合 |
-| 4-1-28 | `project_status`が実行中（in_progress）のプロジェクトのMAIMLファイルは削除できないこと | 異常系 | `docs/改善仕様調査/No.1/20260327_0822_maimlファイル削除時project_status確認追加/PLAN.md`、`ui_project_management.md` §6.1 | DELETE `/api/v1/projects/:projectName/maiml` | - | エラーメッセージが表示されること |
+| 4-1-21 | ファイル一覧の各ファイル行に「…（その他）」メニューボタンが表示されること | 表示確認 | `ui_file_list_table.md` PR#138 §2.2.3 | - | OK | |
+| 4-1-22 | 「…」メニューを開くと「名前の変更」と「削除」の項目が表示されること | 表示確認 | `ui_file_list_table.md` §2.2.3 | - | OK | |
+| 4-1-23 | 「名前の変更」メニュー項目をクリックすると「名前の変更機能は未実装です」メッセージが表示されること | 正常系 | `ui_file_list_table.md` §2.2.3（未実装メッセージ） | - | OK | 現在既に実装されている機能なのでシナリオ誤り |
+| 4-1-24 | MAIMLファイルの「削除」メニュー項目をクリックすると削除確認ダイアログが表示されること | 正常系 | `ui_file_list_table.md` §2.2.3、`ui_project_management.md` PR#138 §2.2.4 | - | OK | |
+| 4-1-25 | 削除確認ダイアログでキャンセルするとMAIMLファイルが削除されないこと | 正常系 | `ui_file_list_table.md` §2.2.3 | - | OK | |
+| 4-1-26 | 削除確認ダイアログで確認するとMAIMLファイルおよびarchiveフォルダ内の全バージョンファイルが削除され、`project_maiml_flg`が`false`に更新されること | 正常系 | `docs/改善仕様調査/No.1/20260331_1137_MAIMLファイル削除時Archiveフォルダ削除/PLAN.md` §実装内容 | DELETE `/api/v1/projects/:projectName/maiml` | OK | S3上のarchiveフォルダも含めて全削除 |
+| 4-1-27 | archiveフォルダが存在しないプロジェクトのMAIMLファイルを削除しても正常に完了すること | 正常系 | `docs/改善仕様調査/No.1/20260331_1137_MAIMLファイル削除時Archiveフォルダ削除/PLAN.md` §8 | DELETE `/api/v1/projects/:projectName/maiml` | OK | 初回アップロードのみで未バージョニングの場合 |
+| 4-1-28 | `project_status`が実行中（in_progress）のプロジェクトのMAIMLファイルは削除できないこと | 異常系 | `docs/改善仕様調査/No.1/20260327_0822_maimlファイル削除時project_status確認追加/PLAN.md`、`ui_project_management.md` §6.1 | DELETE `/api/v1/projects/:projectName/maiml` | OK | エラーメッセージが表示されること |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -135,33 +135,33 @@
 | 4-2-24 | 保存ダイアログの「自動補正して保存」ボタンをクリックすると補正処理が実行された後に保存されること | 正常系 | `SaveConfirmDialog` auto-correct アクション | OK | |
 | 4-2-25 | 重複IDエラー・シンタックスエラーは自動補正の対象外であり、補正後もエラーが残ること | 異常系 | `maimlService.ts` autoCorrectMaiml 制限事項 | OK | |
 | 4-2-26 | 自動補正適用後に再バリデーションが自動実行され、ValidationPanelの結果が更新されること | 正常系 | `PetriNetEditorInner.tsx` handleAutoCorrect → handleRevalidate | OK | |
-| 4-2-27 | ビューモードを「XMLビュー」に切り替えるとXMLビューパネルが表示されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`EditorToolbar.tsx` viewMode='xml' | - | |
-| 4-2-28 | XMLビューにMAIML XMLがシンタックスハイライト付きで表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase1、`XMLViewer.tsx` | - | ローディングスピナー（Ant Design Spin）表示後にXMLが描画されること |
-| 4-2-29 | ペトリネットにノード/エッジを追加後にXMLビューへ切り替えると追加内容がXMLに反映されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase2、`XMLViewerWrapper.tsx` convertReactFlowToMaiML | - | リアルタイム変換の確認 |
-| 4-2-30 | 複数メソッドモードで各メソッドのXMLが正しく出力されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase2、`XMLViewerWrapper.tsx` convertMultipleMethodsToMaiML | - | メソッドタブを2件以上追加した状態で確認 |
-| 4-2-31 | XMLビューの「コピー」ボタンをクリックするとXML文字列がクリップボードにコピーされること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase5、`XMLViewer.tsx` コピーボタン | - | ブラウザのクリップボードに内容がセットされることを確認 |
-| 4-2-32 | XMLビューの「ダウンロード」ボタンをクリックすると `.xml` ファイルがダウンロードされること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase5、`XMLViewer.tsx` ダウンロードボタン | - | ダウンロードされたファイルの内容がXMLとして有効であること |
-| 4-2-33 | XMLビューからペトリネットビューに戻るとビューポート（位置・ズーム）が保持されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`PetriNetEditorInner.tsx` handleViewModeChange | - | ビューポート保存ロジックが `'xml'` モード遷移時にも動作すること |
-| 4-2-34 | ペトリネット/テンプレート/XMLビューの3モード間で相互に切り替えられること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`EditorToolbar.tsx` Segmented | - | 各モードへの往復切り替えでUIが正常に表示されること |
-| 4-2-35 | 単一Methodのノードをドラッグで移動して保存すると、ダウンロードしたMAIMLファイルの各 place/transition 要素直下に `<position x="..." y="..."/>` タグが出力されること | 正常系 | `docs/改善仕様調査/No.6/result.md` §修正ファイル4・`reactFlowToMaiml.ts` | - | 座標値は整数（`Math.round`）で出力されること |
-| 4-2-36 | 複数Methodのノードをドラッグで移動して保存すると、各Methodの place/transition 要素直下に `<position x="..." y="..."/>` タグが出力されること | 正常系 | `docs/改善仕様調査/No.6/result.md` §修正ファイル5・`multiMethodConverter.ts` | - | メソッドタブを2件以上追加した状態で確認 |
-| 4-2-37 | `<position>` タグを含むMAIMLファイルを読み込むと、ノードが保存時の座標に配置されること（自動レイアウトが適用されないこと） | 正常系 | `docs/改善仕様調査/No.6/result.md` §修正ファイル2・3・`reactFlowConverter.ts` | - | 保存前後でキャンバス上のノード位置が一致することを目視確認 |
-| 4-2-38 | `<position>` タグを含まない旧形式のMAIMLファイルを読み込むと、自動レイアウト（`calculateSimpleLayout`）が適用されてノードが配置されること | 正常系 | `docs/改善仕様調査/No.6/README.md` §5・フォールバック動作 | - | `<position>` タグなしのMAIMLを用意してインポートする |
-| 4-2-39 | ノードを任意の位置に移動→保存→MAIMLファイルをダウンロード→再読み込みの一連操作で、ノード位置が保存前と一致すること（往復整合性） | 正常系 | `docs/改善仕様調査/No.6/result.md` §データフロー | - | 単一Method・複数Methodの両パターンで確認すること |
-| 4-2-40 | Placeノードをクリックすると PropertyViewer（Drawer）が開き、基本情報・テンプレート・データの3タブが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 | - | No.8対応: PropertyViewer値なし区別 |
-| 4-2-41 | 基本情報タブで値が `undefined` のプロパティは「未設定」斜体テキストとして表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | 変更前は識別不能だった状態 |
-| 4-2-42 | 基本情報タブで値が `undefined` のプロパティにカーソルを合わせると「値が設定されていません」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 renderValue()修正 | - | Tooltip title="値が設定されていません" |
-| 4-2-43 | 基本情報タブで値が `null` のプロパティは「null」斜体テキストとして表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | `undefined` の「未設定」とは異なるテキスト |
-| 4-2-44 | 基本情報タブで値が `null` のプロパティにカーソルを合わせると「null が設定されています」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 renderValue()修正 | - | Tooltip title="null が設定されています" |
-| 4-2-45 | 基本情報タブで値が空文字（`""`）のプロパティは `""(空文字)` として表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | `undefined`・`null` とは異なる表示 |
-| 4-2-46 | 基本情報タブで値が空文字（`""`）のプロパティにカーソルを合わせると「空の文字列が設定されています」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 renderValue()修正 | - | Tooltip title="空の文字列が設定されています" |
-| 4-2-47 | 基本情報タブで boolean 値 `true` のプロパティは `<Tag color="success">true</Tag>` として表示されること（「はい」ではなく「true」） | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | 承認コメント「false を「いいえ」ではなく「false」表示に変更」 |
-| 4-2-48 | 基本情報タブで boolean 値 `false` のプロパティは `<Tag color="error">false</Tag>` として表示されること（「いいえ」ではなく「false」） | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | `false` が「未設定」と誤表示されないこと |
-| 4-2-49 | テンプレートタブで `xsi:type` が設定されていない列にカーソルを合わせると「xsi:type が設定されていません」ツールチップ付きの「-」が表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応2 xsi:type列レンダラー | - | 変更前は `null`（セル空白）だった |
-| 4-2-50 | テンプレートタブで説明/単位が設定されていない列にカーソルを合わせると「説明・単位が設定されていません」ツールチップ付きの「-」が表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応2 説明/単位列レンダラー | - | 変更前は `null`（セル空白）だった |
-| 4-2-51 | テンプレートタブにプロパティが存在しない場合、「表示するプロパティがありません」テキストにカーソルを合わせると「このノードにはテンプレートが設定されていません」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応2 テンプレート/データタブが空の場合 | - | テンプレート未設定ノードで確認 |
-| 4-2-52 | PropertyViewerWithSelectionコンポーネント（プロパティ選択チェックボックス付きビューア）においても、同様の `undefined`/`null`/`""` 区別表示とツールチップが機能すること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応ファイル一覧 `PropertyViewerWithSelection.tsx` | - | ビューア選択画面でも同一ロジックが適用されること |
-| 4-2-53 | 保存ダイアログ（SaveConfirmDialog）のダイアログを閉じるボタンのラベルが「閉じる」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §SaveConfirmDialog.tsx | - | No.24対応（低優先）: 「キャンセル」→「閉じる」に変更 |
+| 4-2-27 | ビューモードを「XMLビュー」に切り替えるとXMLビューパネルが表示されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`EditorToolbar.tsx` viewMode='xml' | OK | |
+| 4-2-28 | XMLビューにMAIML XMLがシンタックスハイライト付きで表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase1、`XMLViewer.tsx` | OK | ローディングスピナー（Ant Design Spin）表示後にXMLが描画されること |
+| 4-2-29 | ペトリネットにノード/エッジを追加後にXMLビューへ切り替えると追加内容がXMLに反映されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase2、`XMLViewerWrapper.tsx` convertReactFlowToMaiML | OK | リアルタイム変換の確認 |
+| 4-2-30 | 複数メソッドモードで各メソッドのXMLが正しく出力されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase2、`XMLViewerWrapper.tsx` convertMultipleMethodsToMaiML | OK | メソッドタブを2件以上追加した状態で確認 |
+| 4-2-31 | XMLビューの「コピー」ボタンをクリックするとXML文字列がクリップボードにコピーされること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase5、`XMLViewer.tsx` コピーボタン | OK | ブラウザのクリップボードに内容がセットされることを確認 |
+| 4-2-32 | XMLビューの「ダウンロード」ボタンをクリックすると `.xml` ファイルがダウンロードされること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase5、`XMLViewer.tsx` ダウンロードボタン | OK | ダウンロードされたファイルの内容がXMLとして有効であること |
+| 4-2-33 | XMLビューからペトリネットビューに戻るとビューポート（位置・ズーム）が保持されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`PetriNetEditorInner.tsx` handleViewModeChange | OK | ビューポート保存ロジックが `'xml'` モード遷移時にも動作すること |
+| 4-2-34 | ペトリネット/テンプレート/XMLビューの3モード間で相互に切り替えられること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`EditorToolbar.tsx` Segmented | OK | 各モードへの往復切り替えでUIが正常に表示されること |
+| 4-2-35 | 単一Methodのノードをドラッグで移動して保存すると、ダウンロードしたMAIMLファイルの各 place/transition 要素直下に `<position x="..." y="..."/>` タグが出力されること | 正常系 | `docs/改善仕様調査/No.6/result.md` §修正ファイル4・`reactFlowToMaiml.ts` | OK | 座標値は整数（`Math.round`）で出力されること |
+| 4-2-36 | 複数Methodのノードをドラッグで移動して保存すると、各Methodの place/transition 要素直下に `<position x="..." y="..."/>` タグが出力されること | 正常系 | `docs/改善仕様調査/No.6/result.md` §修正ファイル5・`multiMethodConverter.ts` | OK | メソッドタブを2件以上追加した状態で確認 |
+| 4-2-37 | `<position>` タグを含むMAIMLファイルを読み込むと、ノードが保存時の座標に配置されること（自動レイアウトが適用されないこと） | 正常系 | `docs/改善仕様調査/No.6/result.md` §修正ファイル2・3・`reactFlowConverter.ts` | OK | 保存前後でキャンバス上のノード位置が一致することを目視確認 |
+| 4-2-38 | `<position>` タグを含まない旧形式のMAIMLファイルを読み込むと、自動レイアウト（`calculateSimpleLayout`）が適用されてノードが配置されること | 正常系 | `docs/改善仕様調査/No.6/README.md` §5・フォールバック動作 | OK | |
+| 4-2-39 | ノードを任意の位置に移動→保存→MAIMLファイルをダウンロード→再読み込みの一連操作で、ノード位置が保存前と一致すること（往復整合性） | 正常系 | `docs/改善仕様調査/No.6/result.md` §データフロー | OK | 単一Method・複数Methodの両パターンで確認すること |
+| 4-2-40 | Placeノードをクリックすると PropertyViewer（Drawer）が開き、基本情報・テンプレート・データの3タブが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 | OK | No.8対応: PropertyViewer値なし区別 |
+| 4-2-41 | 基本情報タブで値が `undefined` のプロパティは「未設定」斜体テキストとして表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | OK | 現在の実装では再現しない |
+| 4-2-42 | 基本情報タブで値が `undefined` のプロパティにカーソルを合わせると「値が設定されていません」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 renderValue()修正 | OK | 現在の実装では再現しない |
+| 4-2-43 | 基本情報タブで値が `null` のプロパティは「null」斜体テキストとして表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | OK | 現在の実装では再現しない |
+| 4-2-44 | 基本情報タブで値が `null` のプロパティにカーソルを合わせると「null が設定されています」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 renderValue()修正 | OK | 現在の実装では再現しない |
+| 4-2-45 | 基本情報タブで値が空文字（`""`）のプロパティは `""(空文字)` として表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | OK | 現在の実装では再現しない |
+| 4-2-46 | 基本情報タブで値が空文字（`""`）のプロパティにカーソルを合わせると「空の文字列が設定されています」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 renderValue()修正 | OK | 現在の実装では再現しない |
+| 4-2-47 | 基本情報タブで boolean 値 `true` のプロパティは `<Tag color="success">true</Tag>` として表示されること（「はい」ではなく「true」） | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | OK | 承認コメント「false を「いいえ」ではなく「false」表示に変更」 基本情報タブに boolean 値のプロパティは存在しないため再現不可 |
+| 4-2-48 | 基本情報タブで boolean 値 `false` のプロパティは `<Tag color="error">false</Tag>` として表示されること（「いいえ」ではなく「false」） | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | OK | `false` が「未設定」と誤表示されないこと 基本情報タブに boolean 値のプロパティは存在しないため再現不可 |
+| 4-2-49 | テンプレートタブで `xsi:type` が設定されていない列にカーソルを合わせると「xsi:type が設定されていません」ツールチップ付きの「-」が表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応2 xsi:type列レンダラー | OK | xsi:typeが未設定にはならないため再現不可 |
+| 4-2-50 | テンプレートタブで説明/単位が設定されていない列にカーソルを合わせると「説明・単位が設定されていません」ツールチップ付きの「-」が表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応2 説明/単位列レンダラー | OK | 変更前は `null`（セル空白）だった |
+| 4-2-51 | テンプレートタブにプロパティが存在しない場合、「表示するプロパティがありません」テキストにカーソルを合わせると「このノードにはテンプレートが設定されていません」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応2 テンプレート/データタブが空の場合 | OK | テンプレート未設定ノードで確認。「表示するプロパティがありません」→「プロパティがありません」 |
+| 4-2-52 | PropertyViewerWithSelectionコンポーネント（プロパティ選択チェックボックス付きビューア）においても、同様の `undefined`/`null`/`""` 区別表示とツールチップが機能すること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応ファイル一覧 `PropertyViewerWithSelection.tsx` | OK | ビューア選択画面でも同一ロジックが適用されること |
+| 4-2-53 | 保存ダイアログ（SaveConfirmDialog）のダイアログを閉じるボタンのラベルが「閉じる」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §SaveConfirmDialog.tsx | OK | No.24対応（低優先）: 「キャンセル」→「閉じる」に変更 |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -285,7 +285,7 @@
 | 4-5-4 | 送信済みの指示は削除ボタンが非表示であること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.3 | - | OK | |
 | 4-5-5 | 指示が0件の場合に一括送信ボタンが無効化されること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.4 | - | OK | |
 | 4-5-6 | 指示登録状況（未送信件数/送信済み件数/合計）が表示されること | 表示確認 | 追加機能I | GET `/api/v1/projects/:projectName/instructions/status` | OK | |
-| 4-5-7 | 送信済み指示の詳細ダイアログ（InstructionEditDialog）の「閉じる」ボタンがグレー（非プライマリ・`type="default"`）で表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §InstructionEditDialog.tsx | - | - | No.24対応: 参照専用ダイアログの「閉じる」ボタンを `type="primary"` → `type="default"` に変更 |
+| 4-5-7 | 送信済み指示の詳細ダイアログ（InstructionEditDialog）の「閉じる」ボタンがグレー（非プライマリ・`type="default"`）で表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §InstructionEditDialog.tsx | - | OK | No.24対応: 参照専用ダイアログの「閉じる」ボタンを `type="primary"` → `type="default"` に変更 |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -379,23 +379,23 @@
 | 4-8-38 | ファイルの「削除」ボタンをクリックすると削除確認ダイアログが表示されること | 表示確認 | `ui_format_file_list_table.md` §3.1.6、`ui_format_management.md` §3.2 | - | OK | |
 | 4-8-39 | 削除確認ダイアログで確認するとファイルが削除されてファイル一覧から消えること | 正常系 | `ui_format_management.md` §3.2 / §6.4 | DELETE `/api/v1/formats/:formatId/files/:fileId` | OK | |
 | 4-8-40 | 削除確認ダイアログでキャンセルするとファイルが削除されないこと | 正常系 | `ui_format_file_list_table.md` §3.1.6 | - | OK | |
-| 4-8-41 | TemplateEditorDialogを開くと「UI編集」「XMLビュー」の2タブが表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`TemplateEditorDialog.tsx` Tabs | - | |
-| 4-8-42 | 「UI編集」タブが初期表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`activeTab='ui'` 初期値 | - | |
-| 4-8-43 | 「XMLビュー」タブをクリックするとテンプレートのXML文字列がTextAreaに表示されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`convertTemplateToXML` | - | UI → XML 切り替え時に `convertTemplateToXML` が呼ばれること |
-| 4-8-44 | XMLビューでXMLを直接編集して「UI編集」タブに戻るとUI Stateに変更が反映されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`parseXMLToTemplate` | - | XML → UI 切り替え時に `parseXMLToTemplate` が呼ばれること |
-| 4-8-45 | XMLビューで不正なXML（構文エラー）を入力してバリデーションを実行するとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | バリデーションボタン押下時にエラーAlertが表示されること |
-| 4-8-46 | XMLビューで有効なXMLを入力してバリデーションを実行するとエラーメッセージが表示されないこと | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | エラーAlertが表示されないこと |
-| 4-8-47 | XMLビューから保存するとXMLがパースされてテンプレートデータが正しく保存されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` | - | `validateTemplateXML` → `parseXMLToTemplate` → 保存の順で処理されること |
-| 4-8-48 | XMLビューでエラーがある状態で保存しようとするとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` バリデーション | - | 不正なXMLのまま保存ボタンを押すとエラーが表示されること |
-| 4-8-49 | フォーマットアップロード開始後、プログレスバーの右上に「キャンセル」ボタンが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 キャンセルボタンのUI | - | - | |
-| 4-8-50 | アップロード完了（progress=100）後はキャンセルボタンが無効化（disabled）になること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1「アップロード完了後はキャンセルボタン無効化」 | - | - | |
-| 4-8-51 | アップロード中にキャンセルボタンを押すとアップロードが即座に中断されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 handleCancelUpload | POST `/api/v1/files/upload` | - | AbortController.abort()でHTTPリクエストが中断されること |
-| 4-8-52 | キャンセル実行後に「アップロードがキャンセルされました」メッセージが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §12「キャンセル後のUI/UX」 | - | - | |
-| 4-8-53 | キャンセル実行後にダイアログのアップロード状態（進捗バー・isUploading）がリセットされること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 状態管理 | - | - | |
-| 4-8-54 | キャンセル実行後、途中までアップロードされたファイルがバックエンド（ストレージ・DB）から削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.2 cancelBatch API | POST `/api/v1/files/batches/:batchId/cancel` | - | cancelBatch APIのレスポンス（`deletedFileCount`）で確認 |
-| 4-8-55 | 複数ファイルアップロード中にキャンセルした場合、アップロード済みの全ファイルが削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §8「複数ファイルアップロード中のキャンセル」 | POST `/api/v1/files/batches/:batchId/cancel` | - | `deletedFileCount` ≥ 1 であること |
-| 4-8-56 | フォーマット未選択時のフッターボタンが「キャンセル」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §FormatUploadDialog.tsx | - | - | No.24対応: 未選択時フッター「閉じる」→「キャンセル」に変更 |
-| 4-8-57 | TemplateEditorDialogで名前空間ファイルを選択した際の確認ダイアログのOKボタンが「取り込む」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §TemplateEditorDialog.tsx | - | - | No.16対応: 「取り込み」→「取り込む」に統一 |
+| 4-8-41 | TemplateEditorDialogを開くと「UI編集」「XMLビュー」の2タブが表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`TemplateEditorDialog.tsx` Tabs | - | OK | |
+| 4-8-42 | 「UI編集」タブが初期表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`activeTab='ui'` 初期値 | - | OK | |
+| 4-8-43 | 「XMLビュー」タブをクリックするとテンプレートのXML文字列がTextAreaに表示されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`convertTemplateToXML` | - | OK | UI → XML 切り替え時に `convertTemplateToXML` が呼ばれること |
+| 4-8-44 | XMLビューでXMLを直接編集して「UI編集」タブに戻るとUI Stateに変更が反映されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`parseXMLToTemplate` | - | OK | XML → UI 切り替え時に `parseXMLToTemplate` が呼ばれること |
+| 4-8-45 | XMLビューで不正なXML（構文エラー）を入力してバリデーションを実行するとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | OK | バリデーションボタン押下時にエラーAlertが表示されること |
+| 4-8-46 | XMLビューで有効なXMLを入力してバリデーションを実行するとエラーメッセージが表示されないこと | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | OK | エラーAlertが表示されないこと |
+| 4-8-47 | XMLビューから保存するとXMLがパースされてテンプレートデータが正しく保存されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` | - | OK | `validateTemplateXML` → `parseXMLToTemplate` → 保存の順で処理されること |
+| 4-8-48 | XMLビューでエラーがある状態で保存しようとするとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` バリデーション | - | OK | 不正なXMLのまま保存ボタンを押すとエラーが表示されること |
+| 4-8-49 | フォーマットアップロード開始後、プログレスバーの右上に「キャンセル」ボタンが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 キャンセルボタンのUI | - | OK | |
+| 4-8-50 | アップロード完了（progress=100）後はキャンセルボタンが無効化（disabled）になること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1「アップロード完了後はキャンセルボタン無効化」 | - | OK | |
+| 4-8-51 | アップロード中にキャンセルボタンを押すとアップロードが即座に中断されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 handleCancelUpload | POST `/api/v1/files/upload` | OK | AbortController.abort()でHTTPリクエストが中断されること |
+| 4-8-52 | キャンセル実行後に「アップロードがキャンセルされました」メッセージが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §12「キャンセル後のUI/UX」 | - | OK | |
+| 4-8-53 | キャンセル実行後にダイアログのアップロード状態（進捗バー・isUploading）がリセットされること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 状態管理 | - | OK | |
+| 4-8-54 | キャンセル実行後、途中までアップロードされたファイルがバックエンド（ストレージ・DB）から削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.2 cancelBatch API | POST `/api/v1/files/batches/:batchId/cancel` | OK | cancelBatch APIのレスポンス（`deletedFileCount`）で確認 |
+| 4-8-55 | 複数ファイルアップロード中にキャンセルした場合、アップロード済みの全ファイルが削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §8「複数ファイルアップロード中のキャンセル」 | POST `/api/v1/files/batches/:batchId/cancel` | OK | `deletedFileCount` ≥ 1 であること |
+| 4-8-56 | フォーマット未選択時のフッターボタンが「キャンセル」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §FormatUploadDialog.tsx | - | OK | No.24対応: 未選択時フッター「閉じる」→「キャンセル」に変更。現在は「閉じる」ボタンになっている |
+| 4-8-57 | TemplateEditorDialogで名前空間ファイルを選択した際の確認ダイアログのOKボタンが「取り込む」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §TemplateEditorDialog.tsx | - | OK | 「取り込む」→「インポート」 |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
