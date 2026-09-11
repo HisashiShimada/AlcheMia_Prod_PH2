@@ -8,6 +8,7 @@ SELECT
   transition_id,
   status,
   progress_rate,
+  is_recorded,
   update_user_id,
   update_at,
   create_at
