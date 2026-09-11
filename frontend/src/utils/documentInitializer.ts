@@ -72,7 +72,7 @@ export const generateInitialOwner = (): DocumentTagData[] => {
   
   const owner: DocumentTagData = {
     tagName: 'Owner',
-    id: userInfo.id,
+    id: userInfo.id.replace(/@/g, '_'),
     uuid: ownerUuid,
     name: userInfo.username,
     description: '',

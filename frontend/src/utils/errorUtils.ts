@@ -433,6 +433,7 @@ interface AxiosApiErrorBody {
   error?: {
     message?: string;
     code?: string;
+    details?: Array<{ message?: string; field?: string; row?: number } | string>;
   };
 }
 
@@ -477,11 +478,55 @@ export function extractErrorCode(error: unknown): string {
 /**
  * エラーオブジェクトからユーザーフレンドリーなエラーメッセージを抽出
  *
+ * 優先順位:
+ *   1. AxiosError の response.data.error.message（バックエンドの具体的メッセージ）
+ *   2. 通常の Error.message（サービス層で new Error(msg) した場合など）
+ *   3. エラーコード → 翻訳キーマッピング（mapErrorToMessage）
+ *   4. defaultMessage（呼び出し元のフォールバック）
+ *
  * @param error - エラーオブジェクト（AxiosError, Error, unknown）
  * @param defaultMessage - マッピングが見つからない場合のデフォルトメッセージ
  * @returns ユーザーに表示するエラーメッセージ
  */
 export function extractErrorMessage(error: unknown, defaultMessage?: string): string {
+  // ① バックエンドの具体的メッセージを最優先で使用
+  if (axios.isAxiosError(error)) {
+    const apiMessage = (error as AxiosError<AxiosApiErrorBody>).response?.data?.error?.message;
+    if (apiMessage) return apiMessage;
+  }
+
+  // ② 通常の Error（サービス層で new Error(msg) した場合など）
+  if (error instanceof Error && !axios.isAxiosError(error)) {
+    return error.message;
+  }
+
+  // ③ エラーコードマッピング → ④ defaultMessage
   const code = extractErrorCode(error);
   return mapErrorToMessage(code, defaultMessage);
+}
+
+/**
+ * エラーオブジェクトから詳細エラーメッセージ一覧を抽出
+ *
+ * バックエンドが返す response.data.error.details 配列を文字列配列に変換する。
+ * CSV バリデーション等で行番号・フィールド名付きのエラー詳細を表示する際に使用。
+ * メインメッセージ（mainMessage）と同一内容の詳細は除外して二重表示を防ぐ。
+ *
+ * @param error - エラーオブジェクト（AxiosError, Error, unknown）
+ * @param mainMessage - メインメッセージ（これと同一内容の詳細を除外する）
+ * @returns 詳細メッセージの配列（詳細がない場合は空配列）
+ */
+export function extractErrorDetails(error: unknown, mainMessage?: string): string[] {
+  if (axios.isAxiosError(error)) {
+    const details = (error as AxiosError<AxiosApiErrorBody>).response?.data?.error?.details;
+    if (Array.isArray(details) && details.length > 0) {
+      return details
+        .map((d) => {
+          if (typeof d === 'string') return d;
+          return d.message ?? String(d);
+        })
+        .filter((msg) => msg !== mainMessage);
+    }
+  }
+  return [];
 }

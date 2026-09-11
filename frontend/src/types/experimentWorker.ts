@@ -345,7 +345,8 @@ export interface Stats {
 }
 
 // 進捗ステータス
-export type ProgressStatus = 'not_started' | 'in_progress' | 'completed' | 'on_hold' | 'issue';
+// ProgressRow['status'] と整合させるため 'preparing' / 'ready' を含む全ステータスを定義する
+export type ProgressStatus = 'not_started' | 'preparing' | 'ready' | 'in_progress' | 'on_hold' | 'completed' | 'issue';
 
 /**
  * トランジションステータス（実験データ記録用）

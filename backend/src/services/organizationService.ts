@@ -336,16 +336,35 @@ export async function createOrganization(
 
       // 8. namespace テーブルへ組織URIを自動登録
       // URI形式: https://{organizationCd}.Alchemia.co.jp
+      // scope_key = NULL（組織スコープ）で登録する
+      // createOrganization は1リクエスト1回のみ実行され、組織CD重複チェックがトランザクション前に行われるため二重登録は発生しない
       // 失敗時はトランザクション全体をロールバックする（組織作成と原子性を保証）
       logger.info(`[organizationService] 組織URI自動登録を開始: organizationId=${data.organizationId}`);
       const orgUri = generateNamespaceUri(data.organizationCd);
       const existingUris = await namespaceTermRepository.findUrisByOrganization(data.organizationId, t);
       const uniqueUri = existingUris.includes(orgUri) ? `${orgUri}1` : orgUri;
-      await namespaceTermRepository.createNamespaceUri(
-        { organizationId: data.organizationId, uri: uniqueUri, userId },
-        t
-      );
+      const orgNamespaceData = { organizationId: data.organizationId, uri: uniqueUri, userId };
+      await namespaceTermRepository.createNamespaceUri(orgNamespaceData, t);
       logger.info(`[organizationService] 組織URI自動登録完了: organizationId=${data.organizationId}, uri=${uniqueUri}`);
+
+      // 9. システム管理者（chiefUser）の個人 namespace を自動登録
+      // URI形式: https://{organizationCd}.Alchemia.co.jp/{loginName}
+      // userService の registerUserNamespace と同等の処理を組織作成トランザクション内で実施する
+      if (data.chiefUserEmail) {
+        logger.info(`[organizationService] システム管理者の個人URI自動登録を開始: chiefUserEmail=${data.chiefUserEmail}`);
+        const chiefAlreadyRegistered = await namespaceTermRepository.existsByScopeKey(data.organizationId, data.chiefUserEmail, t);
+        if (!chiefAlreadyRegistered) {
+          const loginName = data.chiefUserEmail.split('@')[0];
+          const chiefCandidateUri = generateNamespaceUri(data.organizationCd, loginName);
+          const existingUrisForChief = await namespaceTermRepository.findUrisByOrganization(data.organizationId, t);
+          const chiefUniqueUri = existingUrisForChief.includes(chiefCandidateUri) ? `${chiefCandidateUri}1` : chiefCandidateUri;
+          const chiefNamespaceData = { organizationId: data.organizationId, uri: chiefUniqueUri, userId: data.chiefUserEmail, scopeKey: data.chiefUserEmail };
+          await namespaceTermRepository.createNamespaceUri(chiefNamespaceData, t);
+          logger.info(`[organizationService] システム管理者の個人URI自動登録完了: chiefUserEmail=${data.chiefUserEmail}, uri=${chiefUniqueUri}`);
+        } else {
+          logger.info(`[organizationService] システム管理者の個人URI自動登録スキップ（既存）: chiefUserEmail=${data.chiefUserEmail}`);
+        }
+      }
     });
 
     // JOINでchief_user_nameとcorporation_nameを取得

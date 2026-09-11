@@ -1995,3 +1995,65 @@ export const forceTerminateProject = async (
     throw error;
   }
 };
+
+/**
+ * プロジェクトのグループメンバー（Owner候補ユーザー）を取得
+ *
+ * @remarks
+ * プロジェクトに紐づく組織グループのメンバー一覧を取得する。
+ * DocumentEditDialog の Owner 選択用に使用する。
+ * 内部でプロジェクト一覧からグループCDを取得し、グループメンバーを返す。
+ *
+ * @param projectId - 対象プロジェクトID
+ * @returns ユーザー一覧（userId, userName）
+ *   ※ userId は MAIML owner@id 仕様に合わせて `@` を `_` に変換済みの値を返す
+ */
+export const getProjectGroupMembers = async (
+  projectId: string
+): Promise<Array<{ userId: string; userName: string }>> => {
+  try {
+    console.log('👥 [projectApiService] プロジェクトグループメンバー取得:', projectId);
+
+    // プロジェクト一覧からグループCDを取得
+    const projectsResult = await getProjects('all');
+    if (!projectsResult.success || !projectsResult.data) {
+      console.warn('⚠️ [projectApiService] プロジェクト一覧取得失敗');
+      return [];
+    }
+
+    const project = projectsResult.data.projects.find((p) => p.id === projectId);
+    if (!project) {
+      console.warn('⚠️ [projectApiService] 対象プロジェクトが見つかりません:', projectId);
+      return [];
+    }
+
+    const groupCd = project.organizationGroup;
+    if (!groupCd) {
+      console.warn('⚠️ [projectApiService] プロジェクトにグループCDが設定されていません:', projectId);
+      return [];
+    }
+
+    console.log('📂 [projectApiService] グループCD取得:', groupCd);
+
+    // グループメンバー一覧を取得
+    const client = createApiClient();
+    const response = await client.get<{
+      success: boolean;
+      data: Array<{ user_id: string; user_name: string; mail_address?: string }>;
+    }>(`/organization-groups/${encodeURIComponent(groupCd)}/members`);
+
+    const members = (response.data?.data ?? []).map((u) => ({
+      userId: u.user_id.replace(/@/g, '_'),
+      userName: u.user_name,
+    }));
+
+    console.log('✅ [projectApiService] グループメンバー取得完了:', members.length, '名');
+    return members;
+  } catch (error) {
+    console.error('❌ [projectApiService] プロジェクトグループメンバー取得エラー:', {
+      error,
+      projectId,
+    });
+    return [];
+  }
+};

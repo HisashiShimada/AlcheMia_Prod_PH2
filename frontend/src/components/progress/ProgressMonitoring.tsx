@@ -84,6 +84,7 @@ export default function ProgressMonitoring() {
       3: 'review_waiting',
       4: 'completed',
       5: 'error',
+      6: 'review_rejected',
     };
     return map[status] ?? 'planning';
   };
@@ -129,12 +130,13 @@ export default function ProgressMonitoring() {
     return allData.filter((item) => {
       const getProjectStatusLabel = (status: string) => {
         switch (status) {
-          case 'planning': return t('progress.filter.planning') || 'プロジェクト計画中';
-          case 'pending': return t('progress.filter.pending') || 'タスク実行待ち';
-          case 'in_progress': return t('progress.filter.inProgress') || 'タスク実行中';
+          case 'planning':       return t('progress.filter.planning') || 'プロジェクト計画中';
+          case 'pending':        return t('progress.filter.pending') || 'タスク実行待ち';
+          case 'in_progress':    return t('progress.filter.inProgress') || 'タスク実行中';
           case 'review_waiting': return t('progress.filter.reviewWaiting') || 'タスク結果レビュー待ち';
-          case 'completed': return t('progress.filter.completed') || 'プロジェクト完了';
-          case 'error': return t('progress.filter.error') || 'タスク異常終了';
+          case 'completed':      return t('progress.filter.completed') || 'プロジェクト完了';
+          case 'error':          return t('progress.filter.error') || 'タスク異常終了';
+          case 'review_rejected': return t('progress.filter.reviewRejected') || 'レビュー差戻';
           default: return status;
         }
       };
@@ -190,12 +192,13 @@ export default function ProgressMonitoring() {
   // プロジェクトステータスのラベルを取得する関数
   const getProjectStatusLabel = (status: string) => {
     switch (status) {
-      case 'planning': return t('progress.filter.planning') || 'プロジェクト計画中';
-      case 'pending': return t('progress.filter.pending') || 'タスク実行待ち';
-      case 'in_progress': return t('progress.filter.inProgress') || 'タスク実行中';
-      case 'review_waiting': return t('progress.filter.reviewWaiting') || 'タスク結果レビュー待ち';
-      case 'completed': return t('progress.filter.completed') || 'プロジェクト完了';
-      case 'error': return t('progress.filter.error') || 'タスク異常終了';
+      case 'planning':        return t('progress.filter.planning') || 'プロジェクト計画中';
+      case 'pending':         return t('progress.filter.pending') || 'タスク実行待ち';
+      case 'in_progress':     return t('progress.filter.inProgress') || 'タスク実行中';
+      case 'review_waiting':  return t('progress.filter.reviewWaiting') || 'タスク結果レビュー待ち';
+      case 'completed':       return t('progress.filter.completed') || 'プロジェクト完了';
+      case 'error':           return t('progress.filter.error') || 'タスク異常終了';
+      case 'review_rejected': return t('progress.filter.reviewRejected') || 'レビュー差戻';
       default: return status;
     }
   };
@@ -276,12 +279,13 @@ export default function ProgressMonitoring() {
       render: (status: string) => {
         const getStatusColor = (s: string) => {
           switch (s) {
-            case 'planning': return 'default';
-            case 'pending': return 'blue';
-            case 'in_progress': return 'cyan';
-            case 'review_waiting': return 'purple';
-            case 'completed': return 'success';
-            case 'error': return 'error';
+            case 'planning':        return 'default';
+            case 'pending':         return 'blue';
+            case 'in_progress':     return 'cyan';
+            case 'review_waiting':  return 'purple';
+            case 'completed':       return 'success';
+            case 'error':           return 'error';
+            case 'review_rejected': return 'orange';
             default: return 'default';
           }
         };
@@ -415,13 +419,14 @@ export default function ProgressMonitoring() {
                 value={projectStatusFilter}
                 onChange={setProjectStatusFilter}
                 options={[
-                  { value: 'all', label: t('progress.filter.allStatus') },
-                  { value: 'planning', label: t('progress.filter.planning') },
-                  { value: 'pending', label: t('progress.filter.pending') },
-                  { value: 'inProgress', label: t('progress.filter.inProgress') },
-                  { value: 'reviewWaiting', label: t('progress.filter.reviewWaiting') },
-                  { value: 'completed', label: t('progress.filter.completed') },
-                  { value: 'error', label: t('progress.filter.error') },
+                  { value: 'all',             label: t('progress.filter.allStatus') },
+                  { value: 'planning',        label: t('progress.filter.planning') },
+                  { value: 'pending',         label: t('progress.filter.pending') },
+                  { value: 'in_progress',     label: t('progress.filter.inProgress') },
+                  { value: 'review_waiting',  label: t('progress.filter.reviewWaiting') },
+                  { value: 'completed',       label: t('progress.filter.completed') },
+                  { value: 'error',           label: t('progress.filter.error') },
+                  { value: 'review_rejected', label: t('progress.filter.reviewRejected') },
                 ]}
               />
             </Space>

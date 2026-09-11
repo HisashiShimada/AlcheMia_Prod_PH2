@@ -87,6 +87,13 @@ async function registerUserNamespace(
   organizationCd: string,
   userId: string
 ): Promise<void> {
+  // 既存チェック（冪等: 既に登録済みならスキップ）
+  const alreadyRegistered = await namespaceTermRepository.existsByScopeKey(organizationId, userId, t);
+  if (alreadyRegistered) {
+    console.log(`[userService] 個人URI登録スキップ（既存）: userId=${userId}`);
+    return;
+  }
+
   const loginName = userId.split('@')[0];
   const candidateUri = generateNamespaceUri(organizationCd, loginName);
   // トランザクション内で URI 一覧を取得して重複チェック

@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { App, Modal, Button, Space, Select, Upload, Alert, Typography } from 'antd';
+import { App, Modal, Button, Space, Upload, Alert, Typography } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
+import type { UploadFile } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { importUncertaintyCriteria } from '@/services/uncertaintyCriteriaApiService';
 
 const { Dragger } = Upload;
 const { Text } = Typography;
@@ -14,6 +16,8 @@ const { Text } = Typography;
 interface UncertaintyImportModalProps {
   open: boolean;
   onClose: () => void;
+  /** インポート成功後に呼び出されるコールバック（一覧再取得用） */
+  onImported?: () => void;
 }
 
 type ImportFormat = 'CSV' | 'JSON' | 'XML';
@@ -24,15 +28,39 @@ type ImportFormat = 'CSV' | 'JSON' | 'XML';
 export default function UncertaintyImportModal({
   open,
   onClose,
+  onImported,
 }: UncertaintyImportModalProps) {
   const { message } = App.useApp();
   const { t } = useLanguage();
   const [importFormat, setImportFormat] = useState<ImportFormat>('CSV');
-  const [targetScope, setTargetScope] = useState<string>('rd-measurement');
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleImport = () => {
-    message.success(t('uncertaintyImport.startDemo'));
-    onClose();
+  const handleImport = async () => {
+    if (fileList.length === 0 || !fileList[0].originFileObj) {
+      message.warning(t('uncertaintyImport.noFileSelected'));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const file = fileList[0].originFileObj;
+      const result = await importUncertaintyCriteria(file, importFormat);
+      message.success(
+        t('uncertaintyImport.importSuccess', {
+          inserted: String(result.insertedCount),
+          skipped:  String(result.skippedCount),
+        })
+      );
+      setFileList([]);
+      onClose();
+      onImported?.();
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message ?? err?.message ?? '';
+      message.error(`${t('uncertaintyImport.importError')}${msg ? `: ${msg}` : ''}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,7 +72,7 @@ export default function UncertaintyImportModal({
       footer={
         <Space>
           <Button onClick={onClose}>{t('uncertaintyImport.btnCancel')}</Button>
-          <Button type="primary" onClick={handleImport}>
+          <Button type="primary" onClick={handleImport} loading={loading}>
             {t('uncertaintyImport.btnExecute')}
           </Button>
         </Space>
@@ -77,7 +105,20 @@ export default function UncertaintyImportModal({
         {/* ドロップエリア */}
         <Dragger
           beforeUpload={() => false}
-          showUploadList={false}
+          fileList={fileList}
+          onChange={({ fileList: newFileList }) => {
+            setFileList(newFileList.slice(-1));
+            // ファイルが追加されたとき拡張子から自動判定
+            const latestFile = newFileList[newFileList.length - 1];
+            if (latestFile?.name) {
+              const ext = latestFile.name.split('.').pop()?.toLowerCase();
+              if (ext === 'csv')       setImportFormat('CSV');
+              else if (ext === 'json') setImportFormat('JSON');
+              else if (ext === 'xml')  setImportFormat('XML');
+            }
+          }}
+          onRemove={() => setFileList([])}
+          showUploadList={{ showRemoveIcon: true }}
           style={{ background: '#fafafa' }}
         >
           <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
@@ -94,24 +135,6 @@ export default function UncertaintyImportModal({
           message={t('uncertaintyImport.alertTitle')}
           description={t('uncertaintyImport.alertDesc')}
         />
-
-        {/* 取り込み先スコープ */}
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 6 }}>
-            {t('uncertaintyImport.scopeLabel')}
-          </div>
-          <Select
-            style={{ width: '100%' }}
-            value={targetScope}
-            onChange={setTargetScope}
-            options={[
-              { value: 'rd-measurement', label: t('uncertaintyImport.scopeOptionMeasurement') },
-              { value: 'rd-material', label: t('uncertaintyImport.scopeOptionMaterial') },
-              { value: 'company', label: t('uncertaintyImport.scopeOptionCompany') },
-              { value: 'personal', label: t('uncertaintyImport.scopeOptionPersonal') },
-            ]}
-          />
-        </div>
       </div>
     </Modal>
   );

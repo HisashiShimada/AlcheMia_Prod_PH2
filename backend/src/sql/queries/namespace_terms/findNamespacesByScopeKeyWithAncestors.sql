@@ -43,4 +43,4 @@ LEFT JOIN organization_user ou
  AND ou.user_id         = n.scope_key
 WHERE n.organization_id = $1
   AND n.scope_key IN (SELECT organization_group_cd FROM ancestors)
-ORDER BY p.prefix ASC
+ORDER BY p.prefix ASC, (SELECT depth FROM ancestors WHERE organization_group_cd = n.scope_key LIMIT 1) ASC
