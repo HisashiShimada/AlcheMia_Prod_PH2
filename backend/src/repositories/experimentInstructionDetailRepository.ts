@@ -192,4 +192,3 @@ export async function findByProject(
   return pgp.any<ExperimentInstructionDetail>(sqlQuery, [organizationId, projectId]);
 }
 
-

@@ -10,6 +10,8 @@ import { TemplateDataRepository, TemplateDataRecord, TemplateDataRow, PropertySe
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import * as experimentInstructionDetailRepository from '../repositories/experimentInstructionDetailRepository';
+import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
+import * as projectRepository from '../repositories/projectRepository';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { getStorageService } from './storageService';
@@ -177,6 +179,50 @@ export class ExperimentDataService {
           recordedBy,
           client
         );
+      }
+
+      // 5-2. 保存時: タスク・プロジェクトステータスを「実行中」に更新する
+      //      プロジェクトステータスが TASK_PENDING(1)  → TASK_IN_PROGRESS(2)
+      //      タスクステータスが     PENDING(0)         → IN_PROGRESS(1)
+      //      既に実行中以上の場合は変更しない
+      try {
+        // タスクステータスが PENDING(0) のときのみ IN_PROGRESS(1) に更新
+        await projectTaskDetailRepository.updateStatusIfPending(
+          organizationId,
+          projectId,
+          methodId,
+          taskNo,
+          client
+        );
+        logger.info('[ExperimentDataService] task_status updated 0(PENDING) -> 1(IN_PROGRESS) on save (if applicable)', {
+          organizationId,
+          projectId,
+          methodId,
+          taskNo,
+        });
+
+        // プロジェクトステータスが TASK_PENDING(1) のときのみ TASK_IN_PROGRESS(2) に更新
+        if (projectStatus === 1) { // TASK_PENDING
+          await projectRepository.updateStatusIfPending(
+            organizationId,
+            projectId,
+            client
+          );
+          logger.info('[ExperimentDataService] project_status updated 1(TASK_PENDING) -> 2(TASK_IN_PROGRESS) on save (if applicable)', {
+            organizationId,
+            projectId,
+          });
+        }
+      } catch (statusUpdateErr) {
+        // ステータス更新失敗はエラーをそのままスローしてトランザクションをロールバックする
+        logger.error('[ExperimentDataService] タスク/プロジェクトステータス更新失敗（ROLLBACK）', {
+          organizationId,
+          projectId,
+          methodId,
+          taskNo,
+          error: statusUpdateErr,
+        });
+        throw statusUpdateErr;
       }
 
       // 6. 不確かさ判定の実行（uncertaintyValues が指定されている場合のみ）
