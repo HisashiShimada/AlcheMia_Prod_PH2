@@ -2408,18 +2408,18 @@ export default function WorkRecordPanel({
                   if (key === 'templateId' || key === 'templateType' || key === 'properties') continue;
                   actualsFromApi[key] = val as ActualValue;
                 }
-              } else {
-                // DB未記録: MAIML の想定値（p.value）を実績値の初期値として設定する
-                // 仕様: 実績値欄はデフォルトで想定値と同じ値を表示する
-                const properties = item.data.properties;
-                if (Array.isArray(properties)) {
-                  for (const prop of properties as Array<Record<string, unknown>>) {
-                    const propKey = prop.key as string | undefined;
-                    const propValue = prop.value;
-                    if (propKey && propValue != null) {
-                      actualsFromApi[propKey] = propValue as ActualValue;
-                    }
-                  }
+              }
+            }
+            // DB未記録のプロパティ: 同ループで組み立てた builtTemplates の WorkProperty.expected を初期値として使う。
+            // 想定値は convertRawProperty() でフロントエンド側にすでに解決済みのため、
+            // バックエンドへの追加取得は不要。
+            const builtForThisTransition = templatesMap.get(row.transitionId) ?? [];
+            for (const tpl of builtForThisTransition) {
+              for (const wp of tpl.properties) {
+                // DB実績で取得済みのキーは上書きしない
+                if (actualsFromApi[wp.key] != null) continue;
+                if (wp.expected != null) {
+                  actualsFromApi[wp.key] = wp.expected;
                 }
               }
             }
