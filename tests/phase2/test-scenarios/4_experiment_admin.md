@@ -24,7 +24,7 @@
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
 | 総合判定 | 不合格（NG 5件・未実施 48件） |
-| 備考 | NG: 4-8-57（AISOLMAIML-345）、4-9-9（AISOLMAIML-347）、4-10-2、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。未実施: 4-6（27件）／4-10（9件）／4-14（15件）／4-18-C（15件）。2026-09-11: 全グループのスコープ表集計誤りを修正（4-17未実施16件・4-18合格18/未実施15に修正）; 4-1-10/4-1-13/4-1-23/4-1-35 をOKに更新; 4-1-14/4-1-15 をOKに更新（AISOLMAIML-338 解消確認）; スコープ表4-8/4-10/4-14/合計行の集計誤りを修正 |
+| 備考 | NG: 4-8-57（AISOLMAIML-345）、4-9-9（AISOLMAIML-347）、4-10-2、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。未実施: 4-6（27件）／4-10（9件）／4-14（15件）／4-18-C（15件）。2026-09-11: 全グループのスコープ表集計誤りを修正（4-17未実施16件・4-18合格18/未実施15に修正）; 4-1-10/4-1-13/4-1-23/4-1-35 をOKに更新; 4-1-14/4-1-15 をOKに更新（AISOLMAIML-338 解消確認）; スコープ表4-8/4-10/4-14/合計行の集計誤りを修正; 4-6-25/4-6-34/4-6-35/4-6-36/4-6-38 をOKに更新 |
 
 ---
 
@@ -39,7 +39,7 @@
 | **4-3** | チェックアウト/チェックイン | 要件書#4/#5、`ui_project_management.md`（REVIEW_REJECTED(6)追加） | 11件 | 手動 | 11 | 0 | 0 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 10件 | 手動 | 10 | 0 | 0 |
 | **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | 手動 | 7 | 0 | 0 |
-| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 33件 | 手動 | 14 | 0 | 19 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 33件 | 手動 | 23 | 1 | 9 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 3件 | 手動 | 3 | 0 | 0 |
 | **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 49 | 0 | 0 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | 手動 | 10 | 0 | 0 |
@@ -52,7 +52,7 @@
 | **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | 4 | 0 | 0 |
 | **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 0 | 0 | 16 |
 | **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 18 | 2 | 15 |
-| **合計** | - | - | **352件** | - | **304** | **3** | **45** |
+| **合計** | - | - | **352件** | - | **313** | **4** | **35** |
 
 ### スコープ外
 
@@ -414,24 +414,24 @@
 | 4-6-22 | `InputModal` で評価単位（メソッド/タスク/トランジション(メソッド別)/トランジション(タスク別)）を選択できること | 正常系 | `ui_evaluation_registration_tab.md` §6、`SubEvaluationScopeValues` | - | OK | 評価単位: `METHOD` / `TASK` / `TRANSITION_METHOD` / `TRANSITION_TASK` の4種類 |
 | 4-6-23 | `InputModal` で評価値（良好/要確認/不良）を選択してコメントを入力し保存できること | 正常系 | `ui_evaluation_registration_tab.md` §6（2026-08-25: 固定値3択に変更）、`saveSubEvaluations` | POST `/api/v1/project-overall-evaluations/:projectId/sub-evaluations` | OK | `SUB_EVAL_VALUE_OPTIONS` の固定3択。保存後に評価結果一覧が更新されること |
 | 4-6-24 | 評価単位フィルタで評価結果一覧を絞り込めること | 正常系 | `ui_evaluation_registration_tab.md` §5レイアウト、`EvaluationRegistrationTab.tsx` `unitFilter` | - | OK | `TRANSITION_METHOD` / `TRANSITION_TASK` 選択時はメソッド選択セレクトが追加表示される |
-| 4-6-25 | `isEditable=false`・`isProjectCompleted=true`・`isCheckoutLocked=true` のいずれかが `true` の場合、「評価を入力」ボタンが非活性になること | 表示確認 | `ui_evaluation_registration_tab.md` §3、`isLocked = !isEditable \|\| isProjectCompleted \|\| isCheckoutLocked` | - | - | |
-| 4-6-26 | `maimlHasErrors=true` の場合も「評価を入力」ボタンが非活性になること | 表示確認 | `EvaluationRegistrationTabContent.tsx` Props `maimlHasErrors`、`EvaluationRegistrationTab.tsx` 活性制御 | - | - | |
-| 4-6-27 | 評価結果一覧テーブルに対象・評価値（色付き Tag）・コメント・評価日時が表示されること | 表示確認 | `EvaluationRegistrationTab.tsx` `resultColumns`、`getSubEvaluationsByProject` | GET `/api/v1/project-overall-evaluations/:projectId/sub-evaluations` | - | |
+| 4-6-25 | `isEditable=false`・`isProjectCompleted=true`・`isCheckoutLocked=true` のいずれかが `true` の場合、「評価を入力」ボタンが非活性になること | 表示確認 | `ui_evaluation_registration_tab.md` §3、`isLocked = !isEditable \|\| isProjectCompleted \|\| isCheckoutLocked` | - | OK | |
+| 4-6-26 | `maimlHasErrors=true` の場合も「評価を入力」ボタンが非活性になること | 表示確認 | `EvaluationRegistrationTabContent.tsx` Props `maimlHasErrors`、`EvaluationRegistrationTab.tsx` 活性制御 | - | OK | |
+| 4-6-27 | 評価結果一覧テーブルに対象・評価値（色付き Tag）・コメント・評価日時が表示されること | 表示確認 | `EvaluationRegistrationTab.tsx` `resultColumns`、`getSubEvaluationsByProject` | GET `/api/v1/project-overall-evaluations/:projectId/sub-evaluations` | OK | |
 
 #### 4-6-F: 全体評価タブ（overall_evaluation）（2026-09-09 追加）
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 4-6-30 | プロジェクト管理画面のタブに「全体評価」タブ（key: `'overall_evaluation'`）が表示されること | 表示確認 | `ui_project_management.md` §2.2.5 Tab6（2026-09-09 追加）、`OverallEvaluationTabContent` | - | OK | |
-| 4-6-31 | 「全体評価」タブに定量評価統計パネル（総数・良好件数・不良件数・良好率）が表示されること | 表示確認 | `OverallEvaluationTab.tsx` `JudgeSummaryPanel`、`getUncertaintyJudgeSummary` | GET `/api/v1/projects/:projectId/uncertainty-judge-summary` | - | |
+| 4-6-31 | 「全体評価」タブに定量評価統計パネル（総数・良好件数・不良件数・良好率）が表示されること | 表示確認 | `OverallEvaluationTab.tsx` `JudgeSummaryPanel`、`getUncertaintyJudgeSummary` | GET `/api/v1/projects/:projectId/uncertainty-judge-summary` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-406?atlOrigin=eyJpIjoiMDc5ODhiYjQ1YTgzNDg0Y2JlMjc2ZmVlZGExZmY3YWUiLCJwIjoiaiJ9 |
 | 4-6-32 | 「全体評価」タブに階層別サマリーカードが表示されること | 表示確認 | `OverallEvaluationTab.tsx` `EvaluationSummaryBar`、`useOverallEvaluation` | GET `/api/v1/project-overall-evaluations/:projectId/summary` | OK | 「再集計」ボタンで再取得できること |
 | 4-6-33 | 「全体評価」タブに要注意項目テーブル（評価単位・対象・評価値・コメント）が表示されること | 表示確認 | `OverallEvaluationTab.tsx` `attentionColumns`、`AttentionItemList` | GET `/api/v1/project-overall-evaluations/:projectId/summary` | OK | 良好以外の評価が要注意項目として表示される |
-| 4-6-34 | 全体評価決定フォームでデジタル評価（良好/要確認/不良）を選択できること | 正常系 | `OverallEvaluationTab.tsx` `DIGITAL_VALUES`・`digitalValue` State | - | - | |
-| 4-6-35 | 全体評価決定フォームで数値スコア（0〜100 スライダー）を設定できること | 正常系 | `OverallEvaluationTab.tsx` `score` State・`Slider` | - | - | |
-| 4-6-36 | 全体評価決定フォームでアナログ評価（テキスト、最大1000文字）を入力できること | 正常系 | `OverallEvaluationTab.tsx` `analog` State・`TextArea maxLength={1000}` | - | - | |
-| 4-6-37 | 「登録」ボタンをクリックするとデジタル評価・スコア・アナログ評価が全体評価として登録されること | 正常系 | `OverallEvaluationTab.tsx` `handleRegister`・`createOverallEvaluation` | POST `/api/v1/project-overall-evaluations` | - | デジタル評価が未選択の場合は warning が表示されること。登録後に最新評価バッジが更新されること |
-| 4-6-38 | `isEditable=false`・`isProjectCompleted=true`・`isCheckoutLocked=true`・`maimlHasErrors=true` のいずれかが `true` の場合、全体評価フォームの全入力要素が非活性になること | 表示確認 | `OverallEvaluationTab.tsx` `isDisabled = !isEditable \|\| isProjectCompleted \|\| isCheckoutLocked \|\| maimlHasErrors` | - | - | |
-| 4-6-39 | 全体評価が登録済みの場合、ヘッダーに現在の評価値バッジ（良好/要確認/不良）が表示され、未登録の場合は「未決定」バッジが表示されること | 表示確認 | `OverallEvaluationTab.tsx` `latestEval?.overall_digital`・`BADGE_COLOR` | GET `/api/v1/project-overall-evaluations/:projectId` | - | |
+| 4-6-34 | 全体評価決定フォームでデジタル評価（良好/要確認/不良）を選択できること | 正常系 | `OverallEvaluationTab.tsx` `DIGITAL_VALUES`・`digitalValue` State | - | OK | |
+| 4-6-35 | 全体評価決定フォームで数値スコア（0〜100 スライダー）を設定できること | 正常系 | `OverallEvaluationTab.tsx` `score` State・`Slider` | - | OK | |
+| 4-6-36 | 全体評価決定フォームでアナログ評価（テキスト、最大1000文字）を入力できること | 正常系 | `OverallEvaluationTab.tsx` `analog` State・`TextArea maxLength={1000}` | - | OK | |
+| 4-6-37 | 「登録」ボタンをクリックするとデジタル評価・スコア・アナログ評価が全体評価として登録されること | 正常系 | `OverallEvaluationTab.tsx` `handleRegister`・`createOverallEvaluation` | POST `/api/v1/project-overall-evaluations` | OK | デジタル評価が未選択の場合は warning が表示されること。登録後に最新評価バッジが更新されること |
+| 4-6-38 | `isEditable=false`・`isProjectCompleted=true`・`isCheckoutLocked=true`・`maimlHasErrors=true` のいずれかが `true` の場合、全体評価フォームの全入力要素が非活性になること | 表示確認 | `OverallEvaluationTab.tsx` `isDisabled = !isEditable \|\| isProjectCompleted \|\| isCheckoutLocked \|\| maimlHasErrors` | - | OK | |
+| 4-6-39 | 全体評価が登録済みの場合、ヘッダーに現在の評価値バッジ（良好/要確認/不良）が表示され、未登録の場合は「未決定」バッジが表示されること | 表示確認 | `OverallEvaluationTab.tsx` `latestEval?.overall_digital`・`BADGE_COLOR` | GET `/api/v1/project-overall-evaluations/:projectId` | OK | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
