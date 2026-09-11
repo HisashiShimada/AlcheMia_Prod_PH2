@@ -4,16 +4,16 @@
  *
  * @remarks
  * エンドポイント:
- *   GET  /api/v1/aggregation-rules/active  ← 有効ルール取得
- *   GET  /api/v1/aggregation-rules         ← 履歴一覧取得
- *   POST /api/v1/aggregation-rules         ← 新版作成
- *   POST /api/v1/aggregation-rules/preview ← プレビュー算出
+ *   GET  /aggregation-rules/active  ← 有効ルール取得
+ *   GET  /aggregation-rules         ← 履歴一覧取得
+ *   POST /aggregation-rules         ← 新版作成
+ *   POST /aggregation-rules/preview ← プレビュー算出
  */
 
 import { createApiClient } from '@/utils/authUtils';
 import type { AggregationRule, CreateAggregationRuleInput, SummaryPreviewResponse } from '@/types/aggregationRule';
 
-const BASE_URL = '/api/v1/aggregation-rules';
+const BASE_URL = '/aggregation-rules';
 
 /**
  * テナントの有効ルール（is_active = true）を取得する

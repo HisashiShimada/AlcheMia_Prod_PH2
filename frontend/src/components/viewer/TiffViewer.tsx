@@ -13,6 +13,7 @@ import {
   FileImageOutlined
 } from '@ant-design/icons';
 import { getFileViewUrl } from '@/services/fileAccessService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -26,6 +27,7 @@ interface TiffViewerProps {
  * TIFFファイルの表示（ブラウザ制限によりダウンロード推奨）
  */
 const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
+  const { t } = useLanguage();
   const [scale, setScale] = useState(1);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [urlError, setUrlError] = useState<string | null>(null);
@@ -47,7 +49,8 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
       } catch (err) {
         if (isMounted) {
           console.error('❌ [TiffViewer] URL fetch error:', err);
-          setUrlError(`Failed to fetch URL: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          const errorMsg = err instanceof Error ? err.message : t('viewer.error');
+          setUrlError(t('viewer.tiffViewer.fetchUrlError', { message: errorMsg }));
         }
       }
     };
@@ -100,7 +103,7 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
           <Space>
             <FileImageOutlined style={{ fontSize: 20, color: '#CF0027' }} />
             <Title level={5} style={{ margin: 0 }}>
-              {fileName || 'TIFF File'}
+              {fileName || t('viewer.tiffViewer.defaultFileName')}
             </Title>
           </Space>
           
@@ -110,21 +113,21 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
               icon={<ZoomInOutlined />}
               onClick={handleZoomIn}
             >
-              Zoom In
+              {t('viewer.imageViewer.zoomIn')}
             </Button>
             <Button 
               size="small"
               icon={<ZoomOutOutlined />}
               onClick={handleZoomOut}
             >
-              Zoom Out
+              {t('viewer.imageViewer.zoomOut')}
             </Button>
             <Button 
               size="small"
               icon={<ReloadOutlined />}
               onClick={handleReset}
             >
-              Reset
+              {t('viewer.imageViewer.reset')}
             </Button>
             <Button 
               type="primary"
@@ -133,7 +136,7 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
               onClick={handleDownload}
               disabled={!signedUrl}
             >
-              Download
+              {t('viewer.tiffViewer.download')}
             </Button>
           </Space>
         </Flex>
@@ -152,7 +155,7 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
         <Space orientation="vertical" size="large" style={{ textAlign: 'center' }}>
           {urlError && (
             <Alert
-              message="Failed to fetch URL"
+              message={t('viewer.tiffViewer.urlErrorTitle')}
               description={urlError}
               type="error"
               showIcon
@@ -160,15 +163,15 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
           )}
 
           <Alert
-            message="TIFF File Selected"
+            message={t('viewer.tiffViewer.selectedTitle')}
             description={
               <Space orientation="vertical" size="small">
                 <Text>{fileName}</Text>
                 <Text type="secondary">
-                  Browser support for displaying TIFF files is limited.
+                  {t('viewer.tiffViewer.browserLimitNote')}
                 </Text>
                 <Text type="secondary">
-                  We recommend using the download button to view the image.
+                  {t('viewer.tiffViewer.downloadRecommend')}
                 </Text>
               </Space>
             }
@@ -183,16 +186,16 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
             onClick={handleDownload}
             disabled={!signedUrl}
           >
-            Download TIFF File
+            {t('viewer.tiffViewer.downloadButton')}
           </Button>
 
           <Card size="small" style={{ marginTop: 16 }}>
             <Space orientation="vertical" size="small">
               <Text type="secondary" style={{ fontSize: 12 }}>
-                File Key: {fileKey}
+                {t('viewer.imageViewer.fileKey', { key: fileKey })}
               </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Zoom: {scale.toFixed(2)}x
+                {t('viewer.imageViewer.zoom', { scale: scale.toFixed(2) })}
               </Text>
             </Space>
           </Card>

@@ -691,14 +691,13 @@ export async function getSuggestedUri(
   let candidateUri: string;
 
   if (scopeKey && scopeKey !== userId) {
-    // チーム/グループスコープ: 先祖グループCDのパスを生成
-    // ancestors[0] をドメイン部、ancestors.slice(1) をパス部に使用
+    // チーム/グループスコープ: 組織CDをドメイン部に使い、ルートから指定グループまでの全CDをパスに並べる
+    // URI仕様: https://{組織CD}.Alchemia.co.jp/{グループCD}/{グループCD}/...
+    // findOrgGroupAncestors は ORDER BY depth DESC でルートCDから指定グループCDの順で返す
     const ancestors = await namespaceTermRepository.findOrgGroupAncestors(organizationId, scopeKey);
-    const domainPart = ancestors[0] ?? organizationCd;
-    const pathParts = ancestors.slice(1);
-    candidateUri = pathParts.length > 0
-      ? `https://${domainPart}.Alchemia.co.jp/${pathParts.join('/')}`
-      : `https://${domainPart}.Alchemia.co.jp`;
+    candidateUri = ancestors.length > 0
+      ? `https://${organizationCd}.Alchemia.co.jp/${ancestors.join('/')}`
+      : `https://${organizationCd}.Alchemia.co.jp`;
   } else {
     // 個人スコープ: organization_cd をドメイン部に使用
     // userService.ts の registerUserNamespace() と同一ロジックで URI を生成する

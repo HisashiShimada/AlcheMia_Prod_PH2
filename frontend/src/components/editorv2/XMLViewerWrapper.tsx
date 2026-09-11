@@ -30,6 +30,8 @@ export interface XMLViewerWrapperProps {
   methods: MethodData[];
   activeMethodIndex: number;
   projectId: string;
+  /** プロジェクトが属するグループの organization_group_cd（namespace宣言スコープ特定用） */
+  organizationGroupCd?: string;
 }
 
 /**
@@ -42,7 +44,8 @@ const XMLViewerWrapper: React.FC<XMLViewerWrapperProps> = ({
   multiMethodMode,
   methods,
   activeMethodIndex,
-  projectId
+  projectId,
+  organizationGroupCd
 }) => {
   const { t } = useLanguage();
   const [xmlContent, setXmlContent] = useState<string>('');
@@ -93,7 +96,7 @@ const XMLViewerWrapper: React.FC<XMLViewerWrapperProps> = ({
 
         // 名前空間宣言を取得して XMLに注入する（失敗しても表示は継続）
         try {
-          const namespaces = await getOrganizationNamespaces();
+          const namespaces = await getOrganizationNamespaces(organizationGroupCd);
           if (namespaces.length > 0) {
             xmlString = injectNamespacesToMaiml(xmlString, namespaces);
           }

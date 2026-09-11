@@ -239,13 +239,9 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       const isOrgGroup = !STATIC_KEYS.has(key);
       if (isOrgGroup) {
         // 組織グループノード選択時:
-        // 選択ノード＋祖先グループ（withAncestors=true）と子孫グループ（orgGroupCds）を
-        // 並列取得してマージする。上位層（祖先）の Prefix も表示し、編集は isAncestorRow で制御する。
-        if (orgGroupCds && orgGroupCds.length > 0) {
-          fetchNamespacesWithAncestorsAndDescendants(key, orgGroupCds);
-        } else {
-          fetchNamespaces(key, true);
-        }
+        // 選択ノード＋祖先グループのPrefixのみ取得（用語管理タブと同一ロジック）
+        // 子孫グループのPrefixは表示しない
+        fetchNamespaces(key, true);
       } else {
         // global / personal 等の静的キー
         fetchNamespaces(key, undefined);

@@ -6,6 +6,7 @@ import { useApi } from '@/hooks/useApi';
 import { getProjects } from '@/services/projectApiService';
 import { getVisibleOrganizationGroups } from '@/services/organizationGroupApiService';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ProjectStatus } from '@/constants/codeMaster';
 import type { Project } from '@/types/project';
 import type { ProjectListResponse } from '@/types/project';
 import type { ServiceApiResponse as ApiResponse } from '@/types/api';
@@ -137,7 +138,11 @@ export const useProjectList = (user?: User) => {
       else if (checkoutFilter === 'checked_in') matchesCheckout = project.isCheckedOut === false;
 
       let matchesProjectStatus = true;
-      if (projectStatusFilter !== 'all') {
+      if (projectStatusFilter === 'all') {
+        // 「すべて」選択時は完了・異常終了を除外する
+        const excludedFromAll = [ProjectStatus.COMPLETED, ProjectStatus.ERROR];
+        matchesProjectStatus = !excludedFromAll.includes(project.status as typeof excludedFromAll[number]);
+      } else {
         const filterStatusNum = parseInt(projectStatusFilter, 10);
         if (!isNaN(filterStatusNum)) matchesProjectStatus = project.status === filterStatusNum;
       }

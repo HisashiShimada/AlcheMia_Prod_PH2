@@ -39,11 +39,14 @@ const AggregationRuleSettings: React.FC<AggregationRuleSettingsProps> = ({ previ
       const result = await previewRule(previewProjectId, values);
       setPreviewResult(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('aggregationRule.previewFailed'));
+      // form.validateFields() によるバリデーションエラーはフォームに表示済みのため何もしない
+      if (err instanceof Error) {
+        setError(err.message);
+      }
     } finally {
       setPreviewing(false);
     }
-  }, [form, previewProjectId, previewRule, t]);
+  }, [form, previewProjectId, previewRule]);
 
   const handleSave = useCallback(async () => {
     try {
@@ -54,11 +57,14 @@ const AggregationRuleSettings: React.FC<AggregationRuleSettingsProps> = ({ previ
       await createNewRule(values);
       setSaveSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('aggregationRule.saveFailed'));
+      // form.validateFields() によるバリデーションエラーはフォームに表示済みのため何もしない
+      if (err instanceof Error) {
+        setError(err.message);
+      }
     } finally {
       setSaving(false);
     }
-  }, [form, createNewRule, t]);
+  }, [form, createNewRule]);
 
   if (isLoading) {
     return <Flex justify="center" style={{ padding: 40 }}><Spin tip={t('aggregationRule.loading')}><span /></Spin></Flex>;

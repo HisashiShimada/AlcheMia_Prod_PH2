@@ -142,8 +142,8 @@ export const convertToReactFlowFormat = (
         template: template || undefined,
         templateId: template?.id ||  undefined,
         
-        // placeType
-        placeType: template?.category || '',
+        // placeType（テンプレートなしの場合は 'material' にフォールバック）
+        placeType: template?.category || 'material',
         
         // 複数PNML要素対応 - pnmlId
         pnmlId: parser.getPnmlIdByPlaceId(place.id) || null
