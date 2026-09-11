@@ -1,0 +1,306 @@
+# ドライラン結果
+
+- **実行日時**: 2026-09-10 09:48:23
+- **リリースタグ**: `release_20260910_v00.01.02`
+- **FROM_COMMIT**: `6537735f`
+- **TO_COMMIT**: `0dccdc70`
+- **SRC_REPO**: `/home/ssv/projects/mmdpf`
+
+---
+
+## 差分ファイル一覧
+
+### 追加 (61 件)
+- `backend/migrations/20260909_add_transition_name_and_template_id_to_instruction_detail.sql`
+- `backend/migrations/20260909_rename_place_id_to_template_id_in_uncertainty_judge.sql`
+- `backend/src/sql/queries/namespace_terms/findAllActiveByOrganization.sql`
+- `backend/src/sql/queries/transition_data/countByProject.sql`
+- `docs/deploy-guide/saas-production/production-deploy-checklist.md`
+- `docs/design/ui/button_control/01_provider.md`
+- `docs/design/ui/button_control/02_system_admin.md`
+- `docs/design/ui/button_control/03_data_admin.md`
+- `docs/design/ui/button_control/04_experiment_admin.md`
+- `docs/design/ui/button_control/05_experiment_worker.md`
+- `docs/design/ui/button_control/README.md`
+- `docs/design/ui/ui_screen_transition.md`
+- `docs/tasks/20260903_1515_Prefix管理個人スコープ表示バグ修正/PLAN.md`
+- `docs/tasks/20260903_1553_Personal階層フィルタ修正/PLAN.md`
+- `docs/tasks/20260904_0000_creatorVendorInstrument_IDバリデーション追加/PLAN.md`
+- `docs/tasks/20260904_0000_i18nプレースホルダー置換修正/PLAN.md`
+- `docs/tasks/20260904_0000_フロー図進捗率0%修正/PLAN.md`
+- `docs/tasks/20260904_0845_上位層データ編集不可対応/PLAN.md`
+- `docs/tasks/20260904_1000_マスタID文字数バリデーション追加/PLAN.md`
+- `docs/tasks/20260904_1000_非アクティブマスタ選択肢除外修正/PLAN.md`
+- `docs/tasks/20260904_1300_共有機能下位層引き上げ対応/PLAN.md`
+- `docs/tasks/20260904_1429_共有ダイアログUI統一/PLAN.md`
+- `docs/tasks/20260904_1659_プロジェクト名変更時S3フォルダ移動バグ修正/PLAN.md`
+- `docs/tasks/20260907_0000_NamespaceMain不具合修正/PLAN.md`
+- `docs/tasks/20260907_0000_ファイル名変更後リロード修正/PLAN.md`
+- `docs/tasks/20260907_0000_用語管理タブ型選択肢拡充と単位制御/PLAN.md`
+- `docs/tasks/20260907_0000_用語管理編集再編集バグ修正/PLAN.md`
+- `docs/tasks/20260907_0001_ファイル名変更後MAIML特定不能バグ修正/PLAN.md`
+- `docs/tasks/20260907_0100_Uncertainty型選択肢拡充と単位制御/PLAN.md`
+- `docs/tasks/20260907_0200_resolveXsiType修正/PLAN.md`
+- `docs/tasks/20260907_0900_プロパティカード定性評価説明理由実装/PLAN.md`
+- `docs/tasks/20260907_1000_インポートエクスポート文言統一/PLAN.md`
+- `docs/tasks/20260907_1200_Uncertainty追加モーダルunits等選択式化/PLAN.md`
+- `docs/tasks/20260907_1200_定性評価ボタン色修正/PLAN.md`
+- `docs/tasks/20260907_1500_getFileContentAsText_404対策/PLAN.md`
+- `docs/tasks/20260907_antd_message_staticAPI修正/PLAN.md`
+- `docs/tasks/20260907_antd_message_staticAPI修正_全体/PLAN.md`
+- `docs/tasks/20260907_指示用語チェックOFF警告実装/PLAN.md`
+- `docs/tasks/20260908_0000_新規問題報告1000文字超バリデーション修正/PLAN.md`
+- `docs/tasks/20260908_0000_新規問題報告タイトル文字数バリデーション修正/PLAN.md`
+- `docs/tasks/20260908_1000_MAIMLバリデーション用語キー照合機能実装/PLAN.md`
+- `docs/tasks/20260908_1000_MAIMLバリデーション用語キー照合機能実装/PLAN.md.bak`
+- `docs/tasks/20260908_1000_名前空間管理CSVヘッダーバリデーション追加/PLAN.md`
+- `docs/tasks/20260908_1000_名前空間管理インポート後リロード修正/PLAN.md`
+- `docs/tasks/20260908_1000_実験指示タブExperimentPlanDialogタスクタブ未表示修正/PLAN.md`
+- `docs/tasks/20260908_1200_ペトリネット表示チェックボックス修正/PLAN.md`
+- `docs/tasks/20260908_1437_TemplateEditorDialog_keyプロパティ属性不具合修正/PLAN.md`
+- `docs/tasks/20260908_1500_WorkRecordPanelボタン活性調査/ISSUES.md`
+- `docs/tasks/20260908_1500_WorkRecordPanelボタン活性調査/WorkRecordPanel_button_matrix.xlsx`
+- `docs/tasks/20260908_1500_WorkRecordPanelボタン活性調査/generate_button_matrix.py`
+- `docs/tasks/20260908_プロジェクト作成グループ選択_一般ユーザー未表示修正/PLAN.md`
+- `docs/tasks/20260909_1000_トランジション未登録時チェックアウト制御/PLAN.md`
+- `docs/tasks/20260909_1000_不確かさ基準スコープ表示修正/PLAN.md`
+- `docs/tasks/20260909_1000_実験指示タブ表示不正修正/PLAN.md`
+- `docs/tasks/20260909_1100_NamespaceMain用語追加ボタン非活性バグ修正/PLAN.md`
+- `docs/tasks/20260909_1400_不確かさ基準新規作成保存メッセージバグ修正/PLAN.md`
+- `docs/tasks/20260909_1430_不確かさ基準詳細取得ビルドエラー修正/PLAN.md`
+- `docs/tasks/20260909_1600_定性評価基準新規作成_選択肢2件以上保存失敗バグ修正/PLAN.md`
+- `docs/tasks/20260909_1700_不確かさ基準新規作成キー選択スコープ絞り込み修正/PLAN.md`
+- `docs/tasks/20260909_不確かさ基準名検索バグ修正/PLAN.md`
+- `tests/phase2/tasks/20260908_0000_組織新規追加処理の速度改善/PLAN.md`
+
+### 更新 (211 件)
+- `.clinerules/core/workflow-spec-impl.md`
+- `.clinerules/core/workflow.md`
+- `.clinerules/development/config.md`
+- `backend/src/controllers/experimentController.ts`
+- `backend/src/controllers/experimentPlanController.ts`
+- `backend/src/controllers/masterController.ts`
+- `backend/src/controllers/organizationGroupController.ts`
+- `backend/src/database/db.ts`
+- `backend/src/enums/errorCodes.ts`
+- `backend/src/repositories/attributeRepository.ts`
+- `backend/src/repositories/experimentInstructionDetailRepository.ts`
+- `backend/src/repositories/experimentUncertaintyJudgeRepository.ts`
+- `backend/src/repositories/namespaceTermRepository.ts`
+- `backend/src/repositories/transitionDataRepository.ts`
+- `backend/src/repositories/uncertaintyCriteriaRepository.ts`
+- `backend/src/repositories/workerProjectRepository.ts`
+- `backend/src/routes/issueRoutes.ts`
+- `backend/src/routes/masterRoutes.ts`
+- `backend/src/routes/uncertaintyCriteriaRoutes.ts`
+- `backend/src/services/authService.ts`
+- `backend/src/services/batchIngestService.ts`
+- `backend/src/services/certificateService.ts`
+- `backend/src/services/encryptionKeyService.ts`
+- `backend/src/services/experimentDataService.ts`
+- `backend/src/services/experimentInstructionService.ts`
+- `backend/src/services/experimentPlanService.ts`
+- `backend/src/services/fileAccessService.ts`
+- `backend/src/services/formatService.ts`
+- `backend/src/services/globalNamespaceFileService.ts`
+- `backend/src/services/issueService.ts`
+- `backend/src/services/maimlEncryptionService.ts`
+- `backend/src/services/maimlIntegrityService.ts`
+- `backend/src/services/maimlService.ts`
+- `backend/src/services/maimlWriterService.ts`
+- `backend/src/services/masterService.ts`
+- `backend/src/services/organizationService.ts`
+- `backend/src/services/progressService.ts`
+- `backend/src/services/projectInstructionService.ts`
+- `backend/src/services/projectService.ts`
+- `backend/src/services/renameService.ts`
+- `backend/src/services/sessionService.ts`
+- `backend/src/services/storageService.ts`
+- `backend/src/services/taskService.ts`
+- `backend/src/services/tokenBlacklistService.ts`
+- `backend/src/services/uncertaintyJudgeService.ts`
+- `backend/src/services/workerProjectService.ts`
+- `backend/src/sql/queries/experiment_instruction_details/findByProject.sql`
+- `backend/src/sql/queries/experiment_instruction_details/updateActualAndUncertainty.sql`
+- `backend/src/sql/queries/experiment_instruction_details/upsertFromPlan.sql`
+- `backend/src/sql/queries/experiment_uncertainty_judge/findAllByProject.sql`
+- `backend/src/sql/queries/experiment_uncertainty_judge/findLatestByProjectAndProp.sql`
+- `backend/src/sql/queries/experiment_uncertainty_judge/findSummaryByProject.sql`
+- `backend/src/sql/queries/experiment_uncertainty_judge/insert.sql`
+- `backend/src/sql/queries/projects/findWorkerAccessible.sql`
+- `backend/src/sql/queries/uncertainty_criteria/findAllByOrganization.sql`
+- `backend/src/types/api.ts`
+- `backend/src/types/database.ts`
+- `backend/src/types/issue.ts`
+- `backend/src/types/workerProject.ts`
+- `backend/src/utils/dateUtils.ts`
+- `backend/src/utils/maimlDataWriter.ts`
+- `backend/src/utils/maimlParser.ts`
+- `backend/src/utils/messages.ts`
+- `docs/design/api/api_issue_management.md`
+- `docs/design/db/ddl/attribute.sql`
+- `docs/design/db/ddl/code_master.sql`
+- `docs/design/db/ddl/corporation.sql`
+- `docs/design/db/ddl/creator.sql`
+- `docs/design/db/ddl/department_unit.sql`
+- `docs/design/db/ddl/experiment_instruction_detail.sql`
+- `docs/design/db/ddl/experiment_plan.sql`
+- `docs/design/db/ddl/experiment_uncertainty_judge.sql`
+- `docs/design/db/ddl/instruction_acknowledged_history.sql`
+- `docs/design/db/ddl/instrument.sql`
+- `docs/design/db/ddl/intuition_selector.sql`
+- `docs/design/db/ddl/issue.sql`
+- `docs/design/db/ddl/issue_comment.sql`
+- `docs/design/db/ddl/login_history.sql`
+- `docs/design/db/ddl/maiml_event_log.sql`
+- `docs/design/db/ddl/maiml_validation_history.sql`
+- `docs/design/db/ddl/namespace.sql`
+- `docs/design/db/ddl/namespace_term.sql`
+- `docs/design/db/ddl/organization.sql`
+- `docs/design/db/ddl/organization_group.sql`
+- `docs/design/db/ddl/organization_group_user.sql`
+- `docs/design/db/ddl/organization_user.sql`
+- `docs/design/db/ddl/pin_codes.sql`
+- `docs/design/db/ddl/prefix.sql`
+- `docs/design/db/ddl/project.sql`
+- `docs/design/db/ddl/project_instruction.sql`
+- `docs/design/db/ddl/project_task.sql`
+- `docs/design/db/ddl/project_task_detail.sql`
+- `docs/design/db/ddl/role.sql`
+- `docs/design/db/ddl/role_permission.sql`
+- `docs/design/db/ddl/template_data.sql`
+- `docs/design/db/ddl/transition_data.sql`
+- `docs/design/db/ddl/uncertainty_criteria.sql`
+- `docs/design/db/ddl/upload_batch.sql`
+- `docs/design/db/ddl/user_authentication.sql`
+- `docs/design/db/ddl/vendor.sql`
+- `docs/design/namespace/global-declarations-template.csv`
+- `docs/design/ui/experiment_admin/00_menu/ui_experiment_admin_menu.md`
+- `docs/design/ui/experiment_admin/01_project_management/ui_create_project_modal.md`
+- `docs/design/ui/experiment_admin/01_project_management/ui_experiment_instruction_tab.md`
+- `docs/design/ui/experiment_admin/01_project_management/ui_project_folder_tree.md`
+- `docs/design/ui/experiment_admin/01_project_management/ui_project_management.md`
+- `docs/design/ui/experiment_admin/01_project_management/ui_uncertainty_approval_tab.md`
+- `docs/design/ui/experiment_admin/04_namespace_management/ui_uncertainty_criteria_management.md`
+- `docs/design/ui/experiment_admin/05_maiml_editor/petri_net/ui_petri_net_editor.md`
+- `docs/design/ui/experiment_admin/05_maiml_editor/petri_net/ui_petri_net_editor_inner.md`
+- `docs/design/ui/experiment_admin/05_maiml_editor/petri_net/ui_petri_net_editor_screen.md`
+- `docs/design/ui/experiment_worker/ui_experiment_comment_dialog.md`
+- `docs/design/ui/experiment_worker/ui_issue_management_modal.md`
+- `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`
+- `docs/design/ui/experiment_worker/ui_work_record_panel.md`
+- `docs/tasks/20260828_1000_タイムスタンプJST変換統一/PLAN.md`
+- `frontend/next-env.d.ts`
+- `frontend/src/components/DataManagement/MasterManagement.tsx`
+- `frontend/src/components/ExperimentWorker/IssueManagementModal.tsx`
+- `frontend/src/components/ExperimentWorker/ProgressOverviewTab.tsx`
+- `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx`
+- `frontend/src/components/Provider/CorporationManagement.tsx`
+- `frontend/src/components/Provider/InformationDownload.tsx`
+- `frontend/src/components/Provider/OrganizationManagement.tsx`
+- `frontend/src/components/SystemManagement/RoleManagement.tsx`
+- `frontend/src/components/SystemManagement/SessionManagement.tsx`
+- `frontend/src/components/SystemManagement/UserManagement.tsx`
+- `frontend/src/components/TransitionSetSearch/TransitionSetSearchModal.tsx`
+- `frontend/src/components/auth/AuthContainer.tsx`
+- `frontend/src/components/editorv2/DocumentEditDialog.tsx`
+- `frontend/src/components/editorv2/DraftManager.tsx`
+- `frontend/src/components/editorv2/MethodTabPanel.tsx`
+- `frontend/src/components/editorv2/NestedPropertyEditor.tsx`
+- `frontend/src/components/editorv2/PetriNetEditorInner.tsx`
+- `frontend/src/components/editorv2/PetriNetEditorScreen.tsx`
+- `frontend/src/components/editorv2/PropertyPanel.tsx`
+- `frontend/src/components/editorv2/TemplateEditorDialog.tsx`
+- `frontend/src/components/editorv2/ValidationPanel.tsx`
+- `frontend/src/components/editorv2/WorkflowSelectorDialog.tsx`
+- `frontend/src/components/encryption/DecryptionPanel.tsx`
+- `frontend/src/components/encryption/EncryptionManagement.tsx`
+- `frontend/src/components/encryption/KeyCreateModal.tsx`
+- `frontend/src/components/encryption/KeyExportModal.tsx`
+- `frontend/src/components/encryption/KeyImportModal.tsx`
+- `frontend/src/components/encryption/KeyManagement.tsx`
+- `frontend/src/components/encryption/KeyRotateModal.tsx`
+- `frontend/src/components/format/CreateFormatFolderModal.tsx`
+- `frontend/src/components/format/CreateFormatModal.tsx`
+- `frontend/src/components/format/FormatEditorDialog.tsx`
+- `frontend/src/components/format/FormatManagement.tsx`
+- `frontend/src/components/format/FormatUploadDialog.tsx`
+- `frontend/src/components/menus/ExperimentWorkerMenu.tsx`
+- `frontend/src/components/namespace/DetailModal.tsx`
+- `frontend/src/components/namespace/GlobalNamespaceView.tsx`
+- `frontend/src/components/namespace/NamespaceAddDialog.tsx`
+- `frontend/src/components/namespace/NamespaceMain.tsx`
+- `frontend/src/components/namespace/PrefixManagement.tsx`
+- `frontend/src/components/namespace/ShareScopeModal.tsx`
+- `frontend/src/components/progress/ProgressMonitoring.tsx`
+- `frontend/src/components/project/BulkUploadDialog.tsx`
+- `frontend/src/components/project/CreateProjectModal.tsx`
+- `frontend/src/components/project/ExperimentInstructionTab.tsx`
+- `frontend/src/components/project/ExperimentPlanDialog.tsx`
+- `frontend/src/components/project/FileListTable.tsx`
+- `frontend/src/components/project/InstructionEditDialog.tsx`
+- `frontend/src/components/project/InstructionRegistrationTab.tsx`
+- `frontend/src/components/project/MaimlPublishDialog.tsx`
+- `frontend/src/components/project/MaimlUnpublishDialog.tsx`
+- `frontend/src/components/project/OverallEvaluationTab.tsx`
+- `frontend/src/components/project/ProjectManagementInner.tsx`
+- `frontend/src/components/project/RenameProjectModal.tsx`
+- `frontend/src/components/project/TaskRegistrationTab.tsx`
+- `frontend/src/components/project/UncertaintyApprovalTab.tsx`
+- `frontend/src/components/project/subcomponents/tabs/FileManagementTabContent.tsx`
+- `frontend/src/components/uncertainty/QualitativeOptionEditor.tsx`
+- `frontend/src/components/uncertainty/UncertaintyCreateModal.tsx`
+- `frontend/src/components/uncertainty/UncertaintyCriteriaSelectorModal.tsx`
+- `frontend/src/components/uncertainty/UncertaintyCriteriaSelectorPanel.tsx`
+- `frontend/src/components/uncertainty/UncertaintyDetailModal.tsx`
+- `frontend/src/components/uncertainty/UncertaintyExportModal.tsx`
+- `frontend/src/components/uncertainty/UncertaintyImportModal.tsx`
+- `frontend/src/components/uncertainty/UncertaintyManagement.tsx`
+- `frontend/src/components/viewer/PetriNetViewer.tsx`
+- `frontend/src/components/viewer/ViewRenderer.tsx`
+- `frontend/src/components/viewer/dialogs/PropertyViewerWithSelection.tsx`
+- `frontend/src/contexts/ProjectMaimlContext.tsx`
+- `frontend/src/hooks/project/useProjectActions.tsx`
+- `frontend/src/hooks/project/useProjectFiles.tsx`
+- `frontend/src/hooks/project/useProjectMaimlEditor.ts`
+- `frontend/src/hooks/useContentGridEditor.ts`
+- `frontend/src/hooks/useInsertionEditor.ts`
+- `frontend/src/locales/en.json`
+- `frontend/src/locales/ja.json`
+- `frontend/src/services/experimentPlanApiService.ts`
+- `frontend/src/services/namespaceApiService.ts`
+- `frontend/src/services/organizationGroupApiService.ts`
+- `frontend/src/services/uncertaintyCriteriaApiService.ts`
+- `frontend/src/types/api.ts`
+- `frontend/src/types/experimentInstruction.ts`
+- `frontend/src/types/maimlEditor.ts`
+- `frontend/src/types/namespace.ts`
+- `frontend/src/types/progress.ts`
+- `frontend/src/types/project.ts`
+- `frontend/src/utils/errorUtils.ts`
+- `frontend/src/utils/formatUtils.ts`
+- `frontend/src/utils/namespaceInjector.ts`
+- `frontend/src/utils/templateToXML.ts`
+- `frontend/src/utils/xsiTypeAttributes.ts`
+- `tests/phase2/test-scenarios/4_experiment_admin.md`
+- `tests/phase2/test-scenarios/5_experiment_worker.md`
+- `tests/phase2/test-scenarios/category-B_uncertainty.md`
+
+### 削除 (2 件)
+- `frontend/src/components/namespace/DuplicateSuggestModal.tsx`
+- `frontend/src/components/namespace/TermManagement.tsx`
+
+### リネーム (0 件)
+なし
+
+---
+
+## サマリー
+
+| 種別 | 件数 |
+|------|------|
+| 追加 | 61 |
+| 更新 | 211 |
+| 削除 | 2 |
+| リネーム | 0 |
+| **合計** | **274** |
