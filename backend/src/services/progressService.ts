@@ -1002,6 +1002,53 @@ export class ProgressService {
         finalUpdate
       );
 
+      // 4-3. 指示確認（PREPARING → READY）時: タスク・プロジェクトステータスを「実行中」に更新する
+      //      ステータス遷移仕様:
+      //        project_status: TASK_PENDING(1) → TASK_IN_PROGRESS(2)
+      //        task_status:    PENDING(0)      → IN_PROGRESS(1)
+      //      READY 以外への遷移（開始・終了等）はタスク/プロジェクトステータスを変更しない
+      if (
+        currentStatus === TransitionStatusEnum.PREPARING &&
+        toStatus    === TransitionStatusEnum.READY
+      ) {
+        try {
+          // タスクステータスが PENDING(0) のときのみ IN_PROGRESS(1) に更新
+          await projectTaskDetailRepository.updateStatusIfPending(
+            organizationId,
+            projectId,
+            method_id,
+            task_no,
+            client
+          );
+          logger.info('[ProgressService] task_status updated 0(PENDING) -> 1(IN_PROGRESS) on instruction confirm (if applicable)', {
+            organizationId,
+            projectId,
+            methodId: method_id,
+            taskNo: task_no,
+          });
+
+          // プロジェクトステータスが TASK_PENDING(1) のときのみ TASK_IN_PROGRESS(2) に更新
+          await projectRepository.updateStatusIfPending(
+            organizationId,
+            projectId,
+            client
+          );
+          logger.info('[ProgressService] project_status updated 1(TASK_PENDING) -> 2(TASK_IN_PROGRESS) on instruction confirm (if applicable)', {
+            organizationId,
+            projectId,
+          });
+        } catch (statusUpdateErr) {
+          // ステータス更新失敗はエラーをそのままスローしてトランザクションをロールバックする
+          logger.error('[ProgressService] タスク/プロジェクトステータス更新失敗（ROLLBACK）', {
+            organizationId,
+            projectId,
+            transitionId,
+            error: statusUpdateErr,
+          });
+          throw statusUpdateErr;
+        }
+      }
+
       // 4-2. ownerRef ID 命名用のプロジェクト名を取得
       // findByIdFull は organizationId + projectId で SELECT するため、マルチテナント安全
       const projectRecord = await projectRepository.findByIdFull(organizationId, projectId);

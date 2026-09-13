@@ -668,6 +668,8 @@ interface PropertyListProps {
   displayKey: { taskNo: number; transitionId: string } | null;
   /** スキップ可能かどうか（スキップボタンの有効/無効制御） */
   canSkip?: boolean;
+  /** 「次へ」（トランジション完了）ボタンの活性フラグ（最後のテンプレートのみ適用） */
+  canGoNext?: boolean;
   onActualChange: (taskNo: number, transitionId: string, propKey: string, value: ActualValue) => void;
   onSave: (taskNo: number, transitionId: string) => void;
   onSaveAndNext: (taskNo: number, transitionId: string) => void;
@@ -733,6 +735,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
   isReadOnly,
   displayKey,
   canSkip = false,
+  canGoNext = false,
   onActualChange,
   onSave,
   onSaveAndNext,
@@ -1858,6 +1861,22 @@ const PlanB: React.FC<PlanProps> = ({
               );
               const isInProgress = currentProgressRow?.status === 'in_progress';
               const canSkipFlag = hasNextTransition && !isInProgress;
+
+              // 「次へ」ボタン活性条件:
+              // 1. 現在のトランジションが終状態（completed）である
+              // 2. 記録保存済み（isRecorded === true）
+              // 3. 次のトランジションが存在する
+              const isCompleted = currentProgressRow?.status === 'completed';
+              const isRecordedFlag = currentProgressRow?.isRecorded === true;
+              const canGoNext = hasNextTransition && isCompleted && isRecordedFlag;
+              const nextTooltipTitle = !isCompleted
+                ? t('workRecord.nextTooltipNotCompleted')
+                : !isRecordedFlag
+                  ? t('workRecord.nextTooltipNotRecorded')
+                  : !hasNextTransition
+                    ? t('workRecord.nextTooltipNoNext')
+                    : undefined;
+
               const handleSaveAndNextInner = () => {
                 const nextTemplateIdx = safeIdx + 1;
                 if (nextTemplateIdx < visibleTemplates.length) {
@@ -1876,14 +1895,17 @@ const PlanB: React.FC<PlanProps> = ({
                   >
                     {t('workRecord.saveButton')}
                   </Button>
-                  <Button
-                    size="small"
-                    type="primary"
-                    icon={<RightOutlined />}
-                    onClick={handleSaveAndNextInner}
-                  >
-                    {nextBtnLabel}
-                  </Button>
+                  <Tooltip title={nextTooltipTitle}>
+                    <Button
+                      size="small"
+                      type="primary"
+                      icon={<RightOutlined />}
+                      disabled={!canGoNext}
+                      onClick={handleSaveAndNextInner}
+                    >
+                      {nextBtnLabel}
+                    </Button>
+                  </Tooltip>
                   <Divider orientation="vertical" style={{ margin: '0 12px' }} />
                   <Button
                     size="small"
@@ -2379,12 +2401,25 @@ export default function WorkRecordPanel({
             // ── 実績値を取得 ──
             const actualsFromApi: Record<string, ActualValue> = {};
             for (const item of templateDataRes.data.templates) {
-              // recordedBy が null でない場合のみ DB 実績あり
               if (item.recordedBy !== null) {
+                // DB実績あり: DB の値を実績として取り込む
                 for (const [key, val] of Object.entries(item.data)) {
                   // フォールバック形式のメタキーは除外
                   if (key === 'templateId' || key === 'templateType' || key === 'properties') continue;
                   actualsFromApi[key] = val as ActualValue;
+                }
+              }
+            }
+            // DB未記録のプロパティ: 同ループで組み立てた builtTemplates の WorkProperty.expected を初期値として使う。
+            // 想定値は convertRawProperty() でフロントエンド側にすでに解決済みのため、
+            // バックエンドへの追加取得は不要。
+            const builtForThisTransition = templatesMap.get(row.transitionId) ?? [];
+            for (const tpl of builtForThisTransition) {
+              for (const wp of tpl.properties) {
+                // DB実績で取得済みのキーは上書きしない
+                if (actualsFromApi[wp.key] != null) continue;
+                if (wp.expected != null) {
+                  actualsFromApi[wp.key] = wp.expected;
                 }
               }
             }
@@ -2887,174 +2922,17 @@ export default function WorkRecordPanel({
   const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
 
   const handleSaveAndNext = useCallback(
-    async (taskNo: number, transitionId: string) => {
-      // ── 未保存チェック ──────────────────────────────────────────
-      // プロパティカードが編集中（保存ボタンが押されていない）場合は確認ダイアログを表示する
-      if (isDirty) {
-        const confirmed = await new Promise<boolean>((resolve) => {
-          modal.confirm({
-            title: t('workRecord.unsavedWarningTitle'),
-            content: t('workRecord.unsavedWarningContent'),
-            okText: t('workRecord.unsavedWarningOk'),
-            cancelText: t('workRecord.unsavedWarningCancel'),
-            onOk:     () => resolve(true),
-            onCancel: () => resolve(false),
-          });
-        });
-        if (!confirmed) return;
-      }
-
-      try {
-        await uploadAllPendingInsertions();
-      } catch {
-        message.error(t('insertionEditor.uploadFailed'));
-        return;
-      }
-
-      // 実 API 保存（projectId / methodId が揃っている場合のみ）
-      if (projectId && methodId) {
-        const mapKey = `${taskNo}__${transitionId}`;
-        const rawItems = rawTemplateItemsRef.current.get(mapKey) ?? [];
-        const task = tasks.find((t) => t.taskNo === taskNo);
-        const taskTransition = task?.transitions.find((tt) => tt.transitionId === transitionId);
-
-        if (rawItems.length > 0) {
-          try {
-            const records: ExperimentDataRecord[] = rawItems.map((item) => {
-              const baseData: Record<string, unknown> = item.data ? JSON.parse(JSON.stringify(item.data)) : {};
-              if (taskTransition?.actuals) {
-                if (Array.isArray(baseData.properties)) {
-                  (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
-                    if (p.isCustomProperty === true) return;
-                    const propKey = String(p.key ?? '');
-                    if (propKey in taskTransition.actuals) {
-                      p.value = taskTransition.actuals[propKey] ?? null;
-                    }
-                  });
-                }
-              }
-              // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
-              // ※ 定量評価（toleranceValues に含まれるキー）には書き込まない
-              if (Array.isArray(baseData.properties)) {
-                (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
-                  if (p.isCustomProperty === true) return;
-                  const propKey = String(p.key ?? '');
-                  const confidenceEntry = confidenceValuesRef.current.get(`${item.templateId}__${propKey}`);
-                  // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
-                  const quantitativeKeys = new Set(
-                    (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
-                      ?.map((tv) => tv.uncertaintyKey) ?? []
-                  );
-                  if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
-                    (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
-                      const ucKey = unc['key'] as string | undefined;
-                      // 定量評価キーはスキップ（定性評価のキーのみ書き込む）
-                      if (!ucKey || quantitativeKeys.has(ucKey)) return;
-                      // 定性評価選択値を書き込む
-                      if (confidenceEntry?.value) {
-                        unc.value = confidenceEntry.value;
-                      }
-                      // 定性評価理由を書き込む
-                      if (confidenceEntry?.description) {
-                        unc.description = confidenceEntry.description;
-                      }
-                    });
-                  }
-                  // フラットフィールドも同期して上書きする
-                  // （rawTemplateItemsRef は保存後に更新されないため、古い値が残らないよう明示的に更新）
-                  if (confidenceEntry?.value) {
-                    p['qualitativeEval'] = confidenceEntry.value;
-                  }
-                  if (confidenceEntry?.description != null) {
-                    p['qualitativeReason'] = confidenceEntry.description;
-                  } else if (confidenceEntry !== undefined) {
-                    // エントリは存在するが description が null/undefined の場合はクリア
-                    p['qualitativeReason'] = null;
-                  }
-                });
-              }
-              return {
-                placeId: item.placeId,
-                templateType: item.templateType,
-                templateId: item.templateId,
-                data: baseData,
-              };
-            });
-            const uncertaintyValues = Array.from(uncertaintyValuesRef.current.entries()).flatMap(
-              ([key, entries]) => {
-                const templateId = key.split('__')[0];
-                return entries
-                  .filter((e) => e.uncertaintyKey && e.value && !isNaN(Number(e.value)))
-                  .map((e) => ({
-                    propertyKey: e.propKey, templateId,
-                    uncertaintyKey: e.uncertaintyKey, value: Number(e.value),
-                  }));
-              }
-            );
-            const qualitativeValues = Array.from(confidenceValuesRef.current.values()).filter((qv) => qv.value !== '');
-            await saveBatchExperimentData(projectId, methodId, taskNo, {
-              records, transitionId,
-              ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
-              ...(qualitativeValues.length > 0 ? { qualitativeValues } : {}),
-            });
-            // 保存成功後: apiTransitions の WorkProperty を confidenceValuesRef の現在値で更新する
-            // これにより PropertyCard が再マウントされた際も定性評価選択・定性評価理由が保持される
-            setApiTransitions((prevTransitions) =>
-              prevTransitions.map((transition) => ({
-                ...transition,
-                templates: transition.templates.map((template) => ({
-                  ...template,
-                  properties: template.properties.map((prop) => {
-                    const refKey = `${template.id}__${prop.key}`;
-                    const entry = confidenceValuesRef.current.get(refKey);
-                    if (!entry) return prop;
-                    return {
-                      ...prop,
-                      ...(entry.value !== '' ? { defaultConfidence: entry.value } : {}),
-                      ...(entry.description != null ? { qualitativeReason: entry.description } : {}),
-                    };
-                  }),
-                })),
-              }))
-            );
-          } catch (err) {
-            console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
-            message.error(t('workRecord.saveContent'));
-            return;
-          }
-        }
-      }
-
-      setTasks((prev) =>
-        prev.map((task) => {
-          if (task.taskNo !== taskNo) return task;
-          return {
-            ...task,
-            transitions: task.transitions.map((tt) => {
-              if (tt.transitionId !== transitionId) return tt;
-              return { ...tt, status: 'completed' };
-            }),
-          };
-        })
-      );
+    (taskNo: number, transitionId: string) => {
+      // 「次へ」の責務は次のトランジションへの移動のみ。
+      // 保存は「保存」ボタン、ステータス変更は WorkHeader「終了」ボタンが担う。
+      // canGoNext 条件（completed && isRecorded && hasNextTransition）が満たされた場合のみ呼ばれる。
+      void taskNo;
+      void transitionId;
       setViewingKey(null);
-      // 終了/異常終了後のビューロックを解除し、isDirty もリセットして次のトランジションへ移動する
       setPendingEndKey(null);
       setIsDirty(false);
-
-      // 次のトランジションを findNextAvailableTransition で探す（スキップ済み・前提条件を考慮）
-      const next = findNextAvailableTransition(taskNo, transitionId, skippedTransitionIds, tasks);
-
-      if (next) {
-        modal.success({
-          title: t('workRecord.transitionComplete'),
-          content: <span>{t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{next.transitionId}</Text></span>,
-        });
-      } else {
-        modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
-      }
     },
-    [projectId, methodId, tasks, skippedTransitionIds, t, uploadAllPendingInsertions, isDirty, setApiTransitions]
+    [setIsDirty]
   );
 
   const handleSkip = useCallback(

@@ -513,6 +513,29 @@ export async function countByStatusInTransaction(
   }));
 }
 
+/**
+ * タスクステータスが PENDING(0) のときのみ IN_PROGRESS(1) に更新する
+ *
+ * 実験データ保存時・指示確認時に呼び出す。
+ * すでに IN_PROGRESS 以上の場合は何もしない（べき等な更新）。
+ *
+ * @param organizationId - 組織ID（マルチテナント分離）
+ * @param projectId      - プロジェクトID
+ * @param methodId       - メソッドID
+ * @param taskNo         - タスク連番
+ * @param client         - トランザクション用の PoolClient
+ */
+export async function updateStatusIfPending(
+  organizationId: string,
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  client: PoolClient
+): Promise<void> {
+  const sqlQuery = await loadSqlFile('project_task_detail/updateStatusIfPending.sql');
+  await client.query(sqlQuery, [organizationId, projectId, methodId, taskNo]);
+}
+
 export async function batchInsert(
   t: ITask<unknown>,
   organizationId: string,
