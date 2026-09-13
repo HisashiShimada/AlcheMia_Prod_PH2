@@ -767,3 +767,23 @@ export async function findProjectNameByUuid(
   );
   return result?.project_name ?? null;
 }
+
+/**
+ * プロジェクトステータスが TASK_PENDING(1) のときのみ TASK_IN_PROGRESS(2) に更新する
+ *
+ * 実験データ保存時・指示確認時に呼び出す。
+ * すでに TASK_IN_PROGRESS 以上の場合は何もしない（べき等な更新）。
+ *
+ * @param organizationId - 組織ID（マルチテナント分離）
+ * @param projectId      - プロジェクトID
+ * @param client         - トランザクション用の PoolClient
+ */
+export async function updateStatusIfPending(
+  organizationId: string,
+  projectId: string,
+  client: PoolClient
+): Promise<void> {
+  const sqlQuery = await loadSqlFile('projects/updateStatusIfPending.sql');
+  await client.query(sqlQuery, [organizationId, projectId]);
+}
+

@@ -211,7 +211,7 @@ bash scripts/alchemia-staging/init-release-dir.sh \
 
 ```bash
 # 差分ファイルの確認（ドライラン）
-bash scripts/sync-to-staging.sh \
+bash scripts/alchemia-staging/sync-to-staging.sh \
   --release-tag release_YYYYMMDD_vXX.XX.XX \
   --dry-run
 ```
@@ -224,58 +224,192 @@ bash scripts/sync-to-staging.sh \
 
 ---
 
-## STEP 6: DBのテーブル構成の確認
+## STEP 6: DBマイグレーションの確認と実行
+
+> ⚠️ **DBマイグレーションは2系統あり、両方の確認が必要**
+>
+> | 系統 | 対象ファイル | 内容 |
+> |------|------------|------|
+> | ① 品質管理機能テーブル | `docs/design/db/ddl/` 配下 | 品質管理機能のテーブル群。**初回デプロイ時のみ適用が必要**。2回目以降はスキップ可 |
+> | ② 通常マイグレーション | `backend/migrations/` 配下 | 各リリースの差分。**毎回リリースに含まれるか確認が必要** |
+
+---
+
+### 6-1. 踏み台サーバにSSH接続してAuroraエンドポイントを取得
 
 > 🖥️ **実行環境**: 踏み台サーバ（SSH接続）
 
 ```bash
-# 本番Auroraのエンドポイントを取得・接続確認
+# WSLから踏み台サーバにSSH接続
+ssh -i /home/ssv/.ssh/alchemia_staging_stepping.pem \
+  ec2-user@ec2-3-112-188-39.ap-northeast-1.compute.amazonaws.com
+
+# Auroraエンドポイントを取得（SSH接続し直すたびに必要）
 AURORA_ENDPOINT=$(aws rds describe-db-clusters \
   --db-cluster-identifier alchemia-production-aurora \
   --region ap-northeast-1 \
   --query 'DBClusters[0].Endpoint' \
   --output text)
 
-# テーブル数を確認
-PGPASSWORD=<DBパスワード> psql \
+echo $AURORA_ENDPOINT
+```
+
+> ✅ **成功時**: FQDNが表示される（例: `alchemia-production-aurora.cluster-xxxx.ap-northeast-1.rds.amazonaws.com`）
+> ⚠️ **空白が表示された場合**: `$AURORA_ENDPOINT` が空のまま psql を実行すると `-U` がホスト名と解釈されエラーになる。必ず `echo` で確認してから進む
+
+> ⚠️ DBパスワードは AWS Secrets Manager (`mmdpf/production`) の `DB_PASSWORD` を参照
+> ⚠️ VPC Peering（検証VPC ↔ 本番VPC）が設定済みのため踏み台から接続可能
+
+---
+
+### 6-2. ① 品質管理機能テーブルの存在確認
+
+> 🖥️ **実行環境**: 踏み台サーバ（SSH接続）
+
+品質管理機能のテーブル群が作成済みかを一括確認する。
+
+```bash
+PGPASSWORD=CZ6aknfqMwJh psql \
+  -h $AURORA_ENDPOINT -U maiml_user -d maiml_db -p 5432 \
+  --set=sslmode=require \
+  -c "SELECT
+    EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='uncertainty_criteria')       AS uncertainty_criteria,
+    EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='intuition_selector')          AS intuition_selector,
+    EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='aggregation_rules')           AS aggregation_rules,
+    EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='project_overall_evaluations') AS project_overall_evaluations;"
+```
+
+> ✅ **全て `t`（true）の場合**: 6-3はスキップして 6-4 へ進む
+> ❌ **1つでも `f`（false）の場合**: 6-3の手順で品質管理機能テーブルを作成する
+
+---
+
+### 6-3. ① 品質管理機能テーブルの作成（6-2で `f` があった場合のみ）
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）→ 踏み台サーバ（SSH接続）
+
+**WSLで転送：**
+
+```bash
+ssh -i /home/ssv/.ssh/alchemia_staging_stepping.pem \
+  ec2-user@ec2-3-112-188-39.ap-northeast-1.compute.amazonaws.com \
+  "mkdir -p ~/migrations"
+
+scp -i /home/ssv/.ssh/alchemia_staging_stepping.pem \
+  /home/ssv/projects/mmdpf/docs/design/db/ddl/uncertainty_criteria.sql \
+  /home/ssv/projects/mmdpf/docs/design/db/ddl/intuition_selector.sql \
+  /home/ssv/projects/mmdpf/docs/design/db/ddl/aggregation_rules.sql \
+  /home/ssv/projects/mmdpf/docs/design/db/ddl/project_overall_evaluations.sql \
+  /home/ssv/projects/mmdpf/docs/design/db/ddl/migrations/20260127_add_worker_project_indexes.sql \
+  /home/ssv/projects/mmdpf/docs/design/db/ddl/migrations/20260817_extend_project_overall_evaluations.sql \
+  /home/ssv/projects/mmdpf/docs/design/db/ddl/migrations/20260825_extend_uncertainty_criteria.sql \
+  /home/ssv/projects/mmdpf/docs/design/db/ddl/migrations/20260826_experiment_instruction_detail.sql \
+  ec2-user@ec2-3-112-188-39.ap-northeast-1.compute.amazonaws.com:~/migrations/
+```
+
+**踏み台サーバで以下を順番に実行：**
+
+```bash
+# 1. uncertainty_criteria（基本テーブル）
+PGPASSWORD=CZ6aknfqMwJh psql -h $AURORA_ENDPOINT -U maiml_user -d maiml_db -p 5432 --set=sslmode=require -f ~/migrations/uncertainty_criteria.sql
+
+# 2. intuition_selector（基本テーブル）
+PGPASSWORD=CZ6aknfqMwJh psql -h $AURORA_ENDPOINT -U maiml_user -d maiml_db -p 5432 --set=sslmode=require -f ~/migrations/intuition_selector.sql
+
+# 3. aggregation_rules（基本テーブル）
+PGPASSWORD=CZ6aknfqMwJh psql -h $AURORA_ENDPOINT -U maiml_user -d maiml_db -p 5432 --set=sslmode=require -f ~/migrations/aggregation_rules.sql
+
+# 4. project_overall_evaluations（基本テーブル）
+PGPASSWORD=CZ6aknfqMwJh psql -h $AURORA_ENDPOINT -U maiml_user -d maiml_db -p 5432 --set=sslmode=require -f ~/migrations/project_overall_evaluations.sql
+
+# 5. パフォーマンス用インデックス追加
+PGPASSWORD=CZ6aknfqMwJh psql -h $AURORA_ENDPOINT -U maiml_user -d maiml_db -p 5432 --set=sslmode=require -f ~/migrations/20260127_add_worker_project_indexes.sql
+
+# 6. project_overall_evaluationsにカラム追加
+PGPASSWORD=CZ6aknfqMwJh psql -h $AURORA_ENDPOINT -U maiml_user -d maiml_db -p 5432 --set=sslmode=require -f ~/migrations/20260817_extend_project_overall_evaluations.sql
+
+# 7. experiment_uncertainty_judgeテーブル作成
+PGPASSWORD=CZ6aknfqMwJh psql -h $AURORA_ENDPOINT -U maiml_user -d maiml_db -p 5432 --set=sslmode=require -f ~/migrations/20260825_extend_uncertainty_criteria.sql
+
+# 8. experiment_instruction_detailテーブル作成
+PGPASSWORD=CZ6aknfqMwJh psql -h $AURORA_ENDPOINT -U maiml_user -d maiml_db -p 5432 --set=sslmode=require -f ~/migrations/20260826_experiment_instruction_detail.sql
+```
+
+実行後、6-2の確認SQLを再実行して全て `t` になっていることを確認する。
+
+> ⚠️ `ERROR` が表示された場合は次のコマンドに進まず内容を確認する。`NOTICE` は正常（既存スキップの通知）
+
+---
+
+### 6-4. ② 通常マイグレーションの適用状況を確認
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`
+
+以下のスクリプトを実行すると、今回リリースに含まれるマイグレーションファイルを自動検出し、
+踏み台サーバで実行すべき適用確認コマンドを自動生成して表示する。
+
+```bash
+bash docs/deploy-guide/saas-production/check-migration-status.sh \
+  --release-tag release_YYYYMMDD_vXX.XX.XX
+```
+
+> ✅ **「今回リリースにマイグレーションファイルはありません」と表示された場合**: 6-5・6-6はスキップしてSTEP 7へ進む
+
+出力されたコマンドを踏み台サーバで実行し、適用状況を確認する。
+
+- `already_applied: false` → **未適用 → 実行が必要**
+- `already_applied: true` → 適用済み → スキップ
+
+> ⚠️ **二重実行禁止**: マイグレーションファイルは原則１回のみ実行可能なものが含まれる。必ず `false`（未適用）を確認してから実行すること。
+
+---
+
+### 6-5. ② マイグレーションファイルを踏み台に転送（未適用ファイルがある場合のみ）
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+
+```bash
+# 踏み台サーバにmigrations/ディレクトリを作成（未作成の場合）
+ssh -i /home/ssv/.ssh/alchemia_staging_stepping.pem \
+  ec2-user@ec2-3-112-188-39.ap-northeast-1.compute.amazonaws.com \
+  "mkdir -p ~/migrations"
+
+# 未適用ファイルのみを個別に転送（ファイル名は6-4で確認したもの）
+scp -i /home/ssv/.ssh/alchemia_staging_stepping.pem \
+  /home/ssv/projects/mmdpf/backend/migrations/<ファイル名>.sql \
+  ec2-user@ec2-3-112-188-39.ap-northeast-1.compute.amazonaws.com:~/migrations/
+```
+
+---
+
+### 6-6. ② マイグレーションを実行（未適用ファイルがある場合のみ）
+
+> 🖥️ **実行環境**: 踏み台サーバ（SSH接続）
+
+ファイルを**日付順に1件ずつ**実行する。
+
+```bash
+PGPASSWORD=CZ6aknfqMwJh psql \
   -h $AURORA_ENDPOINT \
   -U maiml_user \
   -d maiml_db \
   -p 5432 \
   --set=sslmode=require \
-  -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"
+  -f ~/migrations/<ファイル名>.sql
 ```
 
-> ⚠️ DBパスワードは AWS Secrets Manager (`mmdpf/production`) の `DB_PASSWORD` を参照
+実行後、6-4の確認コマンドを再実行して `already_applied: true` になっていることを確認する。
 
-### DBマイグレーションが必要な場合
-
-```bash
-# ① WSLでマイグレーションSQLを踏み台に転送
-scp -i /home/ssv/.ssh/alchemia_staging_stepping.pem \
-  /home/ssv/projects/mmdpf/backend/migrations/*.sql \
-  ec2-user@ec2-3-112-188-39.ap-northeast-1.compute.amazonaws.com:~/migrations/
-
-# ② 踏み台サーバでマイグレーション実行
-for sql_file in $(ls ~/migrations/*.sql | sort); do
-  echo "実行中: $(basename $sql_file)"
-  PGPASSWORD=<DBパスワード> psql \
-    -h $AURORA_ENDPOINT \
-    -U maiml_user \
-    -d maiml_db \
-    -p 5432 \
-    --set=sslmode=require \
-    -f "$sql_file" 2>&1 | grep -E 'ERROR|CREATE|ALTER' | head -3
-  echo "✅ 完了: $(basename $sql_file)"
-done
-```
-
-> ⚠️ VPC Peering（検証VPC ↔ 本番VPC）が設定済みのため踏み台から接続可能
+---
 
 ### チェックリスト
 
-- [ ] 本番DBのテーブル構成を確認した
-- [ ] 必要なマイグレーションを実行した（不要な場合はスキップ）
+- [ ] 踏み台にSSH接続し `$AURORA_ENDPOINT` を取得した（`echo` で確認済み）
+- [ ] ① 品質管理機能テーブルの存在を確認した（2回目以降のデプロイはスキップ可）
+- [ ] ② 今回リリースに含まれる通常マイグレーションファイルを確認した
+- [ ] ② 未適用ファイルのみ実行した（なければスキップ）
+- [ ] 実行後に適用済みであることを確認した
 
 ---
 
