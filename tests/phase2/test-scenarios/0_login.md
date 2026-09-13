@@ -101,7 +101,7 @@
 |-----------|-----------|------|-----------|------|---------|------|------|
 | 0-3-1 | provider ロールでログインすると `/provider` へ遷移すること | 正常系 | **手動** | `api_auth.md` §5 | POST `/api/v1/auth/verify-pin` | OK | |
 | 0-3-2 | system_admin ロールでログインすると `/system-admin` へ遷移すること | 正常系 | **手動** | `api_auth.md` §5 | POST `/api/v1/auth/verify-pin` | OK | |
-| 0-3-3 | data_admin ロールでログインすると `/data-admin` へ遷移すること | 正常系 | **手動** | `api_auth.md` §5 | POST `/api/v1/auth/verify-pin` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-284 |
+| 0-3-3 | data_admin ロールでログインすると `/data-admin` へ遷移すること | 正常系 | **手動** | `api_auth.md` §5 | POST `/api/v1/auth/verify-pin` | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-284 |
 | 0-3-4 | experiment_admin ロールでログインすると `/experiment-admin` へ遷移すること | 正常系 | **手動** | `api_auth.md` §5 | POST `/api/v1/auth/verify-pin` | OK | |
 | 0-3-5 | experiment_worker ロールでログインすると `/experiment-worker` へ遷移すること | 正常系 | **手動** | `api_auth.md` §5 | POST `/api/v1/auth/verify-pin` | OK | |
 | ~~0-3-6~~ | ~~mi_engineer ロールでログインすると `/mi-engineer` へ遷移すること~~ | ~~正常系~~ | **保留** | `api_auth.md` §5 | POST `/api/v1/auth/verify-pin` | OK | 本プロジェクトのスコープ外のため保留 |
