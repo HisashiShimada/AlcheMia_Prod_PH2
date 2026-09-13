@@ -320,7 +320,8 @@
       "forcedTerminated": "異常終了",
       "reviewWaiting": "レビュー待ち",
       "completed": "完了",
-      "ng": "NG"
+      "ng": "NG",
+      "waiting": "指示前"
     },
     "colMethodName": "メソッド名",
     "colTaskStatus": "タスクステータス",

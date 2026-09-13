@@ -320,7 +320,8 @@
       "forcedTerminated": "Forced Terminated",
       "reviewWaiting": "Review Waiting",
       "completed": "Completed",
-      "ng": "NG"
+      "ng": "NG",
+      "waiting": "Not Started"
     },
     "colMethodName": "Method Name",
     "colTaskStatus": "Task Status",
