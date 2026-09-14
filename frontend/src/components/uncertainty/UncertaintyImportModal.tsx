@@ -20,7 +20,7 @@ interface UncertaintyImportModalProps {
   onImported?: () => void;
 }
 
-type ImportFormat = 'CSV' | 'JSON' | 'XML';
+type ImportFormat = 'CSV' | 'JSON';
 
 /**
  * 不確かさ基準インポートモーダルコンポーネント
@@ -89,7 +89,7 @@ export default function UncertaintyImportModal({
             {t('uncertaintyImport.formatLabel')}
           </div>
           <Space>
-            {(['CSV', 'JSON', 'XML'] as ImportFormat[]).map((fmt) => (
+            {(['CSV', 'JSON'] as ImportFormat[]).map((fmt) => (
               <Button
                 key={fmt}
                 size="small"
@@ -114,7 +114,6 @@ export default function UncertaintyImportModal({
               const ext = latestFile.name.split('.').pop()?.toLowerCase();
               if (ext === 'csv')       setImportFormat('CSV');
               else if (ext === 'json') setImportFormat('JSON');
-              else if (ext === 'xml')  setImportFormat('XML');
             }
           }}
           onRemove={() => setFileList([])}

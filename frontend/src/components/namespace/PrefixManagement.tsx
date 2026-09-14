@@ -508,7 +508,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const handleShareButtonClick = (keys: React.Key[]) => {
     // 選択中の Prefix 行を ShareItem 形式に変換
     const items: ShareItem[] = (keys as string[]).reduce<ShareItem[]>((acc, prefix) => {
-      const row = rows.find((r) => r.prefix === prefix);
+      const row = rows.find((r) => r.id === prefix);
       if (row) {
         const shareItem: ShareItem = {
           id: row.prefix,
