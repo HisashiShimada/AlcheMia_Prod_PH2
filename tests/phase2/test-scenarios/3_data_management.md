@@ -54,11 +54,11 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 3-1-1 | Creator マスタ一覧が表示されること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.1 | GET `/api/v1/master/creator` | OK | |
-| 3-1-2 | 表示切替「すべて」で全組織の Creator が表示されること | 正常系 | `api_master_management.md` §display_scope=all | GET `/api/v1/master/creator?display_scope=all` | - | |
+| 3-1-2 | 表示切替「すべて」で全組織の Creator が表示されること | 正常系 | `api_master_management.md` §display_scope=all | GET `/api/v1/master/creator?display_scope=all` | OK | 「すべて」→「全体」 |
 | 3-1-3 | 表示切替「自組織のみ」で自組織作成の Creator のみ表示されること | 正常系 | `api_master_management.md` §display_scope=own | GET `/api/v1/master/creator?display_scope=own` | - | |
 | 3-1-4 | Creator ID・Creator 名のキーワードで検索できること | 正常系 | `ui_master_main.md` §5.2.1 | GET `/api/v1/master/creator` | OK | |
-| 3-1-5 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/creator` | - | ステータスフィルタなし |
-| 3-1-6 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/creator` | - | ステータスフィルタなし |
+| 3-1-5 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/creator` | OK | ステータスフィルタなし |
+| 3-1-6 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/creator` | OK | ステータスフィルタなし |
 | 3-1-7 | 「追加」ボタンから Creator を新規作成できること | 正常系 | 要件書#3、`ui_master_add_dialog.md` §5.2 | POST `/api/v1/master/creator` | OK | |
 | 3-1-8 | Creator ID が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.1 | - | OK | |
 | 3-1-9 | Creator ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-324 |
@@ -144,8 +144,8 @@
 |-----------|-----------|------|------|---------|------|------|
 | 3-3-1 | Instrument マスタ一覧が表示されること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.3 | GET `/api/v1/master/instrument` | OK | |
 | 3-3-2 | Instrument ID・Instrument 名のキーワードで検索できること | 正常系 | `ui_master_main.md` §5.2.1 | GET `/api/v1/master/instrument` | OK | |
-| 3-3-3 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/instrument` | - | ステータスフィルタなし |
-| 3-3-4 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/instrument` | - | ステータスフィルタなし |
+| 3-3-3 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/instrument` | OK | ステータスフィルタなし |
+| 3-3-4 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/instrument` | OK | ステータスフィルタなし |
 | 3-3-5 | 「追加」ボタンから Instrument を新規作成できること（Vendor ID を選択して保存） | 正常系 | 要件書#3、`ui_master_add_dialog.md` §3.3 | POST `/api/v1/master/instrument` | OK | |
 | 3-3-6 | Instrument ID が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.1 | - | OK | |
 | 3-3-7 | Instrument ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-324 |

@@ -20,8 +20,8 @@
 | テスト実施日 | 2026-09-01（1-1～1-10 全件） |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | 不合格（NG 2件） |
-| 備考 | 1-1～1-9はフェーズ１実施済み。1-10は2026-08-27実施完了。NG: 1-5-1（AISOLMAIML-276, 275）、1-10-3（AISOLMAIML-277, 278） |
+| 総合判定 | 合格 |
+| 備考 | 1-1～1-9はフェーズ１実施済み。1-10は2026-08-27実施完了。 |
 
 ---
 
@@ -35,13 +35,13 @@
 | **1-2** | 会社の編集 | 6件 | 手動 | 6 | 0 | 0 |
 | **1-3** | 会社のアクティブ/非アクティブ化 | 5件 | 手動 | 5 | 0 | 0 |
 | **1-4** | 会社のCSVダウンロード・アップロード | 4件 | 手動 | 4 | 0 | 0 |
-| **1-5** | 組織の作成 | 7件 | 手動 | 6 | 1 | 0 |
+| **1-5** | 組織の作成 | 7件 | 手動 | 7 | 0 | 0 |
 | **1-6** | 組織の編集 | 7件 | 手動 | 7 | 0 | 0 |
 | **1-7** | 組織のアクティブ/非アクティブ化 | 5件 | 手動 | 5 | 0 | 0 |
 | **1-8** | 組織のCSVダウンロード・アップロード | 4件 | 手動 | 4 | 0 | 0 |
 | **1-9** | 全組織の課金情報CSVダウンロード | 2件 | 手動 | 2 | 0 | 0 |
-| **1-10** | 名前空間管理（グローバル） ※フェーズII追加 | 5件 | 手動 | 4 | 1 | 0 |
-| **合計** | - | **52件** | - | **50** | **2** | **0** |
+| **1-10** | 名前空間管理（グローバル） ※フェーズII追加 | 5件 | 手動 | 5 | 0 | 0 |
+| **合計** | - | **52件** | - | **52** | **0** | **0** |
 
 ### スコープ外
 
@@ -162,7 +162,7 @@ CORP001,テスト会社,アクティブ
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-5-1 | アクティブな組織を新規作成できること | 正常系 | `ui_organization_add_dialog.md` §5.1 | POST `/api/v1/provider/organization` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-276 https://soft-service.atlassian.net/browse/AISOLMAIML-275 |
+| 1-5-1 | アクティブな組織を新規作成できること | 正常系 | `ui_organization_add_dialog.md` §5.1 | POST `/api/v1/provider/organization` | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-276 https://soft-service.atlassian.net/browse/AISOLMAIML-275 |
 | 1-5-2 | 非アクティブな組織を新規作成できること | 正常系 | `ui_organization_add_dialog.md` §5.1 | POST `/api/v1/provider/organization` | OK | |
 | 1-5-3 | 組織追加ダイアログをキャンセルしても組織が作成されないこと | 正常系 | `ui_organization_add_dialog.md` §5.1 | - | OK | |
 | 1-5-4 | 組織追加ダイアログの初期状態が正しいこと | 表示確認 | `ui_organization_add_dialog.md` §3.2 | - | OK | |
@@ -311,7 +311,7 @@ organization_cd,organization_display_name,organization_email,chief_user_name,chi
 |-----------|-----------|------|-----------|------|---------|------|------|
 | 1-10-1 | グローバル名前空間宣言の一覧が表示されること | 表示確認 | **手動** | `ui_namespace_management_global.md` §4.4（テーブル） | GET `/api/v1/namespaces/global-declarations` | OK | Prefix・URI カラムが表示されること |
 | 1-10-2 | CSVエクスポートでグローバル名前空間宣言をダウンロードできること | 正常系 | **手動** | `ui_namespace_management_global.md` §5.3（CSVエクスポート） | エクスポートAPI | OK | フォーマット: `prefix,uri`（BOM付きUTF-8） |
-| 1-10-3 | CSVインポート時に全置換の確認ダイアログが表示されること | 表示確認 | **手動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | — | NG | - https://soft-service.atlassian.net/browse/AISOLMAIML-277　- https://soft-service.atlassian.net/browse/AISOLMAIML-278 |
+| 1-10-3 | CSVインポート時に全置換の確認ダイアログが表示されること | 表示確認 | **手動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | — | OK | - https://soft-service.atlassian.net/browse/AISOLMAIML-277　- https://soft-service.atlassian.net/browse/AISOLMAIML-278 |
 | 1-10-4 | CSVインポート確認ダイアログをキャンセルするとデータが変わらないこと | 正常系 | **手動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | — | OK | キャンセル後、既存データが保持されること |
 | 1-10-5 | CSVインポートでグローバル名前空間宣言を全置換できること | 正常系 | **手動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | インポートAPI | OK | インポート後は既存データが全て上書きされること |
 
