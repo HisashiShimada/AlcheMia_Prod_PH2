@@ -1252,7 +1252,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             size="small"
             pagination={false}
             bordered
-            scroll={{ x: scrollX, y: 'calc(100vh - 360px)' }}
+            scroll={{ x: scrollX, y: 'calc(100vh - 450px)' }}
             style={{ fontSize: 12 }}
             rowClassName={(r) => r.taskStatus === TaskStatus.REVIEW_WAITING ? 'row-review-waiting' : ''}
           />
