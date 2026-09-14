@@ -13,7 +13,7 @@ import {
   create,
   update,
   remove,
-  createNamespace,
+  createNamespaceUri,
   removeNamespace,
   toggleActive,
   existsByScopeKey,
@@ -103,8 +103,7 @@ describe('namespaceTermRepository - Phase2 新規テーブル CRUD テスト', (
       // prefix → namespace_id 取得
       mockPgp.oneOrNone
         .mockResolvedValueOnce(namespaceRow)  // findPrefixNamespaceId
-        .mockResolvedValueOnce(null)           // findTermByKey（重複なし）
-        .mockResolvedValueOnce(expectedTerm);  // findTermByKey（登録後）
+        .mockResolvedValueOnce(null);          // findTermInScope（重複なし）
       mockPgp.none.mockResolvedValue(undefined);
       mockPgp.one.mockResolvedValue(expectedTerm);
 
@@ -121,17 +120,161 @@ describe('namespaceTermRepository - Phase2 新規テーブル CRUD テスト', (
       );
     });
 
-    test('同名の用語が既に存在する場合、409 エラーをスローすること', async () => {
+    test('同一スコープに同名の用語が既に存在する場合、409 エラーをスローすること', async () => {
       mockPgp.oneOrNone
-        .mockResolvedValueOnce({ namespace_id: 'NS0001' }) // prefix found
-        .mockResolvedValueOnce({ qname: 'ns1:Temperature' }) // 重複あり
-        .mockResolvedValueOnce({ scope_name: 'グループA' }); // scope_name
+        .mockResolvedValueOnce({ namespace_id: 'NS0001' })          // findPrefixNamespaceId
+        .mockResolvedValueOnce({ qname: 'ns1:Temperature' })         // findTermInScope（重複あり）
+        .mockResolvedValueOnce({ scope_name: 'グループA' });          // findScopeNameByNamespaceId
 
       await expect(create(baseData)).rejects.toMatchObject({
         statusCode: 409,
         code: 'E6005',
       });
     });
+
+    test('同一スコープに同名の用語が既に存在する場合、エラーの details.scopeName にスコープ名が含まれること', async () => {
+      mockPgp.oneOrNone
+        .mockResolvedValueOnce({ namespace_id: 'NS0001' })          // findPrefixNamespaceId
+        .mockResolvedValueOnce({ qname: 'ns1:Temperature' })         // findTermInScope（重複あり）
+        .mockResolvedValueOnce({ scope_name: '結合テスト グループ001' }); // findScopeNameByNamespaceId
+
+      let caughtError: any;
+      try {
+        await create(baseData);
+      } catch (e) {
+        caughtError = e;
+      }
+
+      expect(caughtError).toBeDefined();
+      expect(caughtError.details?.scopeName).toBe('結合テスト グループ001');
+    });
+
+    test('異なるスコープ（namespace_id）に同名の用語が存在しても、別スコープへの登録は成功すること', async () => {
+      // グループ001（NS0001）に既存用語あり、グループ002（NS0002）への新規登録を想定
+      const namespaceRowGroup002 = { namespace_id: 'NS0002' };
+      const expectedTerm = {
+        qname: 'Uncertainty:projectA',
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+        isActive: true,
+      };
+
+      mockPgp.oneOrNone
+        .mockResolvedValueOnce(namespaceRowGroup002)  // findPrefixNamespaceId → NS0002（グループ002）
+        .mockResolvedValueOnce(null);                  // findTermInScope → NS0002 には存在しない（null）
+      mockPgp.none.mockResolvedValue(undefined);
+      mockPgp.one.mockResolvedValue(expectedTerm);
+
+      const dataForGroup002 = {
+        ...baseData,
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+        scopeKey: 'group-002',
+      };
+
+      const result = await create(dataForGroup002);
+
+      // 別スコープへの登録が成功すること
+      expect(result.qname).toBe('Uncertainty:projectA');
+    });
+    test('上位スコープの prefix を使って下位スコープに用語を追加しようとした場合、上位スコープに同名用語が存在すれば 409 エラーをスローすること', async () => {
+      // グループ002を選択中（scopeKey='group-002'）
+      // グループ002には Uncertainty prefix なし → findNamespaceIdByScopeKeyAndPrefix → null
+      // フォールバック: findPrefixNamespaceId → グループ001の NS0001 を取得
+      // findTermInScope（NS0001）→ 既に存在する（重複）
+      mockPgp.oneOrNone
+        .mockResolvedValueOnce(null)                                       // findNamespaceIdByScopeKeyAndPrefix（グループ002には prefix なし）
+        .mockResolvedValueOnce({ namespace_id: 'NS0001' })                 // findPrefixNamespaceId（グループ001の namespace_id）
+        .mockResolvedValueOnce({ qname: 'Uncertainty:projectA' })          // findTermInScope（重複あり）
+        .mockResolvedValueOnce({ scope_name: '結合テスト グループ001' });   // findScopeNameByNamespaceId
+
+      const dataWithScopeKey = {
+        ...baseData,
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+        scopeKey: 'group-002',
+      };
+
+      await expect(create(dataWithScopeKey)).rejects.toMatchObject({
+        statusCode: 409,
+        code: 'E6005',
+      });
+    });
+
+    test('上位スコープの prefix を使って下位スコープに用語を追加した場合、エラーの details.scopeName に上位スコープ名が含まれること', async () => {
+      mockPgp.oneOrNone
+        .mockResolvedValueOnce(null)                                       // findNamespaceIdByScopeKeyAndPrefix（グループ002には prefix なし）
+        .mockResolvedValueOnce({ namespace_id: 'NS0001' })                 // findPrefixNamespaceId（グループ001の namespace_id）
+        .mockResolvedValueOnce({ qname: 'Uncertainty:projectA' })          // findTermInScope（重複あり）
+        .mockResolvedValueOnce({ scope_name: '結合テスト グループ001' });   // findScopeNameByNamespaceId
+
+      const dataWithScopeKey = {
+        ...baseData,
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+        scopeKey: 'group-002',
+      };
+
+      let caughtError: any;
+      try {
+        await create(dataWithScopeKey);
+      } catch (e) {
+        caughtError = e;
+      }
+
+      expect(caughtError).toBeDefined();
+      // ✅ 正しいスコープ（グループ001）が表示されること
+      expect(caughtError.details?.scopeName).toBe('結合テスト グループ001');
+    });
+
+    test('上位スコープの prefix を使って下位スコープに新規用語（上位スコープに存在しない用語）を追加した場合、上位スコープへ INSERT が成功すること', async () => {
+      // グループ002選択中（scopeKey='group-002'）
+      // グループ002には Uncertainty prefix なし → null
+      // フォールバック: グループ001の NS0001 を使用
+      // NS0001 には 'newTerm' は存在しない → INSERT 成功
+      const expectedTerm = {
+        qname: 'Uncertainty:newTerm',
+        prefix: 'Uncertainty',
+        localName: 'newTerm',
+        isActive: true,
+      };
+
+      mockPgp.oneOrNone
+        .mockResolvedValueOnce(null)                        // findNamespaceIdByScopeKeyAndPrefix（グループ002には prefix なし）
+        .mockResolvedValueOnce({ namespace_id: 'NS0001' })  // findPrefixNamespaceId（グループ001）
+        .mockResolvedValueOnce(null);                       // findTermInScope（重複なし）
+      mockPgp.none.mockResolvedValue(undefined);
+      mockPgp.one.mockResolvedValue(expectedTerm);
+
+      const dataWithScopeKey = {
+        ...baseData,
+        prefix: 'Uncertainty',
+        localName: 'newTerm',
+        scopeKey: 'group-002',
+      };
+
+      const result = await create(dataWithScopeKey);
+
+      expect(result.qname).toBe('Uncertainty:newTerm');
+    });
+
+    test('scopeKey を指定した場合に現在スコープにも組織内にも prefix が存在しない場合、404 エラーをスローすること', async () => {
+      mockPgp.oneOrNone
+        .mockResolvedValueOnce(null)  // findNamespaceIdByScopeKeyAndPrefix（該当なし）
+        .mockResolvedValueOnce(null); // findPrefixNamespaceId（組織内にも prefix なし）
+
+      const dataWithScopeKey = {
+        ...baseData,
+        prefix: 'nonExistentPrefix',
+        scopeKey: 'group-002',
+      };
+
+      await expect(create(dataWithScopeKey)).rejects.toMatchObject({
+        statusCode: 404,
+        code: 'E6001',
+      });
+    });
+
   });
 
   // ─────────────────────────────────────────────
@@ -191,17 +334,16 @@ describe('namespaceTermRepository - Phase2 新規テーブル CRUD テスト', (
   });
 
   // ─────────────────────────────────────────────
-  // createNamespace() - namespace + prefix の2テーブル INSERT
+  // createNamespaceUri() - namespace + prefix の2テーブル INSERT
   // ─────────────────────────────────────────────
 
-  describe('createNamespace()', () => {
+  describe('createNamespaceUri()', () => {
     test('正常系: namespace + prefix を INSERT し、namespace_id を返すこと', async () => {
       mockPgp.one.mockResolvedValue({ next_seq: 1 });
       mockPgp.none.mockResolvedValue(undefined);
 
-      const namespaceId = await createNamespace({
+      const namespaceId = await createNamespaceUri({
         organizationId: 'org-001',
-        prefix: 'ns1',
         uri: 'https://example.com/ns1/',
         userId: 'user-001',
         scopeKey: 'group-A',
@@ -209,17 +351,16 @@ describe('namespaceTermRepository - Phase2 新規テーブル CRUD テスト', (
 
       // NS0001 形式で返すこと
       expect(namespaceId).toBe('NS0001');
-      // namespace INSERT + prefix INSERT の2回 none が呼ばれること
-      expect(mockPgp.none).toHaveBeenCalledTimes(2);
+      // namespace INSERT の1回 none が呼ばれること
+      expect(mockPgp.none).toHaveBeenCalledTimes(1);
     });
 
     test('namespace_id の採番が NS連番形式（4桁）であること', async () => {
       mockPgp.one.mockResolvedValue({ next_seq: 10 });
       mockPgp.none.mockResolvedValue(undefined);
 
-      const namespaceId = await createNamespace({
+      const namespaceId = await createNamespaceUri({
         organizationId: 'org-001',
-        prefix: 'ns2',
         uri: 'https://example.com/ns2/',
         userId: 'user-001',
       });
