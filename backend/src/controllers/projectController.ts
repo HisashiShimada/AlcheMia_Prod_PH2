@@ -1420,18 +1420,10 @@ export async function publish(req: Request, res: Response): Promise<void> {
         });
         return;
       }
-      if (code === 'PROJECT_NOT_CHECKED_OUT') {
-        res.status(400).json({
-          success: false,
-          error: { code: 'E7002', message: 'プロジェクトがチェックアウトされていません' },
-          meta: { timestamp: new Date().toISOString(), requestId },
-        });
-        return;
-      }
       if (code === 'PROJECT_STATUS_INVALID' || code === 'E7005') {
         res.status(400).json({
           success: false,
-          error: { code: 'E7005', message: 'プロジェクトステータスがタスク結果レビュー待ちではありません' },
+          error: { code: 'E7005', message: 'プロジェクトステータスが完了状態ではありません' },
           meta: { timestamp: new Date().toISOString(), requestId },
         });
         return;

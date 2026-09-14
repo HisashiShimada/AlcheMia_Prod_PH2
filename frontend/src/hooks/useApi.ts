@@ -23,9 +23,30 @@ export function useApi<T>(
     onError?: (error: Error) => void;
     /** 成功時のコールバック */
     onSuccess?: (data: T) => void;
+    /**
+     * タブ/ウィンドウがフォーカス復帰した時に自動リフレッシュするか（デフォルト: false）
+     *
+     * 他ユーザーがDBを更新した可能性があるため、ブラウザのタブに戻った時点で
+     * 最新データを取得し直す。一覧画面など複数ユーザーが参照するデータに推奨。
+     *
+     * @example
+     * const { data } = useApi(fetchProjects, [], { refetchOnWindowFocus: true });
+     */
+    refetchOnWindowFocus?: boolean;
+    /**
+     * 定期自動リフレッシュの間隔（ミリ秒）。0 または未指定で無効（デフォルト: 0）
+     *
+     * 指定間隔ごとにデータを再取得する。ステータス監視画面など
+     * リアルタイム性が求められる場面に使用。
+     * サーバー負荷を考慮して最小 30_000（30秒）以上を推奨。
+     *
+     * @example
+     * const { data } = useApi(fetchJobs, [], { refetchInterval: 30_000 });
+     */
+    refetchInterval?: number;
   } = {}
 ): DataState<T> & { refetch: () => Promise<void> } {
-  const { enabled = true, onError, onSuccess } = options;
+  const { enabled = true, onError, onSuccess, refetchOnWindowFocus = false, refetchInterval = 0 } = options;
 
   const [state, setState] = useState<DataState<T>>({
     data: null,
@@ -55,6 +76,7 @@ export function useApi<T>(
     }
   }, [apiFunction, onError, onSuccess]);
 
+  // 初回・依存配列変化時のデータ取得
   useEffect(() => {
     if (enabled) {
       // Data fetching in useEffect is a valid pattern
@@ -63,6 +85,32 @@ export function useApi<T>(
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, ...dependencies]);
+
+  // ウィンドウフォーカス復帰時の自動リフレッシュ
+  // 他ユーザーがDBを更新した可能性があるため、タブに戻った時に最新データを取得する
+  useEffect(() => {
+    if (!refetchOnWindowFocus) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [refetchOnWindowFocus, fetchData]);
+
+  // 定期ポーリング（refetchInterval > 0 の場合のみ有効）
+  useEffect(() => {
+    if (!refetchInterval || refetchInterval <= 0) return;
+
+    const timer = setInterval(() => {
+      fetchData();
+    }, refetchInterval);
+
+    return () => clearInterval(timer);
+  }, [refetchInterval, fetchData]);
 
   const refetch = useCallback(async () => {
     await fetchData();
@@ -162,9 +210,22 @@ export function useMultipleApi<T extends unknown[]>(
     onError?: (error: Error) => void;
     /** 成功時のコールバック */
     onSuccess?: (data: T) => void;
+    /**
+     * タブ/ウィンドウがフォーカス復帰した時に自動リフレッシュするか（デフォルト: false）
+     *
+     * 他ユーザーがDBを更新した可能性があるため、ブラウザのタブに戻った時点で
+     * 最新データを取得し直す。
+     */
+    refetchOnWindowFocus?: boolean;
+    /**
+     * 定期自動リフレッシュの間隔（ミリ秒）。0 または未指定で無効（デフォルト: 0）
+     *
+     * サーバー負荷を考慮して最小 30_000（30秒）以上を推奨。
+     */
+    refetchInterval?: number;
   } = {}
 ): DataState<T> & { refetch: () => Promise<void> } {
-  const { enabled = true, onError, onSuccess } = options;
+  const { enabled = true, onError, onSuccess, refetchOnWindowFocus = false, refetchInterval = 0 } = options;
 
   const [state, setState] = useState<DataState<T>>({
     data: null,
@@ -204,6 +265,32 @@ export function useMultipleApi<T extends unknown[]>(
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, ...dependencies]);
+
+  // ウィンドウフォーカス復帰時の自動リフレッシュ
+  // 他ユーザーがDBを更新した可能性があるため、タブに戻った時に最新データを取得する
+  useEffect(() => {
+    if (!refetchOnWindowFocus) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [refetchOnWindowFocus, fetchData]);
+
+  // 定期ポーリング（refetchInterval > 0 の場合のみ有効）
+  useEffect(() => {
+    if (!refetchInterval || refetchInterval <= 0) return;
+
+    const timer = setInterval(() => {
+      fetchData();
+    }, refetchInterval);
+
+    return () => clearInterval(timer);
+  }, [refetchInterval, fetchData]);
 
   const refetch = useCallback(async () => {
     await fetchData();

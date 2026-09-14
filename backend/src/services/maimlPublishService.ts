@@ -21,7 +21,7 @@ import {
   PublishJobResponse,
   PublishStatusResponse,
 } from '../types/maimlOpenData';
-import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
+import { ProjectStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 
 /** 公開可能なプロジェクトステータス一覧（レビュー待ち or 完了） */
 const ALLOWED_PUBLISH_STATUSES = [ProjectStatusEnum.REVIEW_WAITING, ProjectStatusEnum.COMPLETED];
@@ -47,8 +47,7 @@ const ALLOWED_PUBLISH_STATUSES = [ProjectStatusEnum.REVIEW_WAITING, ProjectStatu
  * @throws Error('ALREADY_IN_PROGRESS')      - 既に処理中のジョブが存在する場合
  * @throws Error('MAIML_NOT_FOUND')          - Swift/S3 に MaiML ファイルが存在しない場合
  * @throws Error('PROJECT_NOT_FOUND')        - プロジェクトが存在しない場合
- * @throws Error('PROJECT_NOT_CHECKED_OUT')  - チェックアウト状態でない場合
- * @throws Error('PROJECT_STATUS_INVALID')   - ステータスがタスク結果レビュー待ちでない場合
+ * @throws Error('PROJECT_STATUS_INVALID')   - ステータスが完了（COMPLETED）でない場合
  * @throws Error('TASKS_NOT_COMPLETED')      - 完了・異常終了以外のタスク詳細が存在する場合
  */
 export async function enqueuePublish(
@@ -64,14 +63,9 @@ export async function enqueuePublish(
   const projectName = project.project_name!;
   console.log("projectあり");
 
-  // ── 2. チェックアウト状態確認 ────────────────────────────
-  if (project.checkout_status !== CheckoutStatusEnum.CHECKED_OUT) {
-    throw new Error('PROJECT_NOT_CHECKED_OUT');
-  }
-  console.log("チェックアウト済み");
-
-  // ── 3. プロジェクトステータス確認 ───────────────────────
-  // タスク結果レビュー待ち（3）または プロジェクト完了（4）のみ公開可能（再公開も許可）
+  // ── 2. プロジェクトステータス確認 ───────────────────────
+  // Phase2修正: 作業者→管理者返却時に自動チェックインされるため、チェックアウト確認は不要。
+  // 公開ボタンを押す時点のステータスはプロジェクト完了（4）のみを許可する（再公開時はCOMPLETEDも許可）。
   if (!ALLOWED_PUBLISH_STATUSES.includes((project.project_status ?? -1) as typeof ALLOWED_PUBLISH_STATUSES[number])) {
     throw new Error('PROJECT_STATUS_INVALID');
   }

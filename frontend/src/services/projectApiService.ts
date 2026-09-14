@@ -1894,6 +1894,7 @@ export const fetchTransitionStatus = async (
           result_count?: number;
           result_actual_count?: number;
           prerequisite_transition_ids?: string[];
+          is_recorded?: boolean;
         }>;
       };
     }>(
@@ -1920,6 +1921,7 @@ export const fetchTransitionStatus = async (
       resultCount: t.result_count ?? 0,
       resultActualCount: t.result_actual_count ?? 0,
       prerequisiteTransitionIds: t.prerequisite_transition_ids ?? [],
+      isRecorded: t.is_recorded ?? false,
     }));
 
     return {
