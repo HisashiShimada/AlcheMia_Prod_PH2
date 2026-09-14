@@ -101,8 +101,8 @@
 |-----------|-----------|------|------|---------|------|------|
 | 3-2-1 | Vendor マスタ一覧が表示されること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.2 | GET `/api/v1/master/vendor` | OK | |
 | 3-2-2 | Vendor ID・Vendor 名のキーワードで検索できること | 正常系 | `ui_master_main.md` §5.2.1 | GET `/api/v1/master/vendor` | OK | |
-| 3-2-3 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/vendor` | - | ステータスフィルタなし |
-| 3-2-4 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/vendor` | - | ステータスフィルタなし |
+| 3-2-3 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/vendor` | OK | ステータスフィルタなし |
+| 3-2-4 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/vendor` | OK | ステータスフィルタなし |
 | 3-2-5 | 「追加」ボタンから Vendor を新規作成できること | 正常系 | 要件書#3、`ui_master_add_dialog.md` §5.2 | POST `/api/v1/master/vendor` | OK | |
 | 3-2-6 | Vendor ID が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.1 | - | OK | |
 | 3-2-7 | Vendor ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-324 |

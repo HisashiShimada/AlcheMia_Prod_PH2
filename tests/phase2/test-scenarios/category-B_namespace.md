@@ -103,7 +103,7 @@
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 8/27 | 佐藤 | NG | |
+| 8/27 | 佐藤 | NG |ユーザーが登録できない。https://soft-service.atlassian.net/browse/AISOLMAIML-410?atlOrigin=eyJpIjoiNmY1MmNiYjJjZTE0NDJkZmFhOTViMzYyMTJkNGQwYTgiLCJwIjoiaiJ9|
 
 ---
 
@@ -179,7 +179,7 @@
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 8/27 | 佐藤 | NG | |
+| 8/27 | 佐藤 | OK | |
 
 ---
 
@@ -472,7 +472,7 @@
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 8/27 | 佐藤 | NG | |
+| 8/27 | 佐藤 | NG | 用語重複がインライン表示でエラーになっているhttps://soft-service.atlassian.net/browse/AISOLMAIML-411?atlOrigin=eyJpIjoiYmRmN2I0ZjliNWE4NDZjN2EyNGEwZGZlYTVkMDExZTciLCJwIjoiaiJ9|
 
 ---
 
@@ -702,7 +702,7 @@
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 8/27 | 佐藤 | NG | |
+| 8/27 | 佐藤 | NG | ステップ2:用語重複がインライン表示でエラーになっているhttps://soft-service.atlassian.net/browse/AISOLMAIML-411?atlOrigin=eyJpIjoiYmRmN2I0ZjliNWE4NDZjN2EyNGEwZGZlYTVkMDExZTciLCJwIjoiaiJ9|
 
 ---
 
@@ -779,7 +779,7 @@
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 8/27 | 佐藤 | NG | |
+| 8/27 | 佐藤 | NG |ステップ 2:共有に失敗する https://soft-service.atlassian.net/browse/AISOLMAIML-412?atlOrigin=eyJpIjoiZDY3ZmQ5MWU5OGMwNGE3Yzk3YTExOTNmZmY1ZTM0OGUiLCJwIjoiaiJ9|
 
 ---
 
@@ -843,7 +843,7 @@
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 8/27 | 佐藤 | NG | |
+| 8/27 | 佐藤 | OK | |
 
 ---
 
@@ -910,7 +910,7 @@ prefix の非アクティブ化時に影響ファイルへの警告が表示さ�
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 8/27 | 佐藤 | NG | |
+| 8/27 | 佐藤 | NG |ステップ1:https://soft-service.atlassian.net/browse/AISOLMAIML-294?atlOrigin=eyJpIjoiYmQzZDVjYTU5NDQwNDg4Y2ExNzMwNzQwZDlhZDA0MGQiLCJwIjoiaiJ9 |
 
 ---
 
@@ -985,7 +985,7 @@ prefix の非アクティブ化時に影響ファイルへの警告が表示さ�
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| | | 未実施 | |
+|09/14 | 佐藤 | NG | ステップ1：https://soft-service.atlassian.net/browse/AISOLMAIML-413?atlOrigin=eyJpIjoiODhjN2ZjMTNlYTg2NDU3MGExMzU0MTM4ZmI1MGMyMGEiLCJwIjoiaiJ9|
 
 ---
 
@@ -995,10 +995,11 @@ prefix の非アクティブ化時に影響ファイルへの警告が表示さ�
 |-----------|---------|-----------|----------|
 | B-NS-01 | ユーザ登録時の個人名前空間自動生成 | system_admin | NG |
 | B-NS-02 | グローバル名前空間宣言の閲覧・インポート・エクスポート | provider | OK |
-| B-NS-03 | Prefixの登録・編集・非アクティブ化・CSVエクスポート | experiment_admin / experiment_worker | NG |
+| B-NS-03 | Prefixの登録・編集・非アクティブ化・CSVエクスポート | experiment_admin / experiment_worker | OK |
 | B-NS-04 | 用語の登録・編集・有効無効切替・CSVエクスポート | experiment_admin / experiment_worker | NG |
 | B-NS-05 | グループ追加と名前空間URI自動採番 | experiment_admin | OK |
 | B-NS-06 | 用語登録・編集・重複チェック | experiment_admin | NG |
 | B-NS-07 | 用語の上位層共有（ロール別共有先範囲の確認） | experiment_admin | NG |
-| B-NS-08 | アクセス権限制御（閲覧範囲の確認） | experiment_admin / experiment_worker | NG |
+| B-NS-08 | アクセス権限制御（閲覧範囲の確認） | experiment_admin / experiment_worker | OK |
 | B-NS-09 | prefix非アクティブ化・MaiML xmlns自動宣言 | experiment_admin | NG |
+| B-NS-10 | UncertaintyManagement Prefix共有・名前空間管理多言語化確認 | experiment_admin | NG |

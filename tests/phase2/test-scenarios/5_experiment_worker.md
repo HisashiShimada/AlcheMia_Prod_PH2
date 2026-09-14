@@ -257,7 +257,7 @@
 | 5-6-6 | テンプレート名検索Inputでテンプレート一覧が絞り込まれること | 正常系 | `ui_work_record_panel.md` §1.2（テンプレート選択） | - | OK | |
 | 5-6-7 | 種別Select（Material/Condition/Result）でテンプレート一覧が絞り込まれること | 正常系 | `ui_work_record_panel.md` §1.2（テンプレート選択）、要件 F-07-01 | - | OK | |
 | 5-6-8 | テンプレートを選択すると右コンテンツ部分に `[Category Tag] テンプレート名` と3列グリッドのプロパティカードが表示されること | 正常系 | `ui_work_record_panel.md` §2.2（Content）、要件 F-07-01 | - | OK | |
-| 5-6-9 | プロパティカードごとに実績値を入力できること（文字列・数値・真偽値等の xsi:type 対応） | 正常系 | `ui_work_record_panel.md` §1.2（プロパティカードごとの実績値入力）、要件 F-07-01 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-398 |
+| 5-6-9 | プロパティカードごとに実績値を入力できること（文字列・数値・真偽値等の xsi:type 対応） | 正常系 | `ui_work_record_panel.md` §1.2（プロパティカードごとの実績値入力）、要件 F-07-01 | - | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-398 |
 | 5-6-10 | 定性評価タイプのプロパティカードで確信度（qualitativeOptions セレクタ）を選択できること | 正常系 | `ui_work_record_panel.md` §1.2（確信度（定性評価）追加）、要件 F-08-01 | - | OK | 不確かさ基準マスター（`/for-selector`）から選択肢を取得すること |
 | 5-6-11 | 定量評価タイプのプロパティカードで定量評価値（数値・単位）を追加できること | 正常系 | `ui_work_record_panel.md` §1.2（定量評価追加）、要件 F-08-01 | - | OK | |
 
