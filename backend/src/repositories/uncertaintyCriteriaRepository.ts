@@ -269,10 +269,14 @@ export async function findByKey(
  * セレクター用の不確かさ基準一覧を取得（有効なもののみ、定性評価の選択肢も含む）
  *
  * @param organizationId - 組織ID
+ * @param organizationGroupCd - 組織グループCD（省略または null の場合は全件取得）
+ *   指定時: グループ＋祖先グループ＋組織共通スコープの基準のみ返す
+ *   未指定: 組織内全件返す（後方互換）
  * @returns セレクター用不確かさ基準一覧（intuition_selector を集約済み）
  */
 export async function findForSelector(
-  organizationId: string
+  organizationId: string,
+  organizationGroupCd?: string | null
 ): Promise<UncertaintyCriteriaSelectorRow[]> {
   const pgp = getPgp();
 
@@ -295,7 +299,7 @@ export async function findForSelector(
     displayOrder:     number | null;
     selectorValue:    string | null;
     displayColor:     string | null;
-  }>(sqlQuery, [organizationId]);
+  }>(sqlQuery, [organizationId, organizationGroupCd ?? null]);
 
   if (rows.length === 0) return [];
 
