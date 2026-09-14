@@ -1,4 +1,4 @@
--- ===================================================================
+﻿-- ===================================================================
 -- テーブル名: user_authentication (利用者認証)
 -- 説明: 利用者認証テーブル
 -- ===================================================================
@@ -14,6 +14,7 @@ CREATE TABLE user_authentication (
     -- 認証情報
     password CHARACTER VARYING(255) NOT NULL,
     is_temporary_flg BOOLEAN NOT NULL DEFAULT false,
+    password_expires_at TIMESTAMPTZ,
     -- 監査証跡
     create_user_id VARCHAR(50),
     update_user_id VARCHAR(50),
@@ -36,3 +37,4 @@ COMMENT ON COLUMN user_authentication.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN user_authentication.update_user_id IS '更新者ユーザID';
 COMMENT ON COLUMN user_authentication.create_at IS '作成日時';
 COMMENT ON COLUMN user_authentication.update_at IS '更新日時';
+COMMENT ON COLUMN user_authentication.password_expires_at IS 'パスワード有効期限';

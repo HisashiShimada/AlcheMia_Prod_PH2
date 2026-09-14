@@ -5328,7 +5328,7 @@
     "uriRequired": "URI を入力してください",
     "errorDuplicateGlobalPrefix": "「{prefix}」はグローバルスコープに既に登録されています",
     "warnTitle": "重複する Prefix が存在します",
-    "warnAlreadyRegistered": "「{prefix}」は「{scopeName}」に既に登録されています。上書き登録しますか？",
+    "warnAlreadyRegistered": "「{prefix}」は上位層「{scopeName}」に既に登録されています。現在の階層にも追加登録しますか？",
     "warnOk": "登録する",
     "warnCancel": "キャンセル",
     "prefixRequiredEdit": "Prefix を入力してください",
