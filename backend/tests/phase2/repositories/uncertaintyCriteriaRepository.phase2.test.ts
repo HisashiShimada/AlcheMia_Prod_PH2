@@ -225,6 +225,29 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
       expect(result[1].qualitativeOptions).toHaveLength(1);
     });
 
+    test('organizationGroupCd 指定時: $2 に値を渡して呼び出すこと', async () => {
+      mockPgp.any.mockResolvedValue([]);
+
+      await findForSelector('org-001', 'group-001');
+
+      // SQL には [organizationId, organizationGroupCd] の2引数が渡る
+      expect(mockPgp.any).toHaveBeenCalledWith(
+        expect.any(String),
+        ['org-001', 'group-001']
+      );
+    });
+
+    test('organizationGroupCd 未指定時: $2 に null を渡して呼び出すこと（後方互換）', async () => {
+      mockPgp.any.mockResolvedValue([]);
+
+      await findForSelector('org-001');
+
+      expect(mockPgp.any).toHaveBeenCalledWith(
+        expect.any(String),
+        ['org-001', null]
+      );
+    });
+
     test('存在しない場合、空配列を返すこと', async () => {
       mockPgp.any.mockResolvedValue([]);
 

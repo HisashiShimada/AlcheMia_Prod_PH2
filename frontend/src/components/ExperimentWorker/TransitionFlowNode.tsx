@@ -5,12 +5,14 @@ import { Handle, Position } from 'reactflow';
 import { Card, Typography, Tag, Progress, theme, Space, Button } from 'antd';
 import {
   CheckCircleOutlined,
-  ClockCircleOutlined,
+  CheckSquareOutlined,
   ExclamationCircleOutlined,
   MinusCircleOutlined,
+  PauseCircleOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import { Transition, ProgressStatus } from '@/types/experimentWorker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -31,61 +33,63 @@ interface TransitionFlowNodeProps {
  */
 export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const { transition, onRecordClick, onIssueClick, isProjectRecordable } = data;
 
   // ステータスに応じた色とアイコンを取得
+  // アイコン・色は ProgressOverviewTab の STATUS_CONFIG に合わせて統一
   const getStatusConfig = (status?: ProgressStatus) => {
     if (!status) {
       return {
-        color: token.colorBorder,
+        color: 'default' as const,
         bgColor: token.colorBgContainer,
-        icon: <MinusCircleOutlined />,
-        text: '未開始',
+        icon: <MinusCircleOutlined style={{ color: '#bfbfbf' }} />,
+        text: t('progressOverview.status.not_started'),
       };
     }
 
     const configs: Record<ProgressStatus, { color: string; bgColor: string; icon: React.ReactNode; text: string }> = {
       not_started: {
-        color: token.colorBorder,
+        color: 'default',
         bgColor: token.colorBgContainer,
-        icon: <MinusCircleOutlined />,
-        text: '未開始',
+        icon: <MinusCircleOutlined style={{ color: '#bfbfbf' }} />,
+        text: t('progressOverview.status.not_started'),
       },
       preparing: {
-        color: token.colorInfo,
+        color: 'processing',
         bgColor: '#e6f4ff',
-        icon: <SyncOutlined />,
-        text: '準備中',
+        icon: <SyncOutlined style={{ color: '#1677ff' }} />,
+        text: t('progressOverview.status.preparing'),
       },
       ready: {
-        color: token.colorSuccess,
-        bgColor: '#f6ffed',
-        icon: <CheckCircleOutlined />,
-        text: '準備完了',
+        color: 'cyan',
+        bgColor: '#e6fffb',
+        icon: <CheckSquareOutlined style={{ color: '#13c2c2' }} />,
+        text: t('progressOverview.status.ready'),
       },
       in_progress: {
-        color: token.colorWarning,
-        bgColor: '#fff7e6',
-        icon: <ClockCircleOutlined />,
-        text: '作業中',
+        color: 'processing',
+        bgColor: '#e6f4ff',
+        icon: null,
+        text: t('progressOverview.status.in_progress'),
       },
       completed: {
-        color: token.colorSuccess,
+        color: 'success',
         bgColor: '#f6ffed',
-        icon: <CheckCircleOutlined />,
-        text: '完了',
+        icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
+        text: t('progressOverview.status.completed'),
       },
       on_hold: {
-        color: token.colorWarning,
+        color: 'warning',
         bgColor: '#fffbe6',
-        icon: <ExclamationCircleOutlined />,
-        text: '保留中',
+        icon: <PauseCircleOutlined style={{ color: '#faad14' }} />,
+        text: t('progressOverview.status.on_hold'),
       },
       issue: {
-        color: token.colorError,
+        color: 'error',
         bgColor: '#fff1f0',
-        icon: <ExclamationCircleOutlined />,
-        text: '問題あり',
+        icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+        text: t('progressOverview.status.issue'),
       },
     };
 
@@ -236,7 +240,7 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
               }}
               data-testid={`transition-node-record-button-${transition.transitionId}`}
             >
-              記録
+              {t('experimentWork.table.record')}
             </Button>
           </div>
         </Space>

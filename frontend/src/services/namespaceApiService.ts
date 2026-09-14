@@ -159,24 +159,33 @@ export interface TermUpsertRequest {
 // ============================================================================
 
 /**
- * 組織に紐づく名前空間宣言一覧を取得する（XMLビュー注入用）
+ * プロジェクトに紐づく名前空間宣言一覧を取得する（XMLビュー・保存時の xmlns 注入用）
  *
  * @remarks
- * バックエンドの GET /api/v1/namespaces/declarations を呼び出し、組織固有の URI を取得する。
- * 並列でファイルサーバのグローバル名前空間宣言（getGlobalDeclarations）も取得し、
- * 以下の変換を適用してマージした結果を返す。
+ * プロジェクトの所属グループ + その上位グループすべての Prefix を取得し、
+ * グローバル宣言とマージして返す。
+ *
+ * - organizationGroupCd（プロジェクトの所属グループ）が渡された場合はそのグループを起点に
+ *   WITH RECURSIVE で祖先グループを辿る。
+ * - 渡されない場合は localStorage の userInfo.organizationGroupCds[0] をフォールバックとして使用。
+ * - 同一 prefix が対象グループと祖先グループの両方に存在する場合、
+ *   バックエンドの SQL（ORDER BY depth ASC）により対象グループのものが先頭に来るため
+ *   アプリ側の先勝ちフィルタ（seen Set）で対象グループが優先される。
+ * - 各 prefix のURIは entry.scopeKey（属するグループCD）ごとに fetchSuggestedUri を呼んで
+ *   正規URIを取得し割り当てる。同一 scopeKey への API コールは Map でキャッシュして重複排除する。
  *
  * 変換ルール:
  * - prefix が 'maiml' かつ uri が 'http://www.maiml.org/schemas' の場合は prefix を '' に変換
  *   → xmlns="http://www.maiml.org/schemas" としてデフォルト名前空間として注入される
  *
- * 返却順序: グローバル宣言 → 組織 URI（後勝ちで組織固有が優先される）
- *
+ * @param organizationGroupCd - プロジェクトが属するグループの organization_group_cd（任意）
  * @returns 名前空間エントリ一覧（{prefix, uri}[]）
  */
-export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => {
+export const getOrganizationNamespaces = async (
+  organizationGroupCd?: string
+): Promise<NamespaceEntry[]> => {
   try {
-    console.log('🔖 [namespaceApiService] 名前空間宣言一覧取得（グローバル宣言 + 個人/グループスコープ含む）');
+    console.log('🔖 [namespaceApiService] 名前空間宣言一覧取得（グローバル宣言 + グループスコープ含む）', { organizationGroupCd });
 
     // グローバル宣言を取得（組織ベースURIは XMLへの注入対象外のため declarations エンドポイントは使用しない）
     const globalDeclarations = await getGlobalDeclarations();
@@ -193,10 +202,9 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
 
     // 注意: declarations エンドポイントが返す orgUri は組織のベースURI（prefix なし）。
     // これを prefix='' のデフォルト名前空間として注入すると xmlns="" が2重になりXMLパースエラーになるため注入しない。
-    // XML への注入は prefix テーブルに登録された prefix+uri ペア（グローバル宣言 + 個人/グループスコープ）とする。
+    // XML への注入は prefix テーブルに登録された prefix+uri ペア（グローバル宣言 + 個人スコープ + グループスコープ）とする。
 
-    // --- ログインユーザーの個人スコープ・組織グループスコープの Prefix を取得 ---
-    // localStorage の userInfo から userId と organizationGroupCds を読み取る
+    // --- localStorage の userInfo からユーザーID・フォールバック用グループCDを読み取る ---
     const userInfo = (() => {
       try {
         if (typeof window === 'undefined') return null;
@@ -208,66 +216,62 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
     })();
 
     // --- 個人スコープ（userId）の Prefix を取得 ---
-    // scopeKeys 複数指定では withAncestors がバックエンドで無視されるため、
-    // 個人スコープとグループスコープを別々の API コールで取得する。
-    const allScopedNamespaces: NamespaceEntry[] = [];
+    // 個人スコープ固有の用語が存在しうるため、グループスコープと同一 prefix がある場合は個人を優先する
+    const personalNamespaces: NamespaceEntry[] = [];
 
     if (userInfo?.id) {
       const personal = await getNamespaceList({ scopeKey: userInfo.id as string });
       if (personal.length > 0) {
-        // 個人スコープの正規 URI を取得（https://{org_cd}.Alchemia.co.jp/{login_name}）
-        // fetchSuggestedUri() を scopeKey なしで呼ぶとログインユーザーの個人スコープ URI を返す
-        const personalUri = await fetchSuggestedUri();
-        console.log(
-          `🔖 [namespaceApiService] 個人スコープ Prefix 取得: ${personal.length} 件 (userId=${userInfo.id}), 正規URI=${personalUri}`
-        );
-        // DB に保存された uri ではなく、正規パターンの個人スコープ URI で上書きする
+        // DB に登録済みの entry.uri をそのまま使用する
         // 非アクティブ Prefix は XML 注入対象外とするためフィルタする
-        const correctedPersonal = personal
-          .filter((entry) => (entry as any).isActive !== false)
-          .map((entry) => ({
-            ...entry,
-            uri: personalUri,
-          }));
-        allScopedNamespaces.push(...correctedPersonal);
+        const activePersonal = personal
+          .filter((entry) => (entry as any).isActive !== false);
+        personalNamespaces.push(...activePersonal);
+        console.log(
+          `🔖 [namespaceApiService] 個人スコープ Prefix 取得: ${activePersonal.length} 件 (userId=${userInfo.id})`
+        );
       }
     }
 
-    // --- 組織グループスコープの Prefix を取得（祖先グループを含む） ---
-    // organizationGroupCds の先頭グループ CD を起点に WITH RECURSIVE で祖先まで辿る
-    const groupCds: string[] = Array.isArray(userInfo?.organizationGroupCds)
+    // --- グループスコープの Prefix を取得（対象グループ + 祖先グループを含む） ---
+    // organizationGroupCd が渡された場合はそれを優先、なければ userInfo のフォールバックを使用
+    const fallbackGroupCds: string[] = Array.isArray(userInfo?.organizationGroupCds)
       ? (userInfo.organizationGroupCds as string[])
       : [];
-    if (groupCds.length > 0) {
-      const group = await getNamespaceList({ scopeKey: groupCds[0], withAncestors: true });
+    const targetGroupCd: string | undefined = organizationGroupCd ?? fallbackGroupCds[0];
+
+    const allScopedNamespaces: NamespaceEntry[] = [];
+
+    if (targetGroupCd) {
+      // withAncestors=true で対象グループ + 全祖先グループの Prefix を取得
+      // SQL（findNamespacesByScopeKeyWithAncestors.sql）は ORDER BY p.prefix ASC, depth ASC で
+      // 対象グループ（depth=0）が同一 prefix の先頭に来るよう保証されている
+      const group = await getNamespaceList({ scopeKey: targetGroupCd, withAncestors: true });
       if (group.length > 0) {
-        // グループスコープの正規 URI を取得（https://{groupCd}.Alchemia.co.jp/...）
-        // fetchSuggestedUri(scopeKey) を呼ぶとログインユーザーの所属グループスコープ URI を返す
-        const groupUri = await fetchSuggestedUri(groupCds[0]);
-        console.log(
-          `🔖 [namespaceApiService] グループスコープ Prefix 取得: ${group.length} 件 (scopeKey=${groupCds[0]}, withAncestors=true), 正規URI=${groupUri}`
-        );
-        // DB に保存された uri ではなく、正規パターンのグループスコープ URI で上書きする
+        // DB に登録済みの entry.uri をそのまま使用する
         // 非アクティブ Prefix は XML 注入対象外とするためフィルタする
-        const correctedGroup = group
-          .filter((entry) => (entry as any).isActive !== false)
-          .map((entry) => ({ ...entry, uri: groupUri }));
-        allScopedNamespaces.push(...correctedGroup);
+        const activeGroup = group.filter((entry) => (entry as any).isActive !== false);
+        allScopedNamespaces.push(...activeGroup);
+        console.log(
+          `🔖 [namespaceApiService] グループスコープ Prefix 取得: ${activeGroup.length} 件 (targetGroupCd=${targetGroupCd}, withAncestors=true)`
+        );
       }
     }
 
-    const personalGroupNamespaces = allScopedNamespaces;
-
-    // --- 結合: グローバル優先（先勝ち）で個人/グループスコープを追加 ---
-    // convertedGlobals を先頭に置くことで、同一 prefix はグローバルが採用される
-    const allEntries: NamespaceEntry[] = [...convertedGlobals, ...personalGroupNamespaces];
+    // --- 結合: グローバル（1位） > 個人スコープ（2位） > グループスコープ（3位）---
+    // 先勝ちフィルタにより前に置いたスコープが優先される
+    // 個人スコープとグループスコープに同一 prefix がある場合は個人を優先する
+    //   理由: 個人スコープ固有の用語（個人スコープにのみ登録された用語）が存在しうるため
+    // グループスコープ内では SQL の depth ASC ソートにより対象グループ（depth=0）が祖先グループより先に来る
+    const allEntries: NamespaceEntry[] = [...convertedGlobals, ...personalNamespaces, ...allScopedNamespaces];
 
     // --- 防御処理 ---
     // 1. URI バリデーション: 絶対 URI でないエントリをスキップ
     //    prefix 付きの場合は http://, https://, urn: 等で始まる必要がある
     //    prefix なし（デフォルト名前空間）も同様
-    // 2. 同一 prefix の重複除去（先勝ち）: グローバル宣言が優先され、
-    //    個人/グループスコープの同名 prefix は後勝ち防止のためスキップされる
+    // 2. 同一 prefix の重複除去（先勝ち）:
+    //    グローバル > 個人スコープ > グループスコープ の順で採用される
+    //    グループスコープ内では対象グループ（depth=0）が祖先グループより先に採用される
     const seen = new Set<string>();
     const filtered: NamespaceEntry[] = [];
     for (const entry of allEntries) {

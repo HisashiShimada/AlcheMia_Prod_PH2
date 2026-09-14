@@ -8,6 +8,7 @@ import * as masterService from '../services/roleService';
 import { v4 as uuidv4 } from 'uuid';
 import Papa from 'papaparse';
 import { getNowJST } from '../utils/dateUtils';
+import { getLang } from '../utils/messages';
 
 /**
  * ロール一覧取得
@@ -378,6 +379,7 @@ export async function updateRolePermissions(
     const userId = req.user?.userId;
     const { roleId } = req.params;
     const { functionName, functionWritePermissions } = req.body;
+    const lang = getLang(req);
 
     // バリデーション
     // functionNameが空文字列の場合は全権限削除として許容
@@ -402,7 +404,8 @@ export async function updateRolePermissions(
       roleId,
       functionName,
       functionWritePermissions || '',
-      String(userId)
+      String(userId),
+      lang
     );
 
     // 成功レスポンス

@@ -3022,7 +3022,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         console.log('💾 [PetriNetEditorInner] アーカイブ設定:', { editMode, archive });
         
         // S3ファイル保存API
-        const response = await maimlService.saveMaiml(fileKey, base64Data, archive)
+        const response = await maimlService.saveMaiml(fileKey, base64Data, archive, organizationGroupCd)
         
         if (!response.success) {
           const errorData = response.error;
@@ -3774,6 +3774,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
               methods={methods}
               activeMethodIndex={activeMethodIndex}
               projectId={projectId ?? ''}
+              organizationGroupCd={organizationGroupCd}
             />
           ) : null}
 
@@ -3841,6 +3842,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           documentData={documentData}
           onClose={handleCloseDocumentEditor}
           onSave={handleSaveDocument}
+          projectId={projectId}
         />
 
         {/* Week2: ValidationPanel */}

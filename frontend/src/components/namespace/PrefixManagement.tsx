@@ -188,11 +188,14 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       ]);
       if (seq !== fetchSeqRef.current) return;
 
-      // prefix をキーに重複除去（祖先リスト優先）
+      // prefix + scopeKey の複合キーで重複除去（同一 prefix でもスコープが異なれば別行として表示）
+      // ※ prefix 単独で除去すると、上位層（祖先）と同名 prefix を下位層に新規登録した際に
+      //    下位層の行が除外され一覧に表示されなくなるため、id フィールドと同じ複合キーを使用する
       const seen = new Set<string>();
       const merged = [...ancestorList, ...descendantList].filter((ns) => {
-        if (seen.has(ns.prefix)) return false;
-        seen.add(ns.prefix);
+        const key = `${ns.prefix}__${ns.scopeKey ?? ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
         return true;
       });
 
@@ -236,13 +239,9 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       const isOrgGroup = !STATIC_KEYS.has(key);
       if (isOrgGroup) {
         // 組織グループノード選択時:
-        // 選択ノード＋祖先グループ（withAncestors=true）と子孫グループ（orgGroupCds）を
-        // 並列取得してマージする。上位層（祖先）の Prefix も表示し、編集は isAncestorRow で制御する。
-        if (orgGroupCds && orgGroupCds.length > 0) {
-          fetchNamespacesWithAncestorsAndDescendants(key, orgGroupCds);
-        } else {
-          fetchNamespaces(key, true);
-        }
+        // 選択ノード＋祖先グループのPrefixのみ取得（用語管理タブと同一ロジック）
+        // 子孫グループのPrefixは表示しない
+        fetchNamespaces(key, true);
       } else {
         // global / personal 等の静的キー
         fetchNamespaces(key, undefined);

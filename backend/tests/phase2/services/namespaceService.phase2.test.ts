@@ -100,6 +100,203 @@ describe('namespaceService - Phase2 テスト', () => {
   });
 
   // ==========================================================================
+  // createTerm
+  // ==========================================================================
+  describe('createTerm()', () => {
+    const baseTerm = {
+      qname: 'Uncertainty:projectA',
+      prefix: 'Uncertainty',
+      localName: 'projectA',
+      displayName: 'A',
+      description: '結合テスト',
+      type: 'intType',
+      unitHint: '℃',
+      isActive: true,
+      hasDirectiveTerm: false,
+    };
+
+    beforeEach(() => {
+      (namespaceTermRepository.existsNamespace as jest.Mock).mockResolvedValue(true);
+    });
+
+    test('正常系（createDirectiveTerm: false）: create を1回だけ呼び出すこと', async () => {
+      (namespaceTermRepository.create as jest.Mock).mockResolvedValue(baseTerm);
+
+      const input: namespaceService.CreateTermInput = {
+        organizationId: 'org-001',
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+        createDirectiveTerm: false,
+        scopeKey: 'group-002',
+      };
+
+      await namespaceService.createTerm(input);
+
+      expect(namespaceTermRepository.create).toHaveBeenCalledTimes(1);
+      expect(namespaceTermRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ localName: 'projectA', hasDirectiveTerm: false })
+      );
+    });
+
+    test('正常系（createDirectiveTerm: false）: scopeKey が create() に正しく伝播されること', async () => {
+      (namespaceTermRepository.create as jest.Mock).mockResolvedValue(baseTerm);
+
+      const input: namespaceService.CreateTermInput = {
+        organizationId: 'org-001',
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+        createDirectiveTerm: false,
+        scopeKey: 'group-002',
+      };
+
+      await namespaceService.createTerm(input);
+
+      expect(namespaceTermRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ scopeKey: 'group-002' })
+      );
+    });
+
+    test('正常系（createDirectiveTerm: true）: create を1回 + createInTx をトランザクション内で2回呼び出すこと', async () => {
+      // pgp.tx のモック設定
+      const mockTx = jest.fn().mockImplementation(async (callback: any) => {
+        const mockT = {};
+        return callback(mockT);
+      });
+      jest.spyOn(require('../../../src/database/db'), 'getPgp').mockReturnValue({ tx: mockTx });
+      (namespaceTermRepository.createInTx as jest.Mock)
+        .mockResolvedValueOnce({ ...baseTerm, hasDirectiveTerm: true })  // 元用語
+        .mockResolvedValueOnce({ ...baseTerm, localName: 'SupervisorDirectiveprojectA', hasDirectiveTerm: false }); // 指示用語
+
+      const input: namespaceService.CreateTermInput = {
+        organizationId: 'org-001',
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+        createDirectiveTerm: true,
+        scopeKey: 'group-002',
+      };
+
+      await namespaceService.createTerm(input);
+
+      expect(namespaceTermRepository.createInTx).toHaveBeenCalledTimes(2);
+      // 1回目：元用語（hasDirectiveTerm: true）
+      expect(namespaceTermRepository.createInTx).toHaveBeenNthCalledWith(
+        1,
+        expect.anything(),
+        expect.objectContaining({ localName: 'projectA', hasDirectiveTerm: true })
+      );
+      // 2回目：指示用語（SupervisorDirective + localName）
+      expect(namespaceTermRepository.createInTx).toHaveBeenNthCalledWith(
+        2,
+        expect.anything(),
+        expect.objectContaining({ localName: 'SupervisorDirectiveprojectA', hasDirectiveTerm: false })
+      );
+    });
+
+    test('正常系（createDirectiveTerm: true）: scopeKey が createInTx() の両呼び出しに正しく伝播されること', async () => {
+      // pgp.tx のモック設定
+      const mockTxScopeKey = jest.fn().mockImplementation(async (callback: any) => {
+        const mockT = {};
+        return callback(mockT);
+      });
+      jest.spyOn(require('../../../src/database/db'), 'getPgp').mockReturnValue({ tx: mockTxScopeKey });
+      (namespaceTermRepository.createInTx as jest.Mock)
+        .mockResolvedValueOnce({ ...baseTerm, hasDirectiveTerm: true })
+        .mockResolvedValueOnce({ ...baseTerm, localName: 'SupervisorDirectiveprojectA', hasDirectiveTerm: false });
+
+      const input: namespaceService.CreateTermInput = {
+        organizationId: 'org-001',
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+        createDirectiveTerm: true,
+        scopeKey: 'group-002',
+      };
+
+      await namespaceService.createTerm(input);
+
+      // 1回目（元用語）：scopeKey が伝播されること
+      expect(namespaceTermRepository.createInTx).toHaveBeenNthCalledWith(
+        1,
+        expect.anything(),
+        expect.objectContaining({ scopeKey: 'group-002' })
+      );
+      // 2回目（指示用語）：scopeKey が伝播されること
+      expect(namespaceTermRepository.createInTx).toHaveBeenNthCalledWith(
+        2,
+        expect.anything(),
+        expect.objectContaining({ scopeKey: 'group-002' })
+      );
+    });
+
+    test('正常系（createDirectiveTerm: true かつ localName が SupervisorDirective 始まり）: createInTx を呼ばず create を1回だけ呼び出すこと（二重プレフィックス防止）', async () => {
+      (namespaceTermRepository.create as jest.Mock).mockResolvedValue({
+        ...baseTerm,
+        localName: 'SupervisorDirectiveprojectA',
+        hasDirectiveTerm: false,
+      });
+
+      const input: namespaceService.CreateTermInput = {
+        organizationId: 'org-001',
+        prefix: 'Uncertainty',
+        // localName が既に SupervisorDirective で始まる場合
+        localName: 'SupervisorDirectiveprojectA',
+        createDirectiveTerm: true,
+        scopeKey: 'group-002',
+      };
+
+      await namespaceService.createTerm(input);
+
+      // createInTx（トランザクション）は呼ばれない
+      expect(namespaceTermRepository.createInTx).not.toHaveBeenCalled();
+      // create が1回だけ呼ばれ、hasDirectiveTerm: false で登録される
+      expect(namespaceTermRepository.create).toHaveBeenCalledTimes(1);
+      expect(namespaceTermRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          localName: 'SupervisorDirectiveprojectA',
+          hasDirectiveTerm: false,
+        })
+      );
+    });
+
+    test('正常系（createDirectiveTerm: true かつ localName が SupervisorDirective 始まり）: scopeKey が create() に正しく伝播されること', async () => {
+      (namespaceTermRepository.create as jest.Mock).mockResolvedValue({
+        ...baseTerm,
+        localName: 'SupervisorDirectiveprojectA',
+        hasDirectiveTerm: false,
+      });
+
+      const input: namespaceService.CreateTermInput = {
+        organizationId: 'org-001',
+        prefix: 'Uncertainty',
+        localName: 'SupervisorDirectiveprojectA',
+        createDirectiveTerm: true,
+        scopeKey: 'group-002',
+      };
+
+      await namespaceService.createTerm(input);
+
+      expect(namespaceTermRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ scopeKey: 'group-002' })
+      );
+    });
+
+    test('正常系（prefix が存在しない）: null を返すこと', async () => {
+      (namespaceTermRepository.existsNamespace as jest.Mock).mockResolvedValue(false);
+
+      const input: namespaceService.CreateTermInput = {
+        organizationId: 'org-001',
+        prefix: 'NonExistent',
+        localName: 'projectA',
+        createDirectiveTerm: false,
+      };
+
+      const result = await namespaceService.createTerm(input);
+
+      expect(result).toBeNull();
+      expect(namespaceTermRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================================================
   // getDeclarationsByProject
   // ==========================================================================
   describe('getDeclarationsByProject()', () => {

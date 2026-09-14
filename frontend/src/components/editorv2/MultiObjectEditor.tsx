@@ -37,7 +37,7 @@ const { TextArea } = Input;
 interface SingleObjectEditorProps {
   index: number;
   objectData: DocumentTagData;
-  objectKey: string;
+  objectKey: 'creators' | 'vendors' | 'owners' | 'instruments';
   includeReferences?: boolean;
   onUpdate: (index: number, property: string, value: string | Reference | null, type?: string) => void;
   onDelete: (index: number) => void;
@@ -263,8 +263,12 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
       {/* マスタから追加された項目のAlert */}
       {internalData.fromMaster && (
         <Alert
-          title="📌 マスタデータから追加された項目"
-          description="この項目はマスタデータから追加されたため、編集できません。"
+          title={objectKey === 'owners' ? '📌 ユーザーから追加された項目' : '📌 マスタデータから追加された項目'}
+          description={
+            objectKey === 'owners'
+              ? 'ID・UUID・名前はユーザー情報から自動設定されており変更できません。Description・Annotationは編集可能です。'
+              : 'この項目はマスタデータから追加されたため、編集できません。'
+          }
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -327,7 +331,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
               onChange={(e) => handleInternalUpdate('description', e.target.value)}
               size="small"
               style={{ marginTop: 4 }}
-              disabled={internalData.fromMaster}
+              disabled={internalData.fromMaster && objectKey !== 'owners'}
             />
           </div>
         </Col>
@@ -341,7 +345,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
               rows={2}
               size="small"
               style={{ marginTop: 4 }}
-              disabled={internalData.fromMaster}
+              disabled={internalData.fromMaster && objectKey !== 'owners'}
             />
           </div>
         </Col>

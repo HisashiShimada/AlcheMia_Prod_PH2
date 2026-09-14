@@ -41,7 +41,7 @@ import {
 import type { MasterRecord as ApiMasterRecord, ItemCategory, MasterTypeData, RoleMasterRecord, RoleApiResponse } from '@/types/roleTypes';
 import FunctionPermissionDialog from './FunctionPermissionDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { extractErrorMessage } from '@/utils/errorUtils';
+import { extractErrorMessage, extractErrorDetails } from '@/utils/errorUtils';
 
 /** 機能未選択を表すセンチネル値 */
 const NO_FUNCTION_SELECTED = '－';
@@ -440,7 +440,10 @@ export default function RoleManagementMock() {
       await fetchRoleMasters();
       message.success(t('roleManagement.messages.csvUploadSuccess'));
     } catch (error) {
-      message.error(extractErrorMessage(error, t('roleManagement.messages.csvUploadError')));
+      const mainMsg = extractErrorMessage(error, t('roleManagement.messages.csvUploadError'));
+      const details = extractErrorDetails(error, mainMsg);
+      const fullMsg = details.length > 0 ? `${mainMsg}\n${details.join('\n')}` : mainMsg;
+      message.error(fullMsg);
     } finally {
       setLoading(false);
     }

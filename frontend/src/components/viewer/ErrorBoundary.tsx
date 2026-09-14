@@ -7,6 +7,7 @@ import React, { Component, ReactNode, ErrorInfo } from 'react';
 import type { ErrorBoundaryState } from '@/types/common';
 import { Alert, Button, Space, Typography, Card } from 'antd';
 import { WarningOutlined, ReloadOutlined } from '@ant-design/icons';
+import { getTranslation } from '@/contexts/LanguageContext';
 
 const { Text, Paragraph } = Typography;
 
@@ -62,15 +63,15 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         <div style={{ padding: 24 }}>
           <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             <Alert
-              message="Component Display Error"
-              description="An error occurred while rendering this component."
+              message={getTranslation('viewer.errorBoundary.title')}
+              description={getTranslation('viewer.errorBoundary.description')}
               type="error"
               showIcon
               icon={<WarningOutlined />}
             />
 
             <Card 
-              title="Error Details" 
+              title={getTranslation('viewer.errorBoundary.detailsTitle')}
               size="small"
               extra={
                 <Button 
@@ -79,14 +80,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                   icon={<ReloadOutlined />}
                   onClick={this.handleReset}
                 >
-                  Retry
+                  {getTranslation('viewer.errorBoundary.retry')}
                 </Button>
               }
             >
               <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 {error && (
                   <div>
-                    <Text strong>Error Message:</Text>
+                    <Text strong>{getTranslation('viewer.errorBoundary.errorMessage')}</Text>
                     <Paragraph code copyable style={{ marginTop: 8 }}>
                       {error.toString()}
                     </Paragraph>
@@ -95,7 +96,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                 
                 {errorInfo && errorInfo.componentStack && (
                   <div>
-                    <Text strong>Component Stack:</Text>
+                    <Text strong>{getTranslation('viewer.errorBoundary.componentStack')}</Text>
                     <Paragraph 
                       code 
                       copyable

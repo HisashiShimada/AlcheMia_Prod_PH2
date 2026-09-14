@@ -385,6 +385,23 @@ export async function createTerm(
   // 指示用語同時登録あり
   // SupervisorDirective（17文字）+ localName が 255 文字を超える場合は 422 エラー
   const SUPERVISOR_DIRECTIVE_PREFIX = 'SupervisorDirective';
+
+  // localName が既に 'SupervisorDirective' で始まる場合は二重プレフィックスを防ぐため
+  // 指示用語の同時登録をスキップして通常の1件のみ登録する
+  if (input.localName.startsWith(SUPERVISOR_DIRECTIVE_PREFIX)) {
+    return namespaceTermRepository.create({
+      organizationId: input.organizationId,
+      prefix: input.prefix,
+      localName: input.localName,
+      displayName: input.displayName,
+      description: input.description,
+      typeHint: input.typeHint,
+      unitHint: input.unitHint,
+      hasDirectiveTerm: false,
+      scopeKey: input.scopeKey,
+    });
+  }
+
   const directiveLocalName = `${SUPERVISOR_DIRECTIVE_PREFIX}${input.localName}`;
   if (directiveLocalName.length > 255) {
     const err: any = new Error(getMessage(lang, 'namespace.directiveLocalNameTooLong'));
@@ -674,14 +691,13 @@ export async function getSuggestedUri(
   let candidateUri: string;
 
   if (scopeKey && scopeKey !== userId) {
-    // チーム/グループスコープ: 先祖グループCDのパスを生成
-    // ancestors[0] をドメイン部、ancestors.slice(1) をパス部に使用
+    // チーム/グループスコープ: 組織CDをドメイン部に使い、ルートから指定グループまでの全CDをパスに並べる
+    // URI仕様: https://{組織CD}.Alchemia.co.jp/{グループCD}/{グループCD}/...
+    // findOrgGroupAncestors は ORDER BY depth DESC でルートCDから指定グループCDの順で返す
     const ancestors = await namespaceTermRepository.findOrgGroupAncestors(organizationId, scopeKey);
-    const domainPart = ancestors[0] ?? organizationCd;
-    const pathParts = ancestors.slice(1);
-    candidateUri = pathParts.length > 0
-      ? `https://${domainPart}.Alchemia.co.jp/${pathParts.join('/')}`
-      : `https://${domainPart}.Alchemia.co.jp`;
+    candidateUri = ancestors.length > 0
+      ? `https://${organizationCd}.Alchemia.co.jp/${ancestors.join('/')}`
+      : `https://${organizationCd}.Alchemia.co.jp`;
   } else {
     // 個人スコープ: organization_cd をドメイン部に使用
     // userService.ts の registerUserNamespace() と同一ロジックで URI を生成する

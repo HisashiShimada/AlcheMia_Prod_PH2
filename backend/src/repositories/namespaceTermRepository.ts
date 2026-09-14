@@ -1,4 +1,4 @@
-/**
+﻿/**
  * namespace_term Repository
  *
  * namespace / prefix / namespace_term テーブルへのデータアクセスを提供
@@ -278,10 +278,28 @@ export async function create(data: {
       findByScopeKeyQuery,
       [data.organizationId, data.scopeKey, data.prefix]
     );
-    if (!scopeRow) {
-      throw new Error(`prefix "${data.prefix}" に対応する namespace_id が見つかりません`);
+    if (scopeRow) {
+      // 現在スコープに prefix が直接登録されている場合はその namespace_id を使用
+      namespaceId = scopeRow.namespace_id;
+    } else {
+      // 現在スコープに prefix が存在しない場合（上位スコープの prefix をプルダウン経由で選択した場合など）
+      // prefix のみで namespace_id を特定し、そのスコープ内で重複チェックを行う
+      // → 上位スコープに既に同名用語が存在すれば 409、なければそのスコープへ INSERT する
+      const findPrefixQuery = await loadSqlFile('namespace_terms/findPrefixNamespaceId.sql');
+      const prefixRow = await pgp.oneOrNone<{ namespace_id: string }>(
+        findPrefixQuery,
+        [data.organizationId, data.prefix]
+      );
+      if (!prefixRow) {
+        const notFoundErr: Error & { statusCode?: number; code?: string } = new Error(
+          `prefix "${data.prefix}" が見つかりません`
+        );
+        notFoundErr.statusCode = 404;
+        notFoundErr.code = 'E6001';
+        throw notFoundErr;
+      }
+      namespaceId = prefixRow.namespace_id;
     }
-    namespaceId = scopeRow.namespace_id;
   } else {
     const findPrefixQuery = await loadSqlFile('namespace_terms/findPrefixNamespaceId.sql');
     const prefixRow = await pgp.oneOrNone<{ namespace_id: string }>(
@@ -294,19 +312,21 @@ export async function create(data: {
     namespaceId = prefixRow.namespace_id;
   }
 
-  // 重複チェック: 同じ prefix:localName が既に存在する場合は 409 エラー
-  const checkQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  // 重複チェック: 同じ prefix:localName が登録先スコープ内に既に存在する場合は 409 エラー
+  // ※ findTermByKey.sql はスコープ（namespace_id）を無視するため、登録先の namespace_id を指定して検索する
+  const checkQuery = await loadSqlFile('namespace_terms/findTermInScope.sql');
   const existing = await pgp.oneOrNone<NamespaceTermRow>(checkQuery, [
     data.organizationId,
+    namespaceId,
     data.prefix,
     data.localName,
   ]);
   if (existing) {
-    // スコープ名（チーム名など）を取得してエラー詳細に付与
-    const scopeNameQuery = await loadSqlFile('namespace_terms/findScopeNameByPrefix.sql');
+    // 登録先スコープの名前（グループ名・ユーザー名）を取得してエラー詳細に付与
+    const scopeNameQuery = await loadSqlFile('namespace_terms/findScopeNameByNamespaceId.sql');
     const scopeRow = await pgp.oneOrNone<{ scope_name: string }>(scopeNameQuery, [
       data.organizationId,
-      data.prefix,
+      namespaceId,
     ]);
     const scopeName = scopeRow?.scope_name ?? data.prefix;
 
@@ -331,11 +351,13 @@ export async function create(data: {
     data.unitHint ?? null,
     data.hasDirectiveTerm ?? false,
   ]);
-
   // 登録後、フロントエンド用フォーマットで返す
-  const selectQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  // ※ findTermByKey.sql はスコープ（namespace_id）を無視するため複数行返却の恐れがある
+  // 　 登録先 namespace_id を指定して1件確実に取得する
+  const selectQuery = await loadSqlFile('namespace_terms/findTermInScope.sql');
   return pgp.one<NamespaceTermRow>(selectQuery, [
     data.organizationId,
+    namespaceId,
     data.prefix,
     data.localName,
   ]);
@@ -371,10 +393,28 @@ export async function createInTx(
       findByScopeKeyQuery,
       [data.organizationId, data.scopeKey, data.prefix]
     );
-    if (!scopeRow) {
-      throw new Error(`prefix "${data.prefix}" に対応する namespace_id が見つかりません`);
+    if (scopeRow) {
+      // 現在スコープに prefix が直接登録されている場合はその namespace_id を使用
+      namespaceId = scopeRow.namespace_id;
+    } else {
+      // 現在スコープに prefix が存在しない場合（上位スコープの prefix をプルダウン経由で選択した場合など）
+      // prefix のみで namespace_id を特定し、そのスコープ内で重複チェックを行う
+      // → 上位スコープに既に同名用語が存在すれば 409、なければそのスコープへ INSERT する
+      const findPrefixQuery = await loadSqlFile('namespace_terms/findPrefixNamespaceId.sql');
+      const prefixRow = await t.oneOrNone<{ namespace_id: string }>(
+        findPrefixQuery,
+        [data.organizationId, data.prefix]
+      );
+      if (!prefixRow) {
+        const notFoundErr: Error & { statusCode?: number; code?: string } = new Error(
+          `prefix "${data.prefix}" が見つかりません`
+        );
+        notFoundErr.statusCode = 404;
+        notFoundErr.code = 'E6001';
+        throw notFoundErr;
+      }
+      namespaceId = prefixRow.namespace_id;
     }
-    namespaceId = scopeRow.namespace_id;
   } else {
     const findPrefixQuery = await loadSqlFile('namespace_terms/findPrefixNamespaceId.sql');
     const prefixRow = await t.oneOrNone<{ namespace_id: string }>(
@@ -387,18 +427,21 @@ export async function createInTx(
     namespaceId = prefixRow.namespace_id;
   }
 
-  // 重複チェック
-  const checkQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  // 重複チェック: 同じ prefix:localName が登録先スコープ内に既に存在する場合は 409 エラー
+  // ※ findTermByKey.sql はスコープ（namespace_id）を無視するため、登録先の namespace_id を指定して検索する
+  const checkQuery = await loadSqlFile('namespace_terms/findTermInScope.sql');
   const existing = await t.oneOrNone<NamespaceTermRow>(checkQuery, [
     data.organizationId,
+    namespaceId,
     data.prefix,
     data.localName,
   ]);
   if (existing) {
-    const scopeNameQuery = await loadSqlFile('namespace_terms/findScopeNameByPrefix.sql');
+    // 登録先スコープの名前（グループ名・ユーザー名）を取得してエラー詳細に付与
+    const scopeNameQuery = await loadSqlFile('namespace_terms/findScopeNameByNamespaceId.sql');
     const scopeRow = await t.oneOrNone<{ scope_name: string }>(scopeNameQuery, [
       data.organizationId,
-      data.prefix,
+      namespaceId,
     ]);
     const scopeName = scopeRow?.scope_name ?? data.prefix;
 
@@ -425,9 +468,12 @@ export async function createInTx(
   ]);
 
   // 登録後、フロントエンド用フォーマットで返す
-  const selectQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  // ※ findTermByKey.sql はスコープ（namespace_id）を無視するため複数行返却の恐れがある
+  // 　 登録先 namespace_id を指定して1件確実に取得する
+  const selectQuery = await loadSqlFile('namespace_terms/findTermInScope.sql');
   return t.one<NamespaceTermRow>(selectQuery, [
     data.organizationId,
+    namespaceId,
     data.prefix,
     data.localName,
   ]);

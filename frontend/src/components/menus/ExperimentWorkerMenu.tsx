@@ -236,6 +236,8 @@ export default function ExperimentWorkerMenu({
 
       // 「準備状態 (PREPARING=2)」のトランジションを「準備完了状態 (READY=3)」に遷移させ
       // maiml_event_log にイベントを記録する
+      // ※ バックエンドの updateTransitionStatus が PREPARING→READY 遷移時に
+      //   タスク・プロジェクトステータスを自動更新する
       const preparingRow = progressRows.find((r) => r.status === 'preparing');
       if (preparingRow) {
         try {
@@ -245,6 +247,9 @@ export default function ExperimentWorkerMenu({
             progressRate: 0,
           });
           await reloadProgressRows(selectedProject);
+          // プロジェクト一覧を再取得してプロジェクトステータスを最新化する
+          // （プロジェクトステータスが TASK_PENDING → TASK_IN_PROGRESS に変わるため）
+          await handleTaskStatusChanged();
         } catch (transitionErr) {
           // 既に READY 以降の状態の場合は遷移エラーになるため、ログのみ出して続行
           console.warn('[handleConfirmInstruction] トランジションステータス READY 更新スキップ:', transitionErr);

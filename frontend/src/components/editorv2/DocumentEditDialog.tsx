@@ -36,6 +36,7 @@ import {
   DocumentTagData,
 } from '../../types/maiml-unified'
 import { fetchMasters } from '@/services/masterApiService';
+import { getProjectGroupMembers } from '@/services/projectApiService';
 import type { CreatorRecord, VendorRecord, InstrumentRecord } from '@/types/masterDataTypes';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -48,6 +49,8 @@ export interface DocumentEditDialogProps {
   onClose: () => void;
   onSave: (document: DocumentData) => void;
   readOnly?: boolean;
+  /** 対象プロジェクトID（Ownerのユーザー一覧取得に使用） */
+  projectId?: string;
 }
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -63,6 +66,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   documentData,
   onClose,
   onSave,
+  projectId,
 }) => {
   const { message, modal } = App.useApp();
   const { t } = useLanguage();
@@ -144,7 +148,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
         
         setCreators(creatorsData.map(convertCreatorToDocumentTag));
         setVendors(vendorsData.map(convertVendorToDocumentTag));
-        setOwners([]); // ownerマスタは保留
         setInstruments(instrumentsData.map(convertInstrumentToDocumentTag));
         
         console.log('✅ [DocumentEditDialog] マスタデータ取得完了', {
@@ -160,6 +163,89 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     
     loadMasterData();
   }, [open, convertCreatorToDocumentTag, convertVendorToDocumentTag, convertInstrumentToDocumentTag]);
+
+  /**
+   * Ownerユーザー一覧の取得
+   * プロジェクトに紐づくグループのメンバー一覧を取得して Owner 選択肢として表示する
+   */
+  useEffect(() => {
+    const loadOwnerUsers = async () => {
+      if (!open) return;
+
+      if (!projectId) {
+        console.log('📋 [DocumentEditDialog] projectId未指定のためOwner一覧をスキップ');
+        setOwners([]);
+        return;
+      }
+
+      try {
+        console.log('📋 [DocumentEditDialog] Ownerユーザー取得, projectId:', projectId);
+        const members = await getProjectGroupMembers(projectId);
+
+        const ownerItems: DocumentTagData[] = members.map((user) => ({
+          tagName: 'Owner',
+          id: user.userId,
+          uuid: '',
+          name: user.userName,
+          description: '',
+          annotation: '',
+        }));
+
+        setOwners(ownerItems);
+        console.log('✅ [DocumentEditDialog] Owner候補ユーザー取得完了:', ownerItems.length, '名');
+      } catch (error) {
+        console.error('❌ [DocumentEditDialog] Owner候補ユーザー取得エラー:', error);
+        message.error(t('document.ownerUsersLoadFailed'));
+        setOwners([]);
+      }
+    };
+
+    loadOwnerUsers();
+  }, [open, projectId]);
+  /**
+   * 再マッチング処理
+   * MAIMLパース時に失われる fromMaster フラグを、ロード済みマスタデータと突き合わせて復元する。
+   * creators / vendors / instruments は各マスタの id と照合し、
+   * owners はグループメンバーの userId（= id）と照合する。
+   * マスタデータ・Ownerユーザー一覧のどちらかが未ロードの場合でも
+   * ロード済みのものだけ照合し、未ロード分は元データをそのまま使用する。
+   */
+  const resolvedCreators = useMemo<DocumentTagData[]>(() => {
+    if (!documentData?.creators) return [];
+    if (creators.length === 0) return documentData.creators;
+    const masterIds = new Set(creators.map((m) => m.id));
+    return documentData.creators.map((item) =>
+      masterIds.has(item.id) ? { ...item, fromMaster: true } : item
+    );
+  }, [documentData?.creators, creators]);
+
+  const resolvedVendors = useMemo<DocumentTagData[]>(() => {
+    if (!documentData?.vendors) return [];
+    if (vendors.length === 0) return documentData.vendors;
+    const masterIds = new Set(vendors.map((m) => m.id));
+    return documentData.vendors.map((item) =>
+      masterIds.has(item.id) ? { ...item, fromMaster: true } : item
+    );
+  }, [documentData?.vendors, vendors]);
+
+  const resolvedOwners = useMemo<DocumentTagData[]>(() => {
+    if (!documentData?.owners) return [];
+    if (owners.length === 0) return documentData.owners;
+    const memberIds = new Set(owners.map((m) => m.id));
+    return documentData.owners.map((item) =>
+      memberIds.has(item.id) ? { ...item, fromMaster: true } : item
+    );
+  }, [documentData?.owners, owners]);
+
+  const resolvedInstruments = useMemo<DocumentTagData[]>(() => {
+    if (!documentData?.instruments) return [];
+    if (instruments.length === 0) return documentData.instruments;
+    const masterIds = new Set(instruments.map((m) => m.id));
+    return documentData.instruments.map((item) =>
+      masterIds.has(item.id) ? { ...item, fromMaster: true } : item
+    );
+  }, [documentData?.instruments, instruments]);
+
   /**
    * ダイアログ開閉時のフォーム初期化
    * 注: PetriNetEditorInnerから初期化済みのdocumentDataが渡されるため、
@@ -409,7 +495,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             title="Creator"
             icon="⚙️"
             includeReferences={true}
-            initialData={documentData?.creators || []}
+            initialData={resolvedCreators}
             onDataChange={handleMultiObjectDataChange}
             minItems={1}
             isExpanded={expandedSections.creators}
@@ -425,7 +511,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             title="Vendor"
             icon="🏢"
             includeReferences={false}
-            initialData={documentData?.vendors || []}
+            initialData={resolvedVendors}
             onDataChange={handleMultiObjectDataChange}
             minItems={1}
             isExpanded={expandedSections.vendors}
@@ -439,7 +525,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             title="Owner"
             icon="👥"
             includeReferences={false}
-            initialData={documentData?.owners || []}
+            initialData={resolvedOwners}
             onDataChange={handleMultiObjectDataChange}
             minItems={1}
             isExpanded={expandedSections.owners}
@@ -453,7 +539,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             title="Instrument"
             icon="🔬"
             includeReferences={false}
-            initialData={documentData?.instruments || []}
+            initialData={resolvedInstruments}
             onDataChange={handleMultiObjectDataChange}
             minItems={0}
             isExpanded={expandedSections.instruments}
