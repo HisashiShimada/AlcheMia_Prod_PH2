@@ -151,7 +151,7 @@
 | 3-3-7 | Instrument ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-324 |
 | 3-3-8 | Instrument ID が 50 文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-325 |
 | 3-3-9 | 既存の Instrument ID と重複する場合に重複エラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.2（MASTER_ID_DUPLICATE） | POST `/api/v1/master/instrument` | OK | |
-| 3-3-10 | Instrument 追加ダイアログで Vendor ID が未選択の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.3 | - | - | Vender選択機能はない |
+| 3-3-10 | Instrument 追加ダイアログで Vendor ID が未選択の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.3 | - | OK | Vender選択機能はない |
 | 3-3-11 | 「編集」ボタンから Instrument 名・Vendor ID を編集して保存できること | 正常系 | 要件書#3、`ui_master_edit_dialog.md` §5.2 | PUT `/api/v1/master/instrument/:instrumentId` | OK | |
 | 3-3-12 | 編集ダイアログで Instrument ID が読み取り専用（変更不可）であること | 表示確認 | `ui_master_edit_dialog.md` §4.1 | - | OK | |
 | 3-3-13 | Instrument 名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_edit_dialog.md` §8.1 | - | OK | |
