@@ -1,4 +1,4 @@
-﻿-- user_authentication新規登録クエリ
+-- user_authentication新規登録クエリ
 INSERT INTO user_authentication (
   user_id,
   organization_id,
@@ -10,5 +10,5 @@ INSERT INTO user_authentication (
   create_at,
   update_at
 ) VALUES (
-  \$1, \$2, \$3, \$4, \$5, \$6, \$7, NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
 )
