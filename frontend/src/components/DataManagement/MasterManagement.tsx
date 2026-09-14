@@ -863,73 +863,35 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       // すべてのフィールド値を取得（変更されていないフィールドも含む）
       const values = form.getFieldsValue(true);
       
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      
-      // セッショントークンを取得
-      const sessionToken = localStorage.getItem('sessionToken');
-      if (!sessionToken) {
-        message.error(t('masterManagement.messages.sessionTokenError'));
-        return;
-      }
-      
       console.log('=== handleModalOk デバッグ ===');
       console.log('選択されたマスタID:', selectedMasterInfo?.masterId);
       console.log('編集中:', editingMaster ? 'はい' : 'いいえ');
       console.log('フォーム値:', values);
-      console.log('API URL:', apiUrl);
       
       // Instrument/Vendorマスタの場合はAPI経由で更新
       if (selectedMasterInfo?.masterId === '3') {
         // Instrumentマスタ
         if (editingMaster) {
           // 編集の場合 - PUT
-          const response = await fetch(
-            `${apiUrl}/master/instrument/${editingMaster.instrumentId}`,
-            {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionToken}`,
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                instrumentName: values.instrumentName,
-                instrumentDescription: values.instrumentDescription,
-                instrumentAnnotation: values.instrumentAnnotation,
-                isActive: values.isActive,
-              }),
-            }
-          );
-          
-          if (!response.ok) {
-            throw new Error('更新に失敗しました');
-          }
+          const updateData = {
+            instrumentName: values.instrumentName,
+            instrumentDescription: values.instrumentDescription,
+            instrumentAnnotation: values.instrumentAnnotation,
+            isActive: values.isActive,
+          };
+          await masterApi.updateMaster('instrument', String(editingMaster.instrumentId), updateData);
           
           await fetchMasterData('instrument');
           message.success(t('masterManagement.messages.saveSuccess'));
         } else {
-          const response = await fetch(`${apiUrl}/master/instrument`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sessionToken}`,
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              instrumentId: values.instrumentId,
-              instrumentName: values.instrumentName,
-              instrumentDescription: values.instrumentDescription,
-              instrumentAnnotation: values.instrumentAnnotation,
-              isActive: values.isActive !== undefined ? values.isActive : true,
-            }),
-          });
-          
-          if (!response.ok) {
-            if (response.status === 409) {
-              throw new Error(t('masterManagement.messages.idDuplicate'));
-            }
-            throw new Error(t('masterManagement.messages.addFailed'));
-          }
+          const createData = {
+            instrumentId: values.instrumentId,
+            instrumentName: values.instrumentName,
+            instrumentDescription: values.instrumentDescription,
+            instrumentAnnotation: values.instrumentAnnotation,
+            isActive: values.isActive !== undefined ? values.isActive : true,
+          };
+          await masterApi.createMaster('instrument', createData);
           
           await fetchMasterData('instrument');
           message.success(t('masterManagement.messages.addSuccess'));
@@ -938,53 +900,25 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         // Vendorマスタ
         if (editingMaster) {
           // 編集の場合 - PUT
-          const response = await fetch(
-            `${apiUrl}/master/vendor/${editingMaster.vendorId}`,
-            {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionToken}`,
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                vendorName: values.vendorName,
-                vendorDescription: values.vendorDescription,
-                vendorAnnotation: values.vendorAnnotation,
-                isActive: values.isActive,
-              }),
-            }
-          );
-          
-          if (!response.ok) {
-            throw new Error('更新に失敗しました');
-          }
+          const updateData = {
+            vendorName: values.vendorName,
+            vendorDescription: values.vendorDescription,
+            vendorAnnotation: values.vendorAnnotation,
+            isActive: values.isActive,
+          };
+          await masterApi.updateMaster('vendor', String(editingMaster.vendorId), updateData);
           
           await fetchMasterData('vendor');
           message.success(t('masterManagement.messages.saveSuccess'));
         } else {
-          const response = await fetch(`${apiUrl}/master/vendor`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sessionToken}`,
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              vendorId: values.vendorId,
-              vendorName: values.vendorName,
-              vendorDescription: values.vendorDescription,
-              vendorAnnotation: values.vendorAnnotation,
-              isActive: values.isActive !== undefined ? values.isActive : true,
-            }),
-          });
-          
-          if (!response.ok) {
-            if (response.status === 409) {
-              throw new Error(t('masterManagement.messages.idDuplicate'));
-            }
-            throw new Error(t('masterManagement.messages.addFailed'));
-          }
+          const createData = {
+            vendorId: values.vendorId,
+            vendorName: values.vendorName,
+            vendorDescription: values.vendorDescription,
+            vendorAnnotation: values.vendorAnnotation,
+            isActive: values.isActive !== undefined ? values.isActive : true,
+          };
+          await masterApi.createMaster('vendor', createData);
           
           await fetchMasterData('vendor');
           message.success(t('masterManagement.messages.addSuccess'));
@@ -1037,61 +971,33 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         
         if (editingMaster) {
           // 編集の場合 - PUT
-          const response = await fetch(
-            `${apiUrl}/master/creator/${editingMaster.creatorId}`,
-            {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionToken}`,
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                creatorName: values.creatorName,
-                creatorDescription: values.creatorDescription,
-                creatorAnnotation: values.creatorAnnotation,
-                vendorId: vendorData?.vendorId || null,
-                vendorName: vendorData?.vendorName || null,
-                instrumentId: instrumentData?.instrumentId || null,
-                instrumentName: instrumentData?.instrumentName || null,
-                isActive: values.isActive,
-              }),
-            }
-          );
-          
-          if (!response.ok) {
-            throw new Error('更新に失敗しました');
-          }
+          const updateData = {
+            creatorName: values.creatorName,
+            creatorDescription: values.creatorDescription,
+            creatorAnnotation: values.creatorAnnotation,
+            vendorId: vendorData?.vendorId || null,
+            vendorName: vendorData?.vendorName || null,
+            instrumentId: instrumentData?.instrumentId || null,
+            instrumentName: instrumentData?.instrumentName || null,
+            isActive: values.isActive,
+          };
+          await masterApi.updateMaster('creator', String(editingMaster.creatorId), updateData);
           
           await fetchMasterData('creator');
           message.success(t('masterManagement.messages.saveSuccess'));
         } else {
-          const response = await fetch(`${apiUrl}/master/creator`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sessionToken}`,
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              creatorId: values.creatorId,
-              creatorName: values.creatorName,
-              creatorDescription: values.creatorDescription,
-              creatorAnnotation: values.creatorAnnotation,
-              vendorId: vendorData?.vendorId || null,
-              vendorName: vendorData?.vendorName || null,
-              instrumentId: instrumentData?.instrumentId || null,
-              instrumentName: instrumentData?.instrumentName || null,
-              isActive: values.isActive !== undefined ? values.isActive : true,
-            }),
-          });
-          
-          if (!response.ok) {
-            if (response.status === 409) {
-              throw new Error(t('masterManagement.messages.idDuplicate'));
-            }
-            throw new Error(t('masterManagement.messages.addFailed'));
-          }
+          const createData = {
+            creatorId: values.creatorId,
+            creatorName: values.creatorName,
+            creatorDescription: values.creatorDescription,
+            creatorAnnotation: values.creatorAnnotation,
+            vendorId: vendorData?.vendorId || null,
+            vendorName: vendorData?.vendorName || null,
+            instrumentId: instrumentData?.instrumentId || null,
+            instrumentName: instrumentData?.instrumentName || null,
+            isActive: values.isActive !== undefined ? values.isActive : true,
+          };
+          await masterApi.createMaster('creator', createData);
           
           await fetchMasterData('creator');
           message.success(t('masterManagement.messages.addSuccess'));
@@ -1105,55 +1011,29 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
         if (editingMaster) {
           // 編集の場合 - PUT（主キーは attributeName）
-          const response = await fetch(
-            `${apiUrl}/master/attribute/${encodeURIComponent(String(editingMaster.attributeName || ''))}`,
-            {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionToken}`,
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                attributeName: resolvedAttributeName,
-                attributeValue: values.attributeValue,
-                attributeRemark: values.attributeRemark,
-                organizationGroupCd: values.organizationGroupCd,
-                isActive: values.isActive,
-              }),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error('更新に失敗しました');
-          }
+          const updateData = {
+            attributeName: resolvedAttributeName,
+            attributeValue: values.attributeValue,
+            attributeRemark: values.attributeRemark,
+            organizationGroupCd: values.organizationGroupCd,
+            isActive: values.isActive,
+          };
+          // Attribute の主キーは attributeName（特殊文字を含む可能性があるため encodeURIComponent を適用）
+          const encodedId = encodeURIComponent(String(editingMaster.attributeName || ''));
+          await masterApi.updateMaster('attribute', encodedId, updateData);
 
           await fetchMasterData('attribute');
           message.success(t('masterManagement.messages.saveSuccess'));
         } else {
           // 新規作成 - POST
-          const response = await fetch(`${apiUrl}/master/attribute`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sessionToken}`,
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              attributeName: resolvedAttributeName,
-              attributeValue: values.attributeValue,
-              attributeRemark: values.attributeRemark,
-              organizationGroupCd: values.organizationGroupCd,
-              isActive: values.isActive !== undefined ? values.isActive : true,
-            }),
-          });
-
-          if (!response.ok) {
-            if (response.status === 409) {
-              throw new Error(t('masterManagement.messages.idDuplicate'));
-            }
-            throw new Error(t('masterManagement.messages.addFailed'));
-          }
+          const createData = {
+            attributeName: resolvedAttributeName,
+            attributeValue: values.attributeValue,
+            attributeRemark: values.attributeRemark,
+            organizationGroupCd: values.organizationGroupCd,
+            isActive: values.isActive !== undefined ? values.isActive : true,
+          };
+          await masterApi.createMaster('attribute', createData);
 
           await fetchMasterData('attribute');
           message.success(t('masterManagement.messages.addSuccess'));

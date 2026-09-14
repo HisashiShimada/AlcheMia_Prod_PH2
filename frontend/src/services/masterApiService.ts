@@ -76,7 +76,7 @@ export async function fetchMasters(
  */
 export async function createMaster(
   type: MasterDataType,
-  data: MasterApiRecord
+  data: Record<string, unknown>
 ): Promise<MasterApiRecord> {
   const config = getMasterDataConfig(type);
   const client = createApiClient();
@@ -97,11 +97,10 @@ export async function createMaster(
     }
   } catch (error) {
     const axiosError = error as AxiosError<ServiceApiResponse<MasterApiRecord>>;
-    if (axiosError.response?.status === HTTP_STATUS.CONFLICT) {
-      throw new Error('入力されたIDは既に存在しています');
-    }
     console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    // AxiosError をそのまま再スローすることで、呼び出し元の extractErrorMessage が
+    // バックエンドの error.message を正しく取得できるようにする
+    throw error;
   }
 }
 
@@ -111,7 +110,7 @@ export async function createMaster(
 export async function updateMaster(
   type: MasterDataType,
   id: string,
-  data: MasterApiRecord
+  data: Record<string, unknown>
 ): Promise<MasterApiRecord> {
   const config = getMasterDataConfig(type);
   const client = createApiClient();
@@ -134,7 +133,9 @@ export async function updateMaster(
   } catch (error) {
     const axiosError = error as AxiosError<ServiceApiResponse<MasterApiRecord>>;
     console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    // AxiosError をそのまま再スローすることで、呼び出し元の extractErrorMessage が
+    // バックエンドの error.message を正しく取得できるようにする
+    throw error;
   }
 }
 
