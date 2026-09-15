@@ -1221,8 +1221,9 @@ export async function convertReactFlowToMaiML(
       // currentMethodIdが特定できている場合はそのIDでフィルタ
       // 特定できていない場合は「共通テンプレートでない全テンプレート」を含める
       const contextMaterialTemplates = allTemplates.material.filter((t: Template) => 
+        // ✅ Fix: placeRefs が空のテンプレート（テンプレート一覧「+」から新規作成）も XML に含める
+        // 旧: && t.placeRefs && t.placeRefs.length > 0  ← この条件が新規テンプレートを除外していた
         (hasKnownMethodId ? t.methodId === currentMethodId : (t.methodId !== null && t.methodId !== undefined))
-        && t.placeRefs && t.placeRefs.length > 0
       );
       
       contextMaterialTemplates.forEach((template: Template) => {
@@ -1252,8 +1253,9 @@ export async function convertReactFlowToMaiML(
     // conditionTemplates
     if (allTemplates.condition) {
       const contextConditionTemplates = allTemplates.condition.filter((t: Template) => 
+        // ✅ Fix: placeRefs が空のテンプレート（テンプレート一覧「+」から新規作成）も XML に含める
+        // 旧: && t.placeRefs && t.placeRefs.length > 0  ← この条件が新規テンプレートを除外していた
         (hasKnownMethodId ? t.methodId === currentMethodId : (t.methodId !== null && t.methodId !== undefined))
-        && t.placeRefs && t.placeRefs.length > 0
       );
       
       contextConditionTemplates.forEach((template: Template) => {
@@ -1283,8 +1285,9 @@ export async function convertReactFlowToMaiML(
     // resultTemplates
     if (allTemplates.result) {
       const contextResultTemplates = allTemplates.result.filter((t: Template) => 
+        // ✅ Fix: placeRefs が空のテンプレート（テンプレート一覧「+」から新規作成）も XML に含める
+        // 旧: && t.placeRefs && t.placeRefs.length > 0  ← この条件が新規テンプレートを除外していた
         (hasKnownMethodId ? t.methodId === currentMethodId : (t.methodId !== null && t.methodId !== undefined))
-        && t.placeRefs && t.placeRefs.length > 0
       );
       
       contextResultTemplates.forEach((template: Template) => {
@@ -1384,7 +1387,7 @@ export async function convertReactFlowToMaiML(
     // XSD準拠: placeRef → templateRef の順で出力
     placeRefs.forEach((placeRef, index) => {
       const placeRefId = index === 0 
-        ? (template.placeRefs[0].id || `${templateId}TL`)
+        ? (placeRef.id || `${templateId}TL`)
         : `${templateId}TL_${index}`;
       maiml += `          <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
     });
@@ -1461,7 +1464,7 @@ export async function convertReactFlowToMaiML(
     // XSD準拠: placeRef → templateRef の順で出力
     placeRefs.forEach((placeRef, index) => {
       const placeRefId = index === 0 
-        ? (template.placeRefs[0].id || `${templateId}TL`)
+        ? (placeRef.id || `${templateId}TL`)
         : `${templateId}TL_${index}`;
       maiml += `          <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
     });
@@ -1538,7 +1541,7 @@ export async function convertReactFlowToMaiML(
     // XSD準拠: placeRef → templateRef の順で出力
     placeRefs.forEach((placeRef, index) => {
       const placeRefId = index === 0 
-        ? (template.placeRefs[0].id || `${templateId}TL`)
+        ? (placeRef.id || `${templateId}TL`)
         : `${templateId}TL_${index}`;
       maiml += `          <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
     });

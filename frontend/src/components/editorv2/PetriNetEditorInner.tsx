@@ -474,6 +474,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const isFirstNodeRef = useRef(true); // Bug Fix: 初回ノード追加フラグ
   // ✅ Fix: pushStateをsetNodesコールバック外で呼ぶために使用するref
   const updatedNodesRef = useRef<Node<NodeData>[]>([]);
+  // ✅ Fix: handleSaveTemplateのuseCallbackクロージャが古いnodesを参照しないよう
+  // nodesの最新値をrefで保持する
+  const nodesRef = useRef<Node<NodeData>[]>(nodes);
 
   // Phase 3C: history.presentとの同期
   useEffect(() => {
@@ -486,6 +489,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       });
     }
   }, [history.present, setNodes, setEdges]);
+
+  // ✅ Fix: nodesの最新値をnodesRefに同期（handleSaveTemplateのクロージャ問題対策）
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
 
   // ✅ Bug Fix: nodes/edges更新時にmethods配列も自動同期
   useEffect(() => {
@@ -1799,8 +1807,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     
     // ✅ 修正: placeRefsが空の場合、実際のノードが存在する場合のみ自分自身を追加
     if (!convertedTemplateRef.placeRefs || convertedTemplateRef.placeRefs.length === 0) {
-      // ノードが実際に存在するかチェック
-      const nodeExists = nodes.some(n => n.id === nodeId);
+      // ✅ Fix: useCallbackクロージャが古いnodesを参照しないよう nodesRef.current を使用
+      const nodeExists = nodesRef.current.some(n => n.id === nodeId);
       if (nodeExists) {
         console.log('⚠️ [PetriNetEditorInner] placeRefsが空です、自分自身を追加:', nodeId);
         convertedTemplateRef.placeRefs = [{ id: '',ref: nodeId}];
@@ -2035,7 +2043,32 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         console.error('❌ [PetriNetEditorInner] updateTemplate関数が見つかりません');
       }
     } else {
-      console.error('❌ [PetriNetEditorInner] allTemplates関数が見つかりません');
+      // ✅ Fix: window.clineAllTemplates が null の場合のフォールバック
+      // （初期化タイミングのズレ等で allTemplates が未設定の場合でも
+      //  window.clineUpdateTemplate が利用可能なら更新を試みる）
+      console.warn('⚠️ [PetriNetEditorInner] window.clineAllTemplates が未設定 - フォールバック更新を試みます');
+      if (window.clineUpdateTemplate) {
+        const searchId = originalTemplateId || templateId;
+        window.clineUpdateTemplate(searchId, {
+          id: templateId,
+          uuid: convertedTemplateRef.uuid,
+          name: convertedTemplateRef.name || '',
+          description: convertedTemplateRef.description,
+          category: templateCategory,
+          properties: convertedTemplateRef.properties,
+          contents: convertedTemplateRef.contents || [],
+          placeRefs: convertedTemplateRef.placeRefs || [],
+          templateRef: convertedTemplateRef.templateRef,
+          methodId: methodId,
+          insertion: convertedTemplateRef.insertion,
+        });
+        console.log('✅ [PetriNetEditorInner] フォールバックによるTemplateContext更新完了:', {
+          searchId,
+          templateId,
+        });
+      } else {
+        console.error('❌ [PetriNetEditorInner] updateTemplate関数が見つかりません（フォールバックも失敗）');
+      }
     }
     
     // ✅ 修正: placeRefsに含まれる全てのノードにテンプレートを設定
