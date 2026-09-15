@@ -381,7 +381,7 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 4-6-3 | 「実験指示」タブ（key: `'task_results'`）でフラットテーブルが表示され、タスクNo・ステータス・メソッド名・トランジション名等の列が存在すること | 表示確認 | `ui_experiment_instruction_tab.md` §2.1・§6（v3.1.0） | GET `/api/v1/projects/:projectId/experiment-instructions` | OK | 固定列: `taskNumber`・`propKey`。旧「タスク統計件数表示」を実態に合わせて修正 |
-| 4-6-4 | 「実験指示」タブで「承認処理」ボタンが活性化され、一括承認ダイアログから承認を実行できること | 正常系 | `ui_experiment_instruction_tab.md` §2.2・§8.3承認フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/approve` | - | `reviewWaitingTasks.length > 0` かつ `isEditable=true` の場合に活性。承認後 `fetchData()` が呼ばれて一覧が更新されること |
+| 4-6-4 | 「実験指示」タブで「承認処理」ボタンが活性化され、一括承認ダイアログから承認を実行できること | 正常系 | `ui_experiment_instruction_tab.md` §2.2・§8.3承認フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/approve` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-415?atlOrigin=eyJpIjoiMTFlMTljNzE4YWVlNDI2Mjg5ZDNhMDU2MzdiNzY3ZTkiLCJwIjoiaiJ9　`reviewWaitingTasks.length > 0` かつ `isEditable=true` の場合に活性。承認後 `fetchData()` が呼ばれて一覧が更新されること |
 | 4-6-5 | 「実験指示」タブでレビュー待ちタスクに対してNG記録（NG理由入力）ができること | 正常系 | `ui_experiment_instruction_tab.md` §8.4 NG記録フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/ng` | - | NG理由が空の場合は warning が表示されること。NG記録後に一覧が更新されること |
 | 4-6-6 | 「実験指示」タブで列カスタマイズドロップダウンから表示列を切り替えられること | 正常系 | `ui_experiment_instruction_tab.md` §1.3 主要機能3（2026-09-09: 列構成変更・旧 uncertaintyCriteriaName 等廃止→定性/定量分離列・experimentUser 追加） | - | OK | 切替可能列: `qualitativeCriteriaName` / `qualitativeAssignedValue` / `quantitativeCriteriaName` / `quantitativeTolerance` / `quantitativeRecordedValue` / `quantitativeJudgeResult` / `experimentUser` 等 |
 | 4-6-7 | 「実験指示」タブでフィルターバー（タスクNo・メソッドID・トランジション・テンプレート・Key）によって表示行が絞り込めること | 表示確認 | `ui_experiment_instruction_tab.md` §2.3・§1.3 主要機能2（v3.1.0） | - | OK | 各フィルターは対応列のユニーク値から選択肢を生成 |
@@ -392,7 +392,7 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-6-10 | 「実験指示」タブの `quantitativeJudgeResult` 列（定量判定結果）に判定結果 Tag が表示されること | 表示確認 | `ui_experiment_instruction_tab.md` §6.2（2026-09-09 追加） | GET `/api/v1/projects/:projectId/experiment-instructions` | - | 定量評価が存在するトランジションで確認 |
+| 4-6-10 | 「実験指示」タブの `quantitativeJudgeResult` 列（定量判定結果）に判定結果 Tag が表示されること | 表示確認 | `ui_experiment_instruction_tab.md` §6.2（2026-09-09 追加） | GET `/api/v1/projects/:projectId/experiment-instructions` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416?atlOrigin=eyJpIjoiYTE1OTZhNTM4ZTFlNGJhNmI2NWQwNDhlZjVjYjEwZjciLCJwIjoiaiJ9 定量評価が存在するトランジションで確認 |
 | 4-6-11 | `quantitativeJudgeResult` 列の判定件数ボタンをクリックすると `UncertaintyJudgeDetailDialog` が開くこと | 正常系 | `ui_experiment_instruction_tab.md` §9（2026-09-09 追加） | - | - | `judges.length > 1` の行でのみボタンが表示される |
 | 4-6-12 | 「実験指示」タブに `experimentUser` 列（実験記録者ID・実験終了日時）が表示されること | 表示確認 | `ui_experiment_instruction_tab.md` §6.2（2026-09-09 追加） | GET `/api/v1/projects/:projectId/experiment-instructions` | - | 値がない場合は `—` で表示されること |
 
@@ -592,12 +592,11 @@
 
 ### 4-10: プロジェクト公開
 
-⚠️ **【実施不可シナリオ】** 
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|--------| --- | --- |
 | 4-10-1 | ファイル操作ツールバーの「公開する」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md` | - | OK | |
-| 4-10-2 | MaimlPublishDialogで「公開する」ボタンをクリックすると公開ジョブが受け付けられ、ポーリング完了後にボタンが「非公開にする」に切り替わること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、GET `/api/v1/projects/:projectName/publish-status` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-396?atlOrigin=eyJpIjoiZDYwYzQ4ZmQ0OTUwNGE3ZjliZWVlZTk1MWFhOWVmZTciLCJwIjoiaiJ9 |
+| 4-10-2 | MaimlPublishDialogで「公開する」ボタンをクリックすると公開ジョブが受け付けられ、ポーリング完了後にボタンが「非公開にする」に切り替わること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、GET `/api/v1/projects/:projectName/publish-status` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-417?atlOrigin=eyJpIjoiZTRlYzdmYjViZTM2NGIxNTkyN2MyZjI3ZmRlOTNhZjEiLCJwIjoiaiJ9atlOrigin=eyJpIjoiZDYwYzQ4ZmQ0OTUwNGE3ZjliZWVlZTk1MWFhOWVmZTciLCJwIjoiaiJ9 |
 | 4-10-3 | 公開済みファイルのボタンが「非公開にする」（赤・活性）に切り替わること | 表示確認 | 追加機能S、`ui_maiml_publish_dialog.md` | GET `/api/v1/projects/:projectName/publish-status` | - | |
 | 4-10-4 | 公開済みファイルの「非公開にする」ボタンをクリックするとMaimlUnpublishDialogが表示され、確認後に非公開ジョブが受け付けられ、ポーリング完了後にボタンが「公開する」に戻ること | 正常系 | 追加機能S、`ui_maiml_unpublish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/unpublish`、GET `/api/v1/projects/:projectName/publish-status` | - | |
 | 4-10-5 | 公開/非公開ジョブ処理中（status=pending/running）はボタンがローディング状態になること | 表示確認 | `api_maiml_opendata.md` §5.7、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | |
@@ -978,16 +977,16 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 結果 | 備考 |
 |-----------|-----------|------|------|------|------|
-| 4-17-1 | PetriNetViewer でTransitionノードをクリックするとSubNetViewerダイアログが開くこと | 正常系 | `result.md` §動作確認ポイント4 | - | SubNetViewer起動の前提確認 |
-| 4-17-2 | SubNetViewer内の入力Placeノードのテンプレート種別（Material/Condition/Result）が正しく表示されること | 正常系 | `result.md` §Fix2「templateMapキー不一致修正」 | - | placeIdキーでtemplateMaplにヒットすること |
-| 4-17-3 | SubNetViewer内の出力Placeノードのテンプレート種別（Material/Condition/Result）が正しく表示されること | 正常系 | `result.md` §Fix2「templateMapキー不一致修正」 | - | placeIdキーでtemplateMaplにヒットすること |
-| 4-17-4 | SubNetViewer内でPlaceノードをクリックするとPropertyViewerが開くこと | 正常系 | `result.md` §動作確認ポイント1 | - | ノードクリック時のDrawer起動確認 |
-| 4-17-5 | SubNetViewerのPropertyViewer「テンプレートタブ」に `property` 要素がキー / xsi:type / 値 / 説明・単位 の列で表示されること | 正常系 | `result.md` §Fix3「extractTemplateInfo新実装」、§Fix4「テンプレートタブ専用カラム」 | - | 変更前は「表示するプロパティがありません」と表示されていた |
-| 4-17-6 | SubNetViewerのPropertyViewer「基本情報タブ」に id / 名前 / 説明 / 種別 が表示されること | 正常系 | `result.md` §Fix3「uuid/description追加」 | - | placeRef が表示されないこと（内部参照のため非表示） |
-| 4-17-7 | SubNetViewerのPropertyViewer「基本情報タブ」に placeRef が表示されないこと | 正常系 | `result.md` §Fix3「placeRef除外」 | - | 変更前はplaceRef要素がテンプレートタブに表示されていた |
+| 4-17-1 | PetriNetViewer でTransitionノードをクリックするとSubNetViewerダイアログが開くこと | 正常系 | `result.md` §動作確認ポイント4 | OK | SubNetViewer起動の前提確認 |
+| 4-17-2 | SubNetViewer内の入力Placeノードのテンプレート種別（Material/Condition/Result）が正しく表示されること | 正常系 | `result.md` §Fix2「templateMapキー不一致修正」 | OK | placeIdキーでtemplateMaplにヒットすること |
+| 4-17-3 | SubNetViewer内の出力Placeノードのテンプレート種別（Material/Condition/Result）が正しく表示されること | 正常系 | `result.md` §Fix2「templateMapキー不一致修正」 | OK | placeIdキーでtemplateMaplにヒットすること |
+| 4-17-4 | SubNetViewer内でPlaceノードをクリックするとPropertyViewerが開くこと | 正常系 | `result.md` §動作確認ポイント1 | OK | ノードクリック時のDrawer起動確認 |
+| 4-17-5 | SubNetViewerのPropertyViewer「テンプレートタブ」に `property` 要素がキー / xsi:type / 値 / 説明・単位 の列で表示されること | 正常系 | `result.md` §Fix3「extractTemplateInfo新実装」、§Fix4「テンプレートタブ専用カラム」 | OK | 変更前は「表示するプロパティがありません」と表示されていた |
+| 4-17-6 | SubNetViewerのPropertyViewer「基本情報タブ」に id / 名前 / 説明 / 種別 が表示されること | 正常系 | `result.md` §Fix3「uuid/description追加」 | OK | placeRef が表示されないこと（内部参照のため非表示） |
+| 4-17-7 | SubNetViewerのPropertyViewer「基本情報タブ」に placeRef が表示されないこと | 正常系 | `result.md` §Fix3「placeRef除外」 | OK | 変更前はplaceRef要素がテンプレートタブに表示されていた |
 | 4-17-8 | SubNetViewerのPropertyViewer「データタブ」に `<data><results>` の実験結果値が個別フィールドに展開されて表示されること | 正常系 | `result.md` §Fix8b「SubNetViewerのデータタブ設定」、§Fix8d「property_*の個別展開表示」 | - | `temperature (value)` / `temperature (type)` / `temperature (units)` 等が個別行に展開されること |
 | 4-17-9 | placeId と templateId が異なるケース（placeIdキーでヒットしない場合）でも、templateIdキーでフォールバックしてテンプレート情報が取得されること | 正常系 | `result.md` §Fix2「フォールバック: templateIdキー」 | - | フォールバックケースでも「テンプレート詳細情報が取得できませんでした」と表示されないこと |
-| 4-17-10 | PetriNetViewer でPlaceノードをクリックすると **`PropertyViewerWithSelection`（Drawer）** が開き、テンプレートタブにプロパティが表示されること | 正常系 | `result.md` §Fix6「extractTemplateInfoForNode新実装」 | - | SubNetViewer経由ではなく、PetriNetViewer直接クリック時の表示確認。⚠️ PetriNetEditor（編集モード）のPlaceクリックでは `PropertyPanel` が開くため対象外 |
+| 4-17-10 | PetriNetViewer でPlaceノードをクリックすると **`PropertyViewerWithSelection`（Drawer）** が開き、テンプレートタブにプロパティが表示されること | 正常系 | `result.md` §Fix6「extractTemplateInfoForNode新実装」 | OK | SubNetViewer経由ではなく、PetriNetViewer直接クリック時の表示確認。⚠️ PetriNetEditor（編集モード）のPlaceクリックでは `PropertyPanel` が開くため対象外 |
 | 4-17-11 | PetriNetViewer のPlaceノードの `PropertyViewerWithSelection`「データタブ」に実験結果値が表示されること | 正常系 | `result.md` §Fix8c「PetriNetViewerのデータタブ設定」 | - | `templateMap[node.id].element.getAttribute('id')` でテンプレートIDを取得してマッチ |
 | 4-17-12 | PropertyViewer のテンプレートタブで `property_` プレフィックスが除去されたキー名が表示されること | 表示確認 | `result.md` §Fix4「property_プレフィックス除去」 | - | `property_temperature` ではなく `temperature` と表示されること |
 | 4-17-13 | PropertyViewerWithSelection で Object型の値がキー・値ペアに展開されて表示されること（`[object Object]` が表示されないこと） | 表示確認 | `result.md` §Fix5「Object型値のフラット展開表示」 | - | 変更前は `[object Object]` として表示されていた |
