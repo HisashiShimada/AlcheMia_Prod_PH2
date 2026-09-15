@@ -61,6 +61,10 @@ export async function getList(
  * 有効（is_Invalid = FALSE）なレコードのみ返す。
  * 定性評価の選択肢（intuition_selector）も含む。
  * UncertaintyCriteriaSelectorModal から呼び出す。
+ *
+ * @query organizationGroupCd - 組織グループCD（省略可）。
+ *   指定時: グループ＋祖先グループ＋組織共通スコープの基準のみ返す
+ *   未指定: 組織内全件返す（後方互換）
  */
 export async function getForSelector(
   req: Request,
@@ -69,8 +73,9 @@ export async function getForSelector(
 ): Promise<void> {
   try {
     const organizationId = (req as any).organizationId as string;
+    const organizationGroupCd = (req.query.organizationGroupCd as string | undefined) ?? null;
 
-    const rows = await uncertaintyCriteriaService.getForSelector(organizationId);
+    const rows = await uncertaintyCriteriaService.getForSelector(organizationId, organizationGroupCd);
     res.json(rows);
   } catch (error) {
     next(error);

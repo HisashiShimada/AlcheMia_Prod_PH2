@@ -206,13 +206,24 @@ export interface UncertaintyCriteriaForSelector {
 /**
  * 不確かさ基準セレクター用一覧を取得する（有効なもののみ、定性評価の選択肢も含む）
  *
+ * @param organizationGroupCd - 組織グループCD（省略可）
+ *   指定時: グループ＋祖先グループ＋組織共通スコープの基準のみ返す
+ *   未指定: 組織内全件返す（後方互換）
  * @returns セレクター用不確かさ基準一覧（UncertaintyCriteriaForSelector[] 型に変換済み）
  */
-export async function fetchUncertaintyCriteriaForSelector(): Promise<UncertaintyCriteriaForSelector[]> {
+export async function fetchUncertaintyCriteriaForSelector(
+  organizationGroupCd?: string | null
+): Promise<UncertaintyCriteriaForSelector[]> {
   const client = createApiClient();
 
+  const params: Record<string, string> = {};
+  if (organizationGroupCd) {
+    params.organizationGroupCd = organizationGroupCd;
+  }
+
   const response = await client.get<UncertaintyCriteriaSelectorApiRow[]>(
-    '/uncertainty-criteria/for-selector'
+    '/uncertainty-criteria/for-selector',
+    { params }
   );
 
   return response.data.map((row, index): UncertaintyCriteriaForSelector => {

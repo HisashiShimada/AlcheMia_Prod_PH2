@@ -59,7 +59,7 @@ describe('uncertaintyCriteriaController - Phase2 テスト', () => {
 
       await getList(req, res, next);
 
-      expect(uncertaintyCriteriaService.getList).toHaveBeenCalledWith('org-001');
+      expect(uncertaintyCriteriaService.getList).toHaveBeenCalledWith('org-001', null);
       expect(res.json).toHaveBeenCalledWith(rows);
     });
 
@@ -87,6 +87,19 @@ describe('uncertaintyCriteriaController - Phase2 テスト', () => {
 
       await getForSelector(req, res, next);
 
+      expect(uncertaintyCriteriaService.getForSelector).toHaveBeenCalledWith('org-001', null);
+      expect(res.json).toHaveBeenCalledWith(rows);
+    });
+
+    test('正常系: organizationGroupCd クエリパラメータが渡された場合、サービスに渡すこと', async () => {
+      const rows = [{ uncertaintyKey: 'key-001', qualitativeOptions: [] }];
+      (uncertaintyCriteriaService.getForSelector as jest.Mock).mockResolvedValue(rows);
+
+      const { req, res, next } = makeMocks({ query: { organizationGroupCd: 'group-001' } });
+
+      await getForSelector(req, res, next);
+
+      expect(uncertaintyCriteriaService.getForSelector).toHaveBeenCalledWith('org-001', 'group-001');
       expect(res.json).toHaveBeenCalledWith(rows);
     });
 

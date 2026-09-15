@@ -11,7 +11,7 @@
  *   - 「実験指示を編集」ボタンから ExperimentPlanDialog を開く
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Table,
   Tag,
@@ -99,7 +99,7 @@ const TASK_STATUS_CONFIG: Partial<Record<number, { labelKey: string; color: stri
   [TaskStatus.COMPLETED]:         { labelKey: 'experimentInstruction.status.completed',     color: 'success'    },
   [TaskStatus.FORCED_TERMINATED]: { labelKey: 'experimentInstruction.status.forcedTerminated',       color: 'error'      },
   [TaskStatus.REVIEW_NG]:         { labelKey: 'experimentInstruction.status.ng',            color: 'error'      },
-  null:                           { labelKey: 'experimentInstruction.status.waiting',       color: 'default'    },
+  null:                           { labelKey: 'experimentInstruction.status.pending',       color: 'default'    },
 };
 
 /** xsi:type → Tag カラー */
@@ -438,6 +438,37 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   // ── 不確かさ判定詳細ダイアログ ──
   const [judgeDetailOpen, setJudgeDetailOpen] = useState(false);
   const [judgeDetailRow, setJudgeDetailRow] = useState<FlatRow | null>(null);
+
+  // ── テーブルコンテナ高さ監視（ResizeObserver によるスクロール高さ動的計算）──
+  /**
+   * テーブルコンテナ要素への ref
+   * ResizeObserver でコンテナの実際の高さを監視し、
+   * ズームや画面リサイズに追従した縦スクロール高さを算出する
+   */
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  /** Ant Design size="small" のテーブルヘッダー高さ（px） */
+  const TABLE_HEADER_HEIGHT = 39;
+  /**
+   * テーブルの縦スクロール高さ（px）
+   * コンテナ高さ - テーブルヘッダー高さ で算出。
+   * コンテナ高さが未確定の場合は undefined（Ant Design のデフォルト動作に委ねる）
+   */
+  const [tableScrollY, setTableScrollY] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const el = tableContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const containerHeight = entry.contentRect.height;
+        if (containerHeight > TABLE_HEADER_HEIGHT) {
+          setTableScrollY(containerHeight - TABLE_HEADER_HEIGHT);
+        }
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // ─────────────────────────────────────────────────────────
   // データ取得
@@ -1233,7 +1264,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           text-align: center !important;
         }
       `}</style>
-      <div className="experiment-instruction-table" style={{ flex: 1, overflow: 'hidden' }}>
+      <div className="experiment-instruction-table" style={{ flex: 1, overflow: 'hidden' }} ref={tableContainerRef}>
         {loading ? (
           <Flex vertical justify="center" align="center" style={{ height: 200, gap: 8 }}>
             <Spin />
@@ -1252,7 +1283,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             size="small"
             pagination={false}
             bordered
-            scroll={{ x: scrollX, y: 'calc(100vh - 360px)' }}
+            scroll={{ x: scrollX, y: tableScrollY }}
             style={{ fontSize: 12 }}
             rowClassName={(r) => r.taskStatus === TaskStatus.REVIEW_WAITING ? 'row-review-waiting' : ''}
           />

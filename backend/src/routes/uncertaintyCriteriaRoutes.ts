@@ -64,11 +64,20 @@ router.get(
  * @remarks
  * /:uncertaintyKey より前に定義しないとパスが衝突するため注意。
  * 有効（is_Invalid = FALSE）なレコードのみ返す。定性評価の選択肢も含む。
+ * クエリ: organizationGroupCd（省略可）
+ *   指定時: グループ＋祖先グループ＋組織共通スコープの基準のみ返す
+ *   未指定: 組織内全件返す（後方互換）
  */
 router.get(
   '/for-selector',
   authMiddleware,
   tenantIsolation,
+  [
+    query('organizationGroupCd')
+      .optional()
+      .isString()
+      .withMessage('organizationGroupCd must be a string'),
+  ],
   handleValidationErrors,
   uncertaintyCriteriaController.getForSelector
 );
