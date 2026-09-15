@@ -246,10 +246,9 @@ export default function ExperimentWorkerMenu({
             status: TransitionStatusCode.READY, // 準備完了状態
             progressRate: 0,
           });
-          await reloadProgressRows(selectedProject);
-          // プロジェクト一覧を再取得してプロジェクトステータスを最新化する
+          // プロジェクト一覧と進捗データを同時に最新化する
           // （プロジェクトステータスが TASK_PENDING → TASK_IN_PROGRESS に変わるため）
-          await handleTaskStatusChanged();
+          await refreshProjectAndProgress();
         } catch (transitionErr) {
           // 既に READY 以降の状態の場合は遷移エラーになるため、ログのみ出して続行
           console.warn('[handleConfirmInstruction] トランジションステータス READY 更新スキップ:', transitionErr);
@@ -336,6 +335,21 @@ export default function ExperimentWorkerMenu({
     } catch (error) {
       console.error('プロジェクト一覧再取得エラー（タスクステータス変更後）:', error);
     }
+  };
+
+  /**
+   * プロジェクト一覧（プロジェクト選択プルダウン）と
+   * 進捗データ（ProgressOverviewTab）を同時に最新化する統合ハンドラー。
+   * WorkRecordPanel の保存成功・handleConfirmInstruction など、
+   * 両方の更新が必要な場面で使用する。
+   * Promise.all で並列実行することで合計待ち時間を最小化する。
+   */
+  const refreshProjectAndProgress = async () => {
+    if (!selectedProject) return;
+    await Promise.all([
+      handleTaskStatusChanged(),
+      reloadProgressRows(selectedProject),
+    ]);
   };
 
   // ━━━ ProgressOverviewTab 用: 実API接続 ━━━
@@ -560,90 +574,6 @@ export default function ExperimentWorkerMenu({
     }
   };
 
-  /**
-   * 「開始」ボタン押下ハンドラー（Phase4完全版: 確認ダイアログ + ステータスAPI切替）
-   *
-   * - 作業中トランジションなし → 対象を running に更新 → 作業記録タブへ遷移
-   * - 作業中トランジションあり → 確認ダイアログ表示
-   *   → 承認時: 現在作業中を initial に戻し、対象を running に更新 → 遷移
-   */
-  const handleStartWork = (taskNo: number, transitionId: string, methodId: string) => {
-    if (!selectedProject) return;
-
-    const inProgressRows = progressRows.filter((r) => r.status === 'in_progress');
-
-    /** 対象トランジションを preparing（準備状態）に更新してタブ遷移 */
-    const doStart = async () => {
-      if (!selectedProject) return;
-      try {
-        await updateTransitionStatus(selectedProject, methodId, transitionId, {
-          taskNo,
-          status: TransitionStatusCode.PREPARING, // 準備状態
-          progressRate: 0,
-        });
-        await reloadProgressRows(selectedProject);
-        handleTabChange('3');
-      } catch (err) {
-        console.error('[handleStartWork] ステータス更新エラー:', err);
-        message.error(t('experimentWorker.startFailed'));
-      }
-    };
-
-    if (inProgressRows.length === 0) {
-      // 作業中トランジションなし → 直接開始
-      void doStart();
-      return;
-    }
-
-    // 作業中トランジションが存在 → 確認ダイアログを表示
-    const inProgressNames = inProgressRows
-      .map((r) => r.transitionName || r.transitionId)
-      .join('、');
-
-    modal.confirm({
-      title: '別のトランジションが作業中です',
-      icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
-      content: (
-        <div>
-          <p style={{ marginBottom: 8 }}>
-            現在、以下のトランジションが作業中です：
-          </p>
-          <p style={{ fontWeight: 'bold', marginBottom: 8, color: '#1677ff' }}>
-            {inProgressNames}
-          </p>
-          <p style={{ marginBottom: 4 }}>
-            この作業を中断して別のトランジションを開始しますか？
-          </p>
-          <p style={{ color: '#ff4d4f', fontSize: 12, margin: 0 }}>
-            ※中断した作業のステータスは「未着手」に戻ります。
-          </p>
-        </div>
-      ),
-      okText: '切り替える',
-      cancelText: 'キャンセル',
-      onOk: async () => {
-        if (!selectedProject) return;
-        try {
-          // 現在作業中のトランジションをすべて initial（初期状態）に戻す
-          await Promise.all(
-            inProgressRows.map((r) =>
-              updateTransitionStatus(selectedProject, r.methodId, r.transitionId, {
-                taskNo: r.taskNo,
-                status: TransitionStatusCode.INITIAL, // 初期状態
-                progressRate: 0,
-              })
-            )
-          );
-          // 対象を running に更新
-          await doStart();
-        } catch (err) {
-          console.error('[handleStartWork] 切り替えエラー:', err);
-          message.error(t('experimentWorker.switchFailed'));
-        }
-      },
-    });
-  };
-
   // タブアイテムの定義（リデザイン後: 作業記録 / 全体進捗 / 不確かさ記録 の3タブ）
   const tabItems = [
     {
@@ -664,6 +594,7 @@ export default function ExperimentWorkerMenu({
             organizationGroupCd={selectedProjectOrganizationGroupCd}
             initialTaskNo={viewingWorkTaskNo ?? undefined}
             initialTransitionId={viewingWorkTransitionId ?? undefined}
+            onSave={refreshProjectAndProgress}
             onStart={async (taskNo, transitionId) => {
               if (!selectedProject) return;
               const targetRow = progressRows.find((r) => r.taskNo === taskNo && r.transitionId === transitionId);

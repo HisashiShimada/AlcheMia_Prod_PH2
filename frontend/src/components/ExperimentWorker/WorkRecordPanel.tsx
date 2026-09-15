@@ -2123,6 +2123,11 @@ interface WorkRecordPanelProps {
    * ExperimentWorkerMenu 側で updateTransitionStatus API を呼び出す。
    */
   onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
+  /**
+   * 実験データ保存成功後コールバック（任意）。
+   * ExperimentWorkerMenu 側でプロジェクト一覧再取得などの後処理を行う際に使用する。
+   */
+  onSave?: () => void;
 }
 
 /** API の xsiType 文字列を WorkProperty の xsiType に変換する */
@@ -2244,6 +2249,7 @@ export default function WorkRecordPanel({
   onEnd,
   onForceEnd,
   onStatusChange,
+  onSave,
 }: WorkRecordPanelProps = {}) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
@@ -2754,6 +2760,7 @@ export default function WorkRecordPanel({
       // 生データなし: 成功メッセージのみ
       modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
       setIsDirty(false);
+      onSave?.();
       return;
     }
 
@@ -2875,11 +2882,12 @@ export default function WorkRecordPanel({
           })),
         }))
       );
+      onSave?.();
     } catch (err) {
       console.error('[WorkRecordPanel] handleSave error:', err);
       message.error(t('workRecord.saveContent'));
     }
-  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions, setApiTransitions]);
+  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions, setApiTransitions, onSave]);
 
   // ─── スキップ state ────────────────────────────────────────
   const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
