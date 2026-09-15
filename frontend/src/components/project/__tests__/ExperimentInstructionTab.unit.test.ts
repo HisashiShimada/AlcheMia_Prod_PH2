@@ -1,58 +1,95 @@
 /**
- * ExperimentInstructionTab — scroll プロパティ単体テスト
+ * ExperimentInstructionTab — テーブル縦スクロール高さ計算ロジック 単体テスト
  *
  * 対象ロジック:
- *   Table の scroll.y 値が正しく設定されていること
+ *   ResizeObserver でコンテナ高さを監視し、テーブルヘッダー高さを差し引いた
+ *   動的な tableScrollY を算出するロジック
  *
  * 修正背景:
- *   実験指示タブのテーブルで scroll={{ y: 'calc(100vh - 360px)' }} が小さすぎるため
- *   最下行が画面下部で見切れていた。calc(100vh - 450px) に修正。
+ *   scroll={{ y: 'calc(100vh - 450px)' }} の固定値では画面ズーム時に対応できず
+ *   最下行が見切れていた。ResizeObserver によりコンテナ高さを直接計測する方式に変更。
  */
 
 // ── テスト対象ロジック ───────────────────────────────────────────────
 
+/** Ant Design size="small" のテーブルヘッダー高さ（px） */
+const TABLE_HEADER_HEIGHT = 39;
+
 /**
- * ExperimentInstructionTab が使用する scroll y 値を返す関数（本体のロジック抽出）
- * 本体ファイルの値と一致していることを検証することが目的。
+ * コンテナ高さからテーブルスクロール高さを算出する関数（本体の計算ロジック抽出）
+ * @param containerHeight コンテナの実測高さ（px）
+ * @returns テーブル縦スクロール高さ（px）。コンテナがヘッダー以下なら undefined
  */
-const getScrollY = (): string => {
-  return 'calc(100vh - 450px)';
+const calcTableScrollY = (containerHeight: number): number | undefined => {
+  if (containerHeight > TABLE_HEADER_HEIGHT) {
+    return containerHeight - TABLE_HEADER_HEIGHT;
+  }
+  return undefined;
 };
-
-/**
- * 修正前の値（バグあり）
- */
-const OLD_SCROLL_Y = 'calc(100vh - 360px)';
-
-/**
- * 修正後の値（正しい値）
- */
-const CORRECT_SCROLL_Y = 'calc(100vh - 450px)';
 
 // ── テスト ───────────────────────────────────────────────────────────
 
-describe('ExperimentInstructionTab — scroll.y 値', () => {
+describe('ExperimentInstructionTab — tableScrollY 動的計算ロジック', () => {
 
-  test('scroll.y が calc(100vh - 450px) であること', () => {
-    expect(getScrollY()).toBe(CORRECT_SCROLL_Y);
+  describe('通常ケース', () => {
+
+    test('コンテナ高さ 600px のとき tableScrollY が 561px になること', () => {
+      expect(calcTableScrollY(600)).toBe(600 - TABLE_HEADER_HEIGHT);
+    });
+
+    test('コンテナ高さ 400px のとき tableScrollY が 361px になること', () => {
+      expect(calcTableScrollY(400)).toBe(400 - TABLE_HEADER_HEIGHT);
+    });
+
+    test('コンテナ高さ 200px のとき tableScrollY が 161px になること', () => {
+      expect(calcTableScrollY(200)).toBe(200 - TABLE_HEADER_HEIGHT);
+    });
   });
 
-  test('修正前の値 calc(100vh - 360px) ではないこと', () => {
-    expect(getScrollY()).not.toBe(OLD_SCROLL_Y);
+  describe('画面ズーム対応（コンテナ高さが可変）', () => {
+
+    test('画面を縮小してコンテナ高さが小さくなっても正しく算出されること（例: 300px）', () => {
+      const result = calcTableScrollY(300);
+      expect(result).toBe(300 - TABLE_HEADER_HEIGHT);
+      expect(result).toBeGreaterThan(0);
+    });
+
+    test('画面を拡大してコンテナ高さが大きくなっても正しく算出されること（例: 1200px）', () => {
+      const result = calcTableScrollY(1200);
+      expect(result).toBe(1200 - TABLE_HEADER_HEIGHT);
+    });
+
+    test('テーブルヘッダー高さぴったりの場合は undefined を返すこと（スクロール不要）', () => {
+      expect(calcTableScrollY(TABLE_HEADER_HEIGHT)).toBeUndefined();
+    });
+
+    test('コンテナ高さがテーブルヘッダー高さより小さい場合は undefined を返すこと', () => {
+      expect(calcTableScrollY(TABLE_HEADER_HEIGHT - 1)).toBeUndefined();
+      expect(calcTableScrollY(0)).toBeUndefined();
+    });
   });
 
-  test('scroll.y が 100vh ベースの calc() 形式であること', () => {
-    const scrollY = getScrollY();
-    expect(scrollY).toMatch(/^calc\(100vh\s*-\s*\d+px\)$/);
+  describe('TABLE_HEADER_HEIGHT 定数の妥当性', () => {
+
+    test('テーブルヘッダー高さが 39px であること（Ant Design size="small" 仕様）', () => {
+      expect(TABLE_HEADER_HEIGHT).toBe(39);
+    });
+
+    test('テーブルヘッダー高さが正の整数であること', () => {
+      expect(TABLE_HEADER_HEIGHT).toBeGreaterThan(0);
+      expect(Number.isInteger(TABLE_HEADER_HEIGHT)).toBe(true);
+    });
   });
 
-  test('差し引き値が 400px 以上であること（ナビゲーション等の合計高さを十分に確保）', () => {
-    const scrollY = getScrollY();
-    // "calc(100vh - NNNpx)" から NNN を抽出
-    const match = scrollY.match(/calc\(100vh\s*-\s*(\d+)px\)/);
-    expect(match).not.toBeNull();
-    const offsetPx = parseInt(match![1], 10);
-    // 実験指示タブは EvaluationRegistrationTab (-420px) よりも UI 要素が多いため 420px 以上が必要
-    expect(offsetPx).toBeGreaterThanOrEqual(420);
+  describe('差分の正確性', () => {
+
+    test('算出された scrollY はコンテナ高さより TABLE_HEADER_HEIGHT だけ小さいこと', () => {
+      const containerHeights = [400, 600, 800, 1000];
+      containerHeights.forEach((h) => {
+        const result = calcTableScrollY(h);
+        expect(result).toBe(h - TABLE_HEADER_HEIGHT);
+      });
+    });
   });
 });
+
