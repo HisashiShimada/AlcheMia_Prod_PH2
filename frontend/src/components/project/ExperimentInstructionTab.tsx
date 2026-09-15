@@ -99,7 +99,7 @@ const TASK_STATUS_CONFIG: Partial<Record<number, { labelKey: string; color: stri
   [TaskStatus.COMPLETED]:         { labelKey: 'experimentInstruction.status.completed',     color: 'success'    },
   [TaskStatus.FORCED_TERMINATED]: { labelKey: 'experimentInstruction.status.forcedTerminated',       color: 'error'      },
   [TaskStatus.REVIEW_NG]:         { labelKey: 'experimentInstruction.status.ng',            color: 'error'      },
-  null:                           { labelKey: 'experimentInstruction.status.waiting',       color: 'default'    },
+  null:                           { labelKey: 'experimentInstruction.status.pending',       color: 'default'    },
 };
 
 /** xsi:type → Tag カラー */
