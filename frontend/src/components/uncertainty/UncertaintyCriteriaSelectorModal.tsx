@@ -217,9 +217,9 @@ export default function UncertaintyCriteriaSelectorModal({
     setFilter(INITIAL_FILTER);
     setSelectedCriteria(null);
 
-    // DBから不確かさ基準一覧を取得
+    // DBから不確かさ基準一覧を取得（organizationGroupCd によるスコープフィルタ適用）
     setCriteriaLoading(true);
-    fetchUncertaintyCriteriaForSelector()
+    fetchUncertaintyCriteriaForSelector(organizationGroupCd)
       .then((data) => {
         // APIレスポンス（UncertaintyCriteriaForSelector[]）を UncertaintyCriteria[] に変換
         const converted: UncertaintyCriteria[] = data.map((row) => ({
@@ -278,7 +278,7 @@ export default function UncertaintyCriteriaSelectorModal({
         }));
       }
     }
-  }, [open, targetProperty]);
+  }, [open, targetProperty, organizationGroupCd]);
 
   // ----- initialPayload が渡された場合、criteriaList ロード後に選択状態のみ復元 -----
   useEffect(() => {

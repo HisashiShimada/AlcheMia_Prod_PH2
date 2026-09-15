@@ -450,4 +450,66 @@ describe('namespaceTermRepository - Phase2 新規テーブル CRUD テスト', (
       expect(result).toBeNull();
     });
   });
+
+  // ─────────────────────────────────────────────
+  // create() — findPrefixNamespaceId ORDER BY 修正確認
+  // グループとユーザ両方に同名 prefix が存在するケース
+  // ─────────────────────────────────────────────
+
+  describe('create() — findPrefixNamespaceId で組織グループ優先ケース', () => {
+    test('scopeKey 指定なし・グループ001とユーザ004の両方に Uncertainty prefix が存在する場合、\
+グループ001（組織グループ）のスコープ名がエラーに含まれること', async () => {
+      // findPrefixNamespaceId が NS_GROUP001（組織グループ）を返すよう ORDER BY が効いている想定
+      // SQL修正後: 組織グループが優先されるので NS_GROUP001 が返る
+      mockPgp.oneOrNone
+        .mockResolvedValueOnce({ namespace_id: 'NS_GROUP001' })           // findPrefixNamespaceId → グループ001
+        .mockResolvedValueOnce({ qname: 'Uncertainty:projectA' })         // findTermInScope（重複あり）
+        .mockResolvedValueOnce({ scope_name: '結合テスト グループ001' }); // findScopeNameByNamespaceId
+
+      const dataWithoutScopeKey = {
+        organizationId: 'org-001',
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+      };
+
+      let caughtError: Error & { code?: string; details?: { scopeName: string } } | null = null;
+      try {
+        await create(dataWithoutScopeKey);
+      } catch (e) {
+        caughtError = e as Error & { code?: string; details?: { scopeName: string } };
+      }
+
+      expect(caughtError).not.toBeNull();
+      expect(caughtError!.details?.scopeName).toBe('結合テスト グループ001');
+    });
+
+    test('scopeKey 指定なし・グループ001とユーザ004の両方に prefix が存在するとき、\
+ユーザ004のスコープ名がエラーに含まれないこと（グループが優先されること）', async () => {
+      // SQL修正前の挙動（ORDER BY なし・ユーザ004が先に返るケース）がないことを確認
+      // SQL修正後は必ず組織グループ側が返る想定
+      mockPgp.oneOrNone
+        .mockResolvedValueOnce({ namespace_id: 'NS_GROUP001' })           // findPrefixNamespaceId → グループ001（ORDER BY により）
+        .mockResolvedValueOnce({ qname: 'Uncertainty:projectA' })         // findTermInScope（重複あり）
+        .mockResolvedValueOnce({ scope_name: '結合テスト グループ001' }); // findScopeNameByNamespaceId
+
+      const dataWithoutScopeKey = {
+        organizationId: 'org-001',
+        prefix: 'Uncertainty',
+        localName: 'projectA',
+      };
+
+      let caughtError: Error & { code?: string; details?: { scopeName: string } } | null = null;
+      try {
+        await create(dataWithoutScopeKey);
+      } catch (e) {
+        caughtError = e as Error & { code?: string; details?: { scopeName: string } };
+      }
+
+      expect(caughtError).not.toBeNull();
+      // ユーザ004（ユーザスコープ）のスコープ名ではないことを確認
+      expect(caughtError!.details?.scopeName).not.toBe('ユーザ004');
+      // グループ001（組織グループ）のスコープ名であることを確認
+      expect(caughtError!.details?.scopeName).toBe('結合テスト グループ001');
+    });
+  });
 });

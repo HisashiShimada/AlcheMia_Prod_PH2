@@ -231,12 +231,14 @@ export async function getList(
  * セレクター用の不確かさ基準一覧を取得する（有効なもののみ・定性評価の選択肢も含む）
  *
  * @param organizationId - 組織ID
+ * @param organizationGroupCd - 組織グループCD（省略または null の場合は全件取得）
  * @returns セレクター用不確かさ基準一覧
  */
 export async function getForSelector(
-  organizationId: string
+  organizationId: string,
+  organizationGroupCd?: string | null
 ): Promise<UncertaintyCriteriaSelectorRow[]> {
-  return uncertaintyCriteriaRepository.findForSelector(organizationId);
+  return uncertaintyCriteriaRepository.findForSelector(organizationId, organizationGroupCd);
 }
 
 /**
