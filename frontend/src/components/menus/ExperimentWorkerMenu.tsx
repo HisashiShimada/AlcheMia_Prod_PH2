@@ -298,25 +298,6 @@ export default function ExperimentWorkerMenu({
     setViewingWorkTransitionId(null);
   };
 
-  // メソッド選択ハンドラー（タスクをリセット）
-  const handleSelectMethod = (methodId: string | null) => {
-    // メソッドが実際に変更された場合のみタスクをリセット
-    if (methodId !== selectedMethodId) {
-      setSelectedTaskId('');
-    }
-    setSelectedMethodId(methodId);
-  };
-
-  // タスク選択ハンドラー
-  const handleSelectTask = (taskId: string) => {
-    setSelectedTaskId(taskId);
-  };
-
-  // タスク発行時のハンドラー
-  const handleTaskCreated = (newTaskId: string) => {
-    setSelectedTaskId(newTaskId);
-  };
-
   // 選択中プロジェクトのステータス（数値）を取得
   // worker-accessible APIのレスポンスから直接参照することで、不要なAPIコールを排除
   const selectedProjectStatus = projects.find(p => p.projectId === selectedProject)?.projectStatus ?? null;
@@ -341,11 +322,6 @@ export default function ExperimentWorkerMenu({
     if (onMenuChange) {
       onMenuChange(menuType);
     }
-  };
-
-  // 子コンポーネント用のプロジェクト変更ハンドラー（string型のみを受け取る）
-  const handleProjectChangeForChild = (projectId: string) => {
-    handleProjectChange(projectId);
   };
 
   // タスクステータス変更後にプロジェクト一覧を再取得するハンドラー

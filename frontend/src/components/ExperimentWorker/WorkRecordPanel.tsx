@@ -29,8 +29,6 @@ import {
   Row,
   Select,
   Space,
-  Spin,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -102,7 +100,6 @@ let uncertaintyOptionsCache: { value: string; label: string }[] = [];
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 type TransitionStatus = 'not_started' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
-type ConfidenceLevel = '確か' | '曖昧' | '不確か';
 
 /**
  * トランジションステータスごとに、状態プルダウンで選択可能な「次の状態」を定義する。
@@ -734,14 +731,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
   taskTransition,
   isReadOnly,
   displayKey,
-  canSkip = false,
-  canGoNext = false,
   onActualChange,
-  onSave,
-  onSaveAndNext,
-  onSkip,
-  onTemplateIdxChange,
-  onCommentClick,
   uploadTargetPath,
   onInsertionAdd,
   onInsertionRemove,
@@ -766,22 +756,6 @@ const PropertyList: React.FC<PropertyListProps> = ({
       </Flex>
     );
   }
-
-  /** 「保存して次へ」: 次テンプレートへ進むか、トランジションを完了する */
-  const handleSaveAndNext = () => {
-    if (!displayKey) return;
-    const nextTemplateIdx = templateIdx + 1;
-    if (nextTemplateIdx < templateCount) {
-      onTemplateIdxChange(nextTemplateIdx);
-    } else {
-      onSaveAndNext(displayKey.taskNo, displayKey.transitionId);
-    }
-  };
-
-  const isLastTemplate = templateIdx === templateCount - 1;
-  const nextLabel = isLastTemplate
-    ? t('workRecord.transitionCompleteNext')
-    : t('workRecord.nextTemplate', { current: String(templateIdx + 2), total: String(templateCount) });
 
   return (
     <>
@@ -1128,7 +1102,6 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
   onCancelCorrectionMode,
   correctionLoading = false,
   onSaveCorrection,
-  onInstructionClick,
   startDisabled = false,
   endDisabled = false,
   forceEndDisabled = false,
@@ -1294,7 +1267,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
           return (
             <Alert
               type="warning" showIcon
-              message={t('workRecord.correctionModeAlert')}
+              title={t('workRecord.correctionModeAlert')}
               style={{ marginTop: 4, fontSize: 12, width: '100%' }}
               action={
                 <Space size={4}>
@@ -1323,7 +1296,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
           return (
             <Alert
               type="info" showIcon
-              message={t('workRecord.completedTransitionReadonly')}
+              title={t('workRecord.completedTransitionReadonly')}
               style={{ marginTop: 4, fontSize: 12, width: '100%' }}
               action={
                 <Space size={4}>
@@ -1340,7 +1313,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
         return (
           <Alert
             type="info" showIcon
-            message={t('workRecord.completedTransitionReadonly')}
+            title={t('workRecord.completedTransitionReadonly')}
             style={{ marginTop: 4, fontSize: 12, width: '100%' }}
             action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
           />
@@ -1658,11 +1631,11 @@ interface PlanProps {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, onPropertyAdd, onPropertyRemove, uploadTargetPath, onOpenViewer, viewerLoading,
+  tasks, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, onPropertyAdd, onPropertyRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
   progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onStatusChange,
-  pendingEndKey, onSetPendingEndKey,
+  onSetPendingEndKey,
   onUncertaintyValuesChange,
   onConfidenceChange,
   onQualitativeReasonChange,
@@ -2222,7 +2195,7 @@ function convertRawProperty(
     label: String(p.key ?? ''),
     xsiType: resolveXsiType(p.xsiType as string | undefined),
     unit: String(p.units ?? ''),
-    expected: ((p.value ?? p.plannedValue) as number | string | null | undefined) ?? null,
+    expected: ((p.plannedValue) as number | string | null | undefined) ?? null,
     uncertaintyName:        (p.uncertaintyName as string | undefined) ?? undefined,
     uncertaintyValue:       (p.toleranceValue as string | number | undefined) ?? undefined,
     uncertaintyDescription: (p.uncertaintyNote as string | undefined) ?? undefined,
@@ -2267,7 +2240,6 @@ export default function WorkRecordPanel({
   initialTransitionId,
   allWorkerInstructions,
   onConfirmInstruction,
-  organizationGroupCd,
   onStart,
   onEnd,
   onForceEnd,
@@ -2306,11 +2278,6 @@ export default function WorkRecordPanel({
    * planProps 経由で PlanB → PropertyList → PropertyCard に渡す。
    */
   const [lastJudgeResultMap, setLastJudgeResultMap] = React.useState<Record<string, '良好' | '不良'>>({});
-
-  // 作業指示モーダルの開閉状態
-  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
-  // 作業指示モーダルに渡す「現在表示中のトランジション情報」
-  const [currentTransitionForInstruction, setCurrentTransitionForInstruction] = useState<Transition | null>(null);
 
   /**
    * API から取得したトランジション定義（テンプレート・プロパティ情報）。
@@ -2403,10 +2370,10 @@ export default function WorkRecordPanel({
             for (const item of templateDataRes.data.templates) {
               if (item.recordedBy !== null) {
                 // DB実績あり: DB の値を実績として取り込む
-                for (const [key, val] of Object.entries(item.data)) {
+                for (const [key, property] of Object.entries(item.data['properties'] as Record<string, unknown>)) {
                   // フォールバック形式のメタキーは除外
                   if (key === 'templateId' || key === 'templateType' || key === 'properties') continue;
-                  actualsFromApi[key] = val as ActualValue;
+                  actualsFromApi[(property as any).key] = (property as any).value;
                 }
               }
             }
@@ -2447,10 +2414,8 @@ export default function WorkRecordPanel({
 
         setTasks((prev) => {
           const next: WorkTask[] = uniqueTaskNos.map((taskNo) => {
-            const existingTask = prev.find((t) => t.taskNo === taskNo);
             const taskRows = progressRows.filter((r) => r.taskNo === taskNo);
             const transitions: TaskTransitionState[] = taskRows.map((row) => {
-              const existing = existingTask?.transitions.find((tt) => tt.transitionId === row.transitionId);
               const apiStatus: TransitionStatus = (() => {
                 switch (row.status) {
                   case 'preparing':   return 'preparing';
@@ -2467,23 +2432,21 @@ export default function WorkRecordPanel({
               // なければ API から取得した実績値を使用する
               const mapKey = `${row.taskNo}__${row.transitionId}`;
               const apiActuals = actualsMap.get(mapKey) ?? {};
-              const hasExistingActuals =
-                existing?.actuals !== undefined &&
-                Object.keys(existing.actuals).length > 0;
               return {
                 transitionId: row.transitionId,
                 // API から取得した最新ステータスを常に反映する（状態プルダウン更新のため）
                 status: apiStatus,
-                actuals: hasExistingActuals ? existing!.actuals : apiActuals,
-                customInsertionIds: existing?.customInsertionIds ?? [],
-                customContentIds: existing?.customContentIds ?? [],
-                customPropertyIds: existing?.customPropertyIds ?? [],
+                actuals: apiActuals,
+                customInsertionIds: [],
+                customContentIds: [],
+                customPropertyIds: [],
               };
             });
             return { taskNo, transitions };
           });
           return next;
         });
+        setIsCorrectionMode(false);
       } catch (err) {
         console.error('[WorkRecordPanel] buildTransitions error:', err);
       }
@@ -3250,7 +3213,7 @@ export default function WorkRecordPanel({
         return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
       }
       // 全て完了済みの場合は null（「全トランジション完了」Alert を表示）
-      return null;
+      return { taskNo: progressRows[0].taskNo, transitionId: progressRows[0].transitionId };
     }
     // progressRows が空の場合: task.transitions の順序でフォールバック
     const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
