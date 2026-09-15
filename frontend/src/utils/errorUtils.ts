@@ -479,28 +479,41 @@ export function extractErrorCode(error: unknown): string {
  * エラーオブジェクトからユーザーフレンドリーなエラーメッセージを抽出
  *
  * 優先順位:
- *   1. AxiosError の response.data.error.message（バックエンドの具体的メッセージ）
- *   2. 通常の Error.message（サービス層で new Error(msg) した場合など）
- *   3. エラーコード → 翻訳キーマッピング（mapErrorToMessage）
- *   4. defaultMessage（呼び出し元のフォールバック）
+ *   1. AxiosError の response.data.error.details（バリデーション詳細メッセージ群）
+ *      → details の各 message を "／" 区切りで結合して返す
+ *   2. AxiosError の response.data.error.message（バックエンドの概要メッセージ）
+ *   3. 通常の Error.message（サービス層で new Error(msg) した場合など）
+ *   4. エラーコード → 翻訳キーマッピング（mapErrorToMessage）
+ *   5. defaultMessage（呼び出し元のフォールバック）
  *
  * @param error - エラーオブジェクト（AxiosError, Error, unknown）
  * @param defaultMessage - マッピングが見つからない場合のデフォルトメッセージ
  * @returns ユーザーに表示するエラーメッセージ
  */
 export function extractErrorMessage(error: unknown, defaultMessage?: string): string {
-  // ① バックエンドの具体的メッセージを最優先で使用
   if (axios.isAxiosError(error)) {
-    const apiMessage = (error as AxiosError<AxiosApiErrorBody>).response?.data?.error?.message;
+    const axiosErr = error as AxiosError<AxiosApiErrorBody>;
+
+    // ① バックエンドの details（バリデーション詳細）を最優先で使用
+    const details = axiosErr.response?.data?.error?.details;
+    if (Array.isArray(details) && details.length > 0) {
+      const messages = details
+        .map((d) => (typeof d === 'string' ? d : (d.message ?? '')))
+        .filter((msg) => msg.length > 0);
+      if (messages.length > 0) return messages.join('／');
+    }
+
+    // ② バックエンドの概要メッセージ
+    const apiMessage = axiosErr.response?.data?.error?.message;
     if (apiMessage) return apiMessage;
   }
 
-  // ② 通常の Error（サービス層で new Error(msg) した場合など）
+  // ③ 通常の Error（サービス層で new Error(msg) した場合など）
   if (error instanceof Error && !axios.isAxiosError(error)) {
     return error.message;
   }
 
-  // ③ エラーコードマッピング → ④ defaultMessage
+  // ④ エラーコードマッピング → ⑤ defaultMessage
   const code = extractErrorCode(error);
   return mapErrorToMessage(code, defaultMessage);
 }

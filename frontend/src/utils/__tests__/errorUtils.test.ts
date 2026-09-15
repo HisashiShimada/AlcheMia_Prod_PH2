@@ -237,8 +237,9 @@ describe('extractErrorMessage', () => {
       expect(extractErrorMessage(undefined)).toBe(DEFAULT);
     });
 
-    test('通常の Error → デフォルトメッセージ', () => {
-      expect(extractErrorMessage(new Error('generic'))).toBe(DEFAULT);
+    test('通常の Error → error.message を返す', () => {
+      // Error オブジェクトは error.message をそのまま返す（優先順位 ③）
+      expect(extractErrorMessage(new Error('generic'))).toBe('generic');
     });
 
     test('プレーンオブジェクト → デフォルトメッセージ', () => {
@@ -278,6 +279,87 @@ describe('extractErrorMessage', () => {
       expect(extractErrorMessage(error)).toBe(
         'ユーザー名またはパスワードが正しくありません'
       );
+    });
+  });
+
+  describe('details を含むバリデーションエラー（E1003）', () => {
+    test('details が1件 → その message を返す', () => {
+      const error = makeAxiosError({
+        status: 400,
+        responseData: {
+          success: false,
+          error: {
+            code: 'E1003',
+            message: 'バリデーションエラーが発生しました',
+            details: [{ field: 'creatorName', message: 'creatorName must be 50 characters or less' }],
+          },
+        },
+      });
+      expect(extractErrorMessage(error)).toBe('creatorName must be 50 characters or less');
+    });
+
+    test('details が複数件 → "／" 区切りで結合して返す', () => {
+      const error = makeAxiosError({
+        status: 400,
+        responseData: {
+          success: false,
+          error: {
+            code: 'E1003',
+            message: 'バリデーションエラーが発生しました',
+            details: [
+              { field: 'creatorName', message: 'creatorName must be 50 characters or less' },
+              { field: 'vendorId', message: 'vendorId must be a string' },
+            ],
+          },
+        },
+      });
+      expect(extractErrorMessage(error)).toBe(
+        'creatorName must be 50 characters or less／vendorId must be a string'
+      );
+    });
+
+    test('details が string 配列 → そのまま結合して返す', () => {
+      const error = makeAxiosError({
+        status: 400,
+        responseData: {
+          success: false,
+          error: {
+            code: 'E1003',
+            message: 'バリデーションエラーが発生しました',
+            details: ['フィールドAが不正です', 'フィールドBは必須です'],
+          },
+        },
+      });
+      expect(extractErrorMessage(error)).toBe('フィールドAが不正です／フィールドBは必須です');
+    });
+
+    test('details が空配列 → message にフォールバック', () => {
+      const error = makeAxiosError({
+        status: 400,
+        responseData: {
+          success: false,
+          error: {
+            code: 'E1003',
+            message: 'バリデーションエラーが発生しました',
+            details: [],
+          },
+        },
+      });
+      expect(extractErrorMessage(error)).toBe('バリデーションエラーが発生しました');
+    });
+
+    test('details なし・message あり → message を返す', () => {
+      const error = makeAxiosError({
+        status: 400,
+        responseData: {
+          success: false,
+          error: {
+            code: 'E1003',
+            message: 'バリデーションエラーが発生しました',
+          },
+        },
+      });
+      expect(extractErrorMessage(error)).toBe('バリデーションエラーが発生しました');
     });
   });
 });

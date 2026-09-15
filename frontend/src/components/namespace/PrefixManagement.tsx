@@ -387,10 +387,17 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
     // 並列チームに同名 prefix が存在するか確認
     // rows（既存prefix一覧）から重複を検索し、最初に見つかった1件を代表として警告表示する
+    // ※ 現在の登録先スコープ（currentScopeKey）と同じ scopeKey の行は除外する
+    //   → 同スコープへの重複は executeSave() 後にバックエンドが E6005 を返すため、ここでは警告不要
+    //   → 異なるスコープ（上位層など）に同名 prefix が存在する場合のみ警告ダイアログを表示する
+    const rawScopeKey = scopeKey ?? selectedNsKey ?? undefined;
+    const currentScopeKey = rawScopeKey?.replace(/^personal-/, '') ?? null;
     const firstDuplicate = newRows
       .map((newRow) => {
         const existing = rows.find(
-          (r) => r.prefix.toLowerCase() === newRow.prefix.toLowerCase()
+          (r) =>
+            r.prefix.toLowerCase() === newRow.prefix.toLowerCase() &&
+            r.scopeKey !== currentScopeKey
         );
         return existing ? { prefix: newRow.prefix, scopeName: existing.scopePath ?? existing.prefix } : null;
       })
@@ -508,7 +515,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const handleShareButtonClick = (keys: React.Key[]) => {
     // 選択中の Prefix 行を ShareItem 形式に変換
     const items: ShareItem[] = (keys as string[]).reduce<ShareItem[]>((acc, prefix) => {
-      const row = rows.find((r) => r.prefix === prefix);
+      const row = rows.find((r) => r.id === prefix);
       if (row) {
         const shareItem: ShareItem = {
           id: row.prefix,

@@ -1421,8 +1421,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       : isOrgGroupNodeSelected && !isRepresentativeOfSelected  // 既存ロジック（変更なし）
     );
 
-
-
   // 選択ノードの祖先ノードの prefix セット（company配下選択時のグレーアウト判定用）
   const ancestorPrefixesForSelected = useMemo((): Set<string> => {
     const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
@@ -2063,24 +2061,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
-          const r = record as NewTermRow;
-          return (
-            <div>
-              <Input
-                size="small"
-                placeholder={t('namespaceMain.localNamePlaceholder')}
-                value={r.localName}
-                status={r._isDuplicate ? 'error' : undefined}
-                onChange={(e) => updateNewTerm(r._rowId, 'localName', e.target.value)}
-              />
-              {r._isDuplicate && (
-                <div style={{ color: '#ff4d4f', fontSize: 11, marginTop: 2, lineHeight: 1.4 }}>
-                  <ExclamationCircleOutlined style={{ marginRight: 4 }} />
-                  {t('namespaceMain.duplicateRegistered', { prefix: r.prefix, localName: r.localName })}
-                </div>
-              )}
-            </div>
-          );
+          return <Input size="small" placeholder={t('namespaceMain.localNamePlaceholder')} value={record.localName} onChange={(e) => updateNewTerm(record._rowId, 'localName', e.target.value)}/>
         }
         const term = record as Term;
         return term.id === editingTermId
@@ -2398,7 +2379,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               </Button>
             </Tooltip>
             <Tooltip title={newTerms.some((r) => r._isDuplicate) ? t('namespaceMain.duplicateTooltip') : ''}>
-              <Button type="primary" onClick={handleAddSave} loading={isSaving} disabled={effectiveViewOnly || isSaving || newTerms.length === 0 || newTerms.some((r) => r._isDuplicate)}>
+              <Button type="primary" onClick={handleAddSave} loading={isSaving} disabled={effectiveViewOnly || isSaving || newTerms.length === 0}>
                 {t('namespaceMain.btnSave')}
               </Button>
             </Tooltip>
