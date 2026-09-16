@@ -357,10 +357,10 @@ organization_cd,organization_display_name,organization_email,chief_user_name,chi
 | 会社 "MaimlソフトDDD"（is_active=false） | 1-3-2（アクティブ化） | テスト実行前にDBに挿入 |
 | 会社 "MaimlソフトYYY"（is_active=false） | 1-1-7（重複チェック）、1-3-4（一括アクティブ化） | テスト実行前にDBに挿入 |
 | 組織 "E2E組織編集前" | 1-6-1（組織表示名変更） | テスト実行前にDBに挿入 |
-| 組織 "E2E組織トグルBBB"（is_active=true） | 1-6-2〜1-6-8、1-7-3 | テスト実行前にDBに挿入 |
+| 組織 "E2E組織トグルBBB"（is_active=true） | 1-6-2〜1-6-7、1-7-3 | テスト実行前にDBに挿入 |
 | 組織 "E2E組織トグルCCC"（is_active=true） | 1-7-1（非アクティブ化） | テスト実行前にDBに挿入 |
 | 組織 "E2E組織トグルDDD"（is_active=false） | 1-7-2（アクティブ化） | テスト実行前にDBに挿入 |
-| 組織 "E2E常設組織AAA" | 1-5-7（重複チェック）、1-6-8（重複チェック）、1-7-4〜1-7-5 | テスト実行前にDBに挿入 |
+| 組織 "E2E常設組織AAA" | 1-5-7（重複チェック）、1-7-4〜1-7-5 | テスト実行前にDBに挿入 |
 | 組織 "e2e-permanent-org-aaa"（組織CD） | 1-5-7（組織CD重複チェック） | テスト実行前にDBに挿入 |
 | グローバル名前空間宣言 常設テストデータ（CSVファイル: `system/namespaces/global-declarations.csv`） | 1-10-1、TMP_1_10_2 | テスト実行前にCSVファイルサーバへアップロード |
 

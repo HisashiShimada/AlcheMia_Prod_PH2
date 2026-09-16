@@ -39,7 +39,7 @@
 | **4-3** | チェックアウト/チェックイン | 要件書#4/#5、`ui_project_management.md`（REVIEW_REJECTED(6)追加） | 11件 | 手動 | 11 | 0 | 0 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 10件 | 手動 | 10 | 0 | 0 |
 | **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | 手動 | 7 | 0 | 0 |
-| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 33件 | 手動 | 23 | 1 | 9 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 33件 | 手動 | 23 | 3 | 7 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 3件 | 手動 | 3 | 0 | 0 |
 | **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 49 | 0 | 0 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | 手動 | 10 | 0 | 0 |
@@ -47,12 +47,12 @@
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件 | 手動 | 17 | 0 | 0 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | 手動 | 8 | 0 | 0 |
 | **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | 16 | 0 | 0 |
-| **4-14** | PropertyViewer 値なし区別表示・ツールチップ | `docs/改善仕様調査/No.8/result.md`（No.8対応） | 15件 | 手動 | 0 | 0 | 15 |
+| **4-14** | PropertyViewer 値なし区別表示・ツールチップ | `docs/改善仕様調査/No.8/result.md`（No.8対応） | 15件 | 手動 | 15 | 0 | 0 |
 | **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | 15 | 0 | 0 |
 | **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | 4 | 0 | 0 |
-| **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 0 | 0 | 16 |
-| **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 18 | 2 | 15 |
-| **合計** | - | - | **352件** | - | **313** | **4** | **35** |
+| **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 8 | 0 | 8 |
+| **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 33 | 2 | 0 |
+| **合計** | - | - | **352件** | - | **321** | **6** | **24** |
 
 ### スコープ外
 
@@ -1108,25 +1108,27 @@
 |-----------|-----------|------|------|---------|------|------|
 | 4-18-1 | 名前空間管理タブを開くと左ペインに名前空間ツリー（Global / 組織 / 個人）が表示され、右ペインにプレフィックス管理タブがデフォルト表示されること | 表示確認 | `UncertaintyManagement.tsx` `activeTab` 初期値 `'prefix'` | GET `/api/v1/organization-groups` | OK | `prefix` タブがデフォルト選択状態であること |
 | 4-18-2 | 名前空間ツリーで組織ノード（部門・グループ）を選択すると右ペインのコンテンツがそのスコープに絞り込まれること | 正常系 | `UncertaintyManagement.tsx` `selectedNsKey` → `effectiveNsKey` 連携 | - | OK | `setSelectedNsKey` 経由で `NamespaceMain` / `PrefixManagement` に `selectedNsKey` が渡されること |
-| 4-18-3 | Globalノード（`'global'` / `'ns-maiml'` / `'ns-xsi'`）を選択すると右ペインが `GlobalNamespaceView` に切り替わること | 正常系 | `UncertaintyManagement.tsx` `isGlobalNodeSelected` 条件 | - | OK | `プレフィックス管理` / `用語管理` タブが非表示になること |
+| 4-18-3 | Globalノード（`'global'` / `'ns-maiml'` / `'ns-xsi'`）を選択すると右ペインが `GlobalNamespaceView` に切り替わること | 正常系 | `UncertaintyManagement.tsx` `isGlobalNodeSelected` 条件 | - | OK | `プレフィックス管理` / `用語管理` タブが非表示になること。`category-B_uncertainty.md` B-UC-02 と重複のため実施不要 |
 | 4-18-4 | 組織ツリーの最深リーフノード（チーム）が初回マウント時に自動選択されること | 表示確認 | `UncertaintyManagement.tsx` `findDeepestLeafKey` → `setSelectedNsKey` | GET `/api/v1/organization-groups` | OK | 初期表示でツリーの最深ノードが選択ハイライト状態になること |
 | 4-18-5 | 右クリックコンテキストメニューは表示されないこと | 実施不可 | `ui_namespace_main.md` §3.3 [2026-08-27] | - | OK | `<Tree>` に `onRightClick` が渡されておらず `ctxMenu.visible=true` にするコードがないため右クリックコンテキストメニューは現在機能していない（デッドコード）。グループ追加・編集はグループ管理タブ（key='5'）経由で実施 |
-| 4-18-6 | グループ管理タブ（key=`'5'`）の「グループを作成」ボタンを押すと `GroupAddDialog` が開き、グループ名・追加先・メンバーを入力してグループを作成できること | 正常系 | `ui_namespace_main.md` §9（v2.6.0） / `GroupManagementPanel` / `GroupAddDialog` | POST `/api/v1/department-units` | OK | グループ名1文字以上で「作成」ボタンが活性 |
-| 4-18-7 | グループ管理タブ（key=`'5'`）のグループ一覧で「編集」ボタンを押すと `GroupEditDialog` が開き、メンバーを変更して保存できること | 正常系 | `ui_namespace_main.md` §10（v2.6.0） / `GroupManagementPanel` / `GroupEditDialog` | PUT `/api/v1/department-units/:id/members` | OK | コンポーネント名: GroupEditDialog。グループ名が空の場合「保存」ボタンが非活性 |
-| 4-18-8 | Personalノード選択中にチェックした用語の「🏢 組織に共有」ボタンが表示され、クリックすると `ShareScopeModal` 確認ダイアログが開くこと | 正常系 | `NamespaceMain.tsx` §11 `isPersonalSelected && selectedTermIds.length > 0` | - | OK | GlobalノードまたはOrganizationノード選択中は「組織に共有」ボタンが表示されないこと |
+| 4-18-6 | グループ管理タブ（key=`'5'`）の「グループを作成」ボタンを押すと `GroupAddDialog` が開き、グループ名・追加先・メンバーを入力してグループを作成できること | 正常系 | `ui_namespace_main.md` §9（v2.6.0） / `GroupManagementPanel` / `GroupAddDialog` | POST `/api/v1/department-units` | OK | グループ名1文字以上で「作成」ボタンが活性。`category-B_namespace.md` B-NS-05 と重複のため実施不要 |
+| 4-18-7 | グループ管理タブ（key=`'5'`）のグループ一覧で「編集」ボタンを押すと `GroupEditDialog` が開き、メンバーを変更して保存できること | 正常系 | `ui_namespace_main.md` §10（v2.6.0） / `GroupManagementPanel` / `GroupEditDialog` | PUT `/api/v1/department-units/:id/members` | OK | コンポーネント名: GroupEditDialog。グループ名が空の場合「保存」ボタンが非活性。`category-B_namespace.md` B-NS-05 と重複のため実施不要 |
+| 4-18-8 | Personalノード選択中にチェックした用語の「🏢 組織に共有」ボタンが表示され、クリックすると `ShareScopeModal` 確認ダイアログが開くこと | 正常系 | `NamespaceMain.tsx` §11 `isPersonalSelected && selectedTermIds.length > 0` | - | OK | GlobalノードまたはOrganizationノード選択中は「組織に共有」ボタンが表示されないこと。`category-B_namespace.md` B-NS-07・B-NS-10 と重複のため実施不要 |
 | 4-18-8-2 | ~~名前空間ノードを選択すると右ペイン上部に「用語数: N」「Prefix数: N」のバッジが表示されること~~ | 表示確認 | `ui_namespace_main.md` §3.2.2 | - | OK | 仕様変更あり。バッジ表示はしない。 |
 
 #### 4-18-B: プレフィックス管理
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-18-9 | プレフィックス管理タブを開くとプレフィックス一覧が表示されること | 正常系 | `ui_prefix_management.md` §一覧表示 | GET `/api/v1/namespaces/prefixes` | OK | `UncertaintyManagement` の `activeTab='prefix'` タブ |
-| 4-18-10 | 新規プレフィックスを追加できること | 正常系 | `ui_prefix_management.md` §追加 | POST `/api/v1/namespaces/prefixes` | OK | 「＋ prefix追加」ボタン押下時に `GET /api/v1/namespaces/suggested-uri` が呼ばれ、URIが自動生成・disabled表示されること |
-| 4-18-11 | 既存プレフィックスを編集できること | 正常系 | `ui_prefix_management.md` §編集 | PUT `/api/v1/namespaces/:prefix` | OK | 編集時は `prefix`・`description` のみ編集可。URI は表示のみ（編集不可）。保存時は `prefix` と `description` のみ送信される |
-| 4-18-12 | プレフィックスを非アクティブ化できること | 正常系 | `ui_prefix_management.md` §非アクティブ化 | PATCH `/api/v1/namespaces/:prefix/active` | OK | 押下後は `is_active=false` に更新され一覧から非表示になること |
-| 4-18-12-2 | プレフィックスの操作ボタンが「編集」「非アクティブ」と表示されること | 表示確認 | `ui_prefix_management.md` §3 テーブルカラム定義 | - | OK | システム名前空間行には操作ボタンの代わりに `<Tag>` バッジが表示されること |
+| 4-18-9 | プレフィックス管理タブを開くとプレフィックス一覧が表示されること | 正常系 | `ui_prefix_management.md` §一覧表示 | GET `/api/v1/namespaces/prefixes` | OK | `UncertaintyManagement` の `activeTab='prefix'` タブ。`category-B_namespace.md` B-NS-03 と重複のため実施不要 |
+| 4-18-10 | 新規プレフィックスを追加できること | 正常系 | `ui_prefix_management.md` §追加 | POST `/api/v1/namespaces/prefixes` | OK | 「＋ prefix追加」ボタン押下時に `GET /api/v1/namespaces/suggested-uri` が呼ばれ、URIが自動生成・disabled表示されること。`category-B_namespace.md` B-NS-03 と重複のため実施不要 |
+| 4-18-11 | 既存プレフィックスを編集できること | 正常系 | `ui_prefix_management.md` §編集 | PUT `/api/v1/namespaces/:prefix` | OK | 編集時は `prefix`・`description` のみ編集可。URI は表示のみ（編集不可）。保存時は `prefix` と `description` のみ送信される。`category-B_namespace.md` B-NS-03 と重複のため実施不要 |
+| 4-18-12 | プレフィックスを非アクティブ化できること | 正常系 | `ui_prefix_management.md` §非アクティブ化 | PATCH `/api/v1/namespaces/:prefix/active` | OK | 押下後は `is_active=false` に更新され一覧から非表示になること。`category-B_namespace.md` B-NS-03 と重複のため実施不要 |
+| 4-18-12-2 | プレフィックスの操作ボタンが「編集」「非アクティブ」と表示されること | 表示確認 | `ui_prefix_management.md` §3 テーブルカラム定義 | - | OK | システム名前空間行には操作ボタンの代わりに `<Tag>` バッジが表示されること。`category-B_namespace.md` B-NS-03 と重複のため実施不要 |
 
 #### 4-18-C: 不確かさ基準管理
+
+> ⚠️ **実施不要**: このセクション（4-18-C-1〜4-18-C-15）は `category-B_uncertainty.md` の B-UC-01〜B-UC-03・B-UC-06 と重複しているため、分類Bテストシナリオで実施済みの場合は本シナリオの実施は不要です。
 
 > 📌 実装上は `UncertaintyManagement` の `criteria` タブ（`activeTab='criteria'`）として名前空間管理画面内に存在します。
 > UI設計書: `docs/design/ui/experiment_admin/04_namespace_management/ui_uncertainty_criteria_management.md`
@@ -1136,31 +1138,31 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-18-C-1 | 不確かさ基準管理タブを開くと基準一覧が表示されること | 正常系 | `ui_uncertainty_criteria_management.md` §一覧 | GET `/api/v1/uncertainty-criteria` | - | uncertaintyKey・nameSpaceId・evaluationMethodが表示されること |
-| 4-18-C-2 | 基準名・Key・説明でフリーテキスト検索できること（リアルタイムフィルタ） | 正常系 | `ui_uncertainty_criteria_management.md` §3 ツールバー「リアルタイムフィルタ」 | GET `/api/v1/uncertainty-criteria`（フロントエンド側フィルタ） | - | 検索欄に入力するとAPIを再発行せずテーブル表示が即時絞り込まれること |
-| 4-18-C-3 | 定量評価（evaluationMethod=1）の不確かさ基準を新規登録できること | 正常系 | `api_uncertainty_criteria.md` §4.1 | POST `/api/v1/uncertainty-criteria` | - | xsiType / units / formatString を設定する |
-| 4-18-C-4 | 定性評価（evaluationMethod=2）の不確かさ基準を新規登録できること（選択肢リスト付き） | 正常系 | `api_uncertainty_criteria.md` §4.1、§データモデル qualitativeOptions | POST `/api/v1/uncertainty-criteria` | - | qualitativeOptions（selectorValue / displayColor / isDefault）を設定する |
-| 4-18-C-5 | 基準登録時に基準名（name）または Key（key）が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_uncertainty_criteria_management.md` §3 `UncertaintyCreateModal`、`UncertaintyTemplate` 型定義 §6 | POST `/api/v1/uncertainty-criteria` | - | 評価方式（eval）が未選択の場合も同様にバリデーションエラーが表示されること |
-| 4-18-C-6 | 定量評価で formatString が不正な場合にバリデーションエラーが表示されること | 異常系 | `api_uncertainty_criteria.md` §4.1 バリデーション | POST `/api/v1/uncertainty-criteria` | - | |
+| 4-18-C-1 | 不確かさ基準管理タブを開くと基準一覧が表示されること | 正常系 | `ui_uncertainty_criteria_management.md` §一覧 | GET `/api/v1/uncertainty-criteria` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-01 と重複） |
+| 4-18-C-2 | 基準名・Key・説明でフリーテキスト検索できること（リアルタイムフィルタ） | 正常系 | `ui_uncertainty_criteria_management.md` §3 ツールバー「リアルタイムフィルタ」 | GET `/api/v1/uncertainty-criteria`（フロントエンド側フィルタ） | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-01 と重複） |
+| 4-18-C-3 | 定量評価（evaluationMethod=1）の不確かさ基準を新規登録できること | 正常系 | `api_uncertainty_criteria.md` §4.1 | POST `/api/v1/uncertainty-criteria` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-02 と重複） |
+| 4-18-C-4 | 定性評価（evaluationMethod=2）の不確かさ基準を新規登録できること（選択肢リスト付き） | 正常系 | `api_uncertainty_criteria.md` §4.1、§データモデル qualitativeOptions | POST `/api/v1/uncertainty-criteria` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-02 と重複） |
+| 4-18-C-5 | 基準登録時に基準名（name）または Key（key）が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_uncertainty_criteria_management.md` §3 `UncertaintyCreateModal`、`UncertaintyTemplate` 型定義 §6 | POST `/api/v1/uncertainty-criteria` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-02 と重複） |
+| 4-18-C-6 | 定量評価で formatString が不正な場合にバリデーションエラーが表示されること | 異常系 | `api_uncertainty_criteria.md` §4.1 バリデーション | POST `/api/v1/uncertainty-criteria` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-02 と重複） |
 
 ##### 4-18-C-2: バージョン管理
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-18-C-7 | 既存の不確かさ基準を更新（バージョンアップ）できること | 正常系 | `api_uncertainty_criteria.md` §4.2（バージョン管理） | POST `/api/v1/uncertainty-criteria` | - | 同一 uncertaintyKey で新規 INSERT → MAX(version)+1 で採番されること |
-| 4-18-C-8 | 基準を更新すると旧バージョンが一括無効化（is_Invalid=true）されること | 正常系 | `api_uncertainty_criteria.md` §バージョン管理の仕組み | POST `/api/v1/uncertainty-criteria` | - | 旧バージョンのレコードが `is_Invalid=TRUE` になることをDB確認 |
-| 4-18-C-9 | バージョン履歴一覧を確認できること（無効化済みバージョンを含む） | 正常系 | `ui_uncertainty_criteria_management.md` §バージョン履歴 | GET `/api/v1/uncertainty-criteria/:id/history` | - | 最新バージョンとすべての旧バージョンが表示されること |
+| 4-18-C-7 | 既存の不確かさ基準を更新（バージョンアップ）できること | 正常系 | `api_uncertainty_criteria.md` §4.2（バージョン管理） | POST `/api/v1/uncertainty-criteria` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-03 と重複） |
+| 4-18-C-8 | 基準を更新すると旧バージョンが一括無効化（is_Invalid=true）されること | 正常系 | `api_uncertainty_criteria.md` §バージョン管理の仕組み | POST `/api/v1/uncertainty-criteria` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-03 と重複） |
+| 4-18-C-9 | バージョン履歴一覧を確認できること（無効化済みバージョンを含む） | 正常系 | `ui_uncertainty_criteria_management.md` §バージョン履歴 | GET `/api/v1/uncertainty-criteria/:id/history` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-03 と重複） |
 
 ##### 4-18-C-3: 無効化・セレクター向け取得
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-18-C-10 | 不確かさ基準を個別に無効化（isInvalid=true）できること | 正常系 | `api_uncertainty_criteria.md` §4.3 | PATCH `/api/v1/uncertainty-criteria/:id/invalidate` | - | |
-| 4-18-C-11 | 無効化した不確かさ基準は一覧のデフォルト表示から除外されること | 正常系 | `ui_uncertainty_criteria_management.md` §無効化フィルター | GET `/api/v1/uncertainty-criteria` | - | デフォルトは有効（isInvalid=false）のみ表示 |
-| 4-18-C-12 | セレクター向け取得エンドポイント（`/for-selector`）では無効化済み（isInvalid=true）の基準が返却されないこと | 正常系 | `api_uncertainty_criteria.md` §4.4（セレクター向け） | GET `/api/v1/uncertainty-criteria/for-selector` | - | 実験評価画面でのセレクター用途 |
-| 4-18-C-13 | セレクター向け取得エンドポイントでは有効な最新バージョンの基準のみ返却されること | 正常系 | `api_uncertainty_criteria.md` §4.4 | GET `/api/v1/uncertainty-criteria/for-selector` | - | 旧バージョン（isInvalid=true）は返却されないこと |
-| 4-18-C-14 | 定性評価の基準をセレクター向けエンドポイントで取得すると qualitativeOptions（選択肢リスト）が含まれること | 正常系 | `api_uncertainty_criteria.md` §4.4 レスポンス | GET `/api/v1/uncertainty-criteria/for-selector` | - | |
-| 4-18-C-15 | 無効化した基準を再有効化できること（is_Invalid=false に戻す） | 正常系 | `ui_uncertainty_criteria_management.md` §再有効化 | PATCH `/api/v1/uncertainty-criteria/:id/invalidate` | - | 再有効化後にセレクターでも表示されること |
+| 4-18-C-10 | 不確かさ基準を個別に無効化（isInvalid=true）できること | 正常系 | `api_uncertainty_criteria.md` §4.3 | PATCH `/api/v1/uncertainty-criteria/:id/invalidate` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-06 と重複） |
+| 4-18-C-11 | 無効化した不確かさ基準は一覧のデフォルト表示から除外されること | 正常系 | `ui_uncertainty_criteria_management.md` §無効化フィルター | GET `/api/v1/uncertainty-criteria` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-06 と重複） |
+| 4-18-C-12 | セレクター向け取得エンドポイント（`/for-selector`）では無効化済み（isInvalid=true）の基準が返却されないこと | 正常系 | `api_uncertainty_criteria.md` §4.4（セレクター向け） | GET `/api/v1/uncertainty-criteria/for-selector` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-06 と重複） |
+| 4-18-C-13 | セレクター向け取得エンドポイントでは有効な最新バージョンの基準のみ返却されること | 正常系 | `api_uncertainty_criteria.md` §4.4 | GET `/api/v1/uncertainty-criteria/for-selector` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-06 と重複） |
+| 4-18-C-14 | 定性評価の基準をセレクター向けエンドポイントで取得すると qualitativeOptions（選択肢リスト）が含まれること | 正常系 | `api_uncertainty_criteria.md` §4.4 レスポンス | GET `/api/v1/uncertainty-criteria/for-selector` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-06 と重複） |
+| 4-18-C-15 | 無効化した基準を再有効化できること（is_Invalid=false に戻す） | 正常系 | `ui_uncertainty_criteria_management.md` §再有効化 | PATCH `/api/v1/uncertainty-criteria/:id/invalidate` | OK | 重複のため実施不要（`category-B_uncertainty.md` B-UC-06 と重複） |
 
 #### 4-18-D: 用語管理
 

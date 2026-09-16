@@ -13,8 +13,8 @@
 | テスト実施日 | 2026-09-01 |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | 不合格（NG 8件） |
-| 備考 | NG: 3-1-9・3-2-7・3-3-7（AISOLMAIML-324）、3-1-10・3-2-8・3-3-8（AISOLMAIML-325）、3-1-15・3-2-13（AISOLMAIML-326） |
+| 総合判定 | 不合格（NG 4件） |
+| 備考 | NG: 3-1-9・3-2-7（AISOLMAIML-324）、3-1-10・3-2-8（AISOLMAIML-325） |
 
 ---
 
@@ -24,10 +24,10 @@
 
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|------|-----------|-----------|------|-------|-------|
-| **3-1** | Creator マスタ管理 | 要件書#3 | 19件 | Playwright自動 | 12 | 3 | 4 |
-| **3-2** | Vendor マスタ管理 | 要件書#3 | 17件 | Playwright自動 | 12 | 3 | 2 |
-| **3-3** | Instrument マスタ管理 | 要件書#3 | 18件 | Playwright自動 | 12 | 3 | 3 |
-| **合計** | - | - | **54件** | - | **37** | **8** | **9** |
+| **3-1** | Creator マスタ管理 | 要件書#3 | 19件 | Playwright自動 | 17 | 2 | 0 |
+| **3-2** | Vendor マスタ管理 | 要件書#3 | 17件 | Playwright自動 | 15 | 2 | 0 |
+| **3-3** | Instrument マスタ管理 | 要件書#3 | 18件 | Playwright自動 | 18 | 0 | 0 |
+| **合計** | - | - | **54件** | - | **50** | **4** | **0** |
 
 ### スコープ外
 
@@ -67,7 +67,7 @@
 | 3-1-12 | 「編集」ボタンから Creator 名を編集して保存できること | 正常系 | 要件書#3、`ui_master_edit_dialog.md` §5.2 | PUT `/api/v1/master/creator/:creatorId` | OK | |
 | 3-1-13 | 編集ダイアログで Creator ID が読み取り専用（変更不可）であること | 表示確認 | `ui_master_edit_dialog.md` §4.1 | - | OK | |
 | 3-1-14 | Creator 名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_edit_dialog.md` §8.1 | - | OK | |
-| 3-1-15 | 操作カラムの「非アクティブ化」ボタンから Creator を非アクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.1（操作カラム） | PATCH `/api/v1/master/creator/:creatorId/status` | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-326 |
+| 3-1-15 | 操作カラムの「非アクティブ化」ボタンから Creator を非アクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.1（操作カラム） | PATCH `/api/v1/master/creator/:creatorId/status` | OK | |
 | 3-1-16 | 操作カラムの「アクティブ化」ボタンから Creator をアクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.1（操作カラム） | PATCH `/api/v1/master/creator/:creatorId/status` | OK | |
 | 3-1-17 | CSV ダウンロードボタンをクリックすると Creator 一覧 CSV がダウンロードされること | 正常系 | 要件書#3、`ui_master_main.md` §5.2.3 | GET `/api/v1/master/creator/download-csv` | OK | |
 | 3-1-18 | CSV ファイルを編集してアップロードすると Creator が一括作成されること | 正常系 | 要件書#3、`ui_master_main.md` §5.2.4 | POST `/api/v1/master/creator/upload-csv` | OK | |

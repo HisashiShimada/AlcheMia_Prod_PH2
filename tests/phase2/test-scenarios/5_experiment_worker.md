@@ -41,9 +41,9 @@
 | **5-2** | 実験記録（トランジション記録） | **廃止**（2026-08-27） | 0件 | — | 0 | 0 | 0 |
 | **5-3** | 問題報告・ステータス変更 | 要件書（なし）、追加機能D/E/F/G | 18件 | 手動 | 18 | 0 | 0 |
 | **5-4** | プロジェクト指示確認（WorkRecordPanel内）| 要件書#8、`ui_work_record_panel.md`（v3.3.0）| 3件 | 手動 | 3 | 0 | 0 |
-| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K、`docs/改善仕様調査/No.23/result.md`（No.23対応）、`ui_progress_overview_tab.md`（**v3.1.0** / 2026-09-09: 変更履歴重複削除のみ・機能変更なし）| 15件 | 手動 | 20 | 0 | 8 |
-| **5-6** | 作業記録パネル（WorkRecordPanel） | `docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md`（**v3.3.0** / 2026-09-09: PropertyCard新機能追加・API連携状況更新）。API接続済み・カテゴリ別グループ表示・状態記録ダイアログ・指示確認フロー（preparing→ready→in_progress）・状態プルダウン活性化・is_recorded管理・スキップ制御・承認依頼条件 | 23件 | 手動 + 手動 | 15 | 1 |  |
-| **合計** | - | - | **80件** | - | **41** | **0** | **39** |
+| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K、`docs/改善仕様調査/No.23/result.md`（No.23対応）、`ui_progress_overview_tab.md`（**v3.1.0** / 2026-09-09: 変更履歴重複削除のみ・機能変更なし）| 15件 | 手動 | 1 | 1 | 13 |
+| **5-6** | 作業記録パネル（WorkRecordPanel） | `docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md`（**v3.3.0** / 2026-09-09: PropertyCard新機能追加・API連携状況更新）。API接続済み・カテゴリ別グループ表示・状態記録ダイアログ・指示確認フロー（preparing→ready→in_progress）・状態プルダウン活性化・is_recorded管理・スキップ制御・承認依頼条件 | 27件 | 手動 + 手動 | 16 | 0 | 11 |
+| **合計** | - | - | **67件** | - | **42** | **1** | **24** |
 
 ### スコープ外
 
@@ -148,7 +148,7 @@
 
 ### 5-4: プロジェクト指示確認（WorkRecordPanel内のInstructionCollapse）
 
-| シナリオ数 | **4件** |
+| シナリオ数 | **3件** |
 |---------|---------|
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
@@ -287,6 +287,15 @@
 | 5-6-21 | `ready`（準備完了）のトランジションが選択中のとき「スキップ」ボタンが活性であること | 表示確認 | `ui_work_record_panel.md` §6.1（v3.1.0） | - | - | |
 | 5-6-22 | トランジション一覧の表示順が `in_progress` > `ready` > `preparing`（同一ステータス内は `order` 昇順）であること | 表示確認 | `ui_work_record_panel.md` §10.2 #10（v3.1.0） | - | - | 複数のトランジションが各ステータスに混在するテストデータで確認する |
 | 5-6-23 | 定性評価プロパティカードの確信度ボタン選択肢（`qualitativeOptions`）が `intuition_selector` テーブル由来の値で表示され、`confidenceOptionsWithColor` がある場合はボタン色に反映されること | 表示確認 | `ui_work_record_panel.md` §4（WorkProperty型定義）、§5.3（確信度）（v3.3.0） | - | OK | `display_color` フィールドが存在する選択肢でボタン色が変化することを確認する |
+
+#### 5-6-F: PropertyCard 新機能（2026-09-09 追加）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 5-6-24 | 定性評価プロパティカードの確信度ボタン横に `description`（評価説明）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.3（定性評価説明）（v3.3.0） | - | - | `description` フィールドが設定された定性評価プロパティで確認する |
+| 5-6-25 | 定性評価プロパティカードに定性評価理由の入力欄（TextArea）が表示され、入力した値が保存されること | 正常系 | `ui_work_record_panel.md` §5.3（定性評価理由入力欄）（v3.3.0） | POST `/api/v1/experiments/…/data` | - | 定性評価理由は `qualitativeReason` フィールドとして保存されること |
+| 5-6-26 | 定量評価プロパティカードに判定結果バッジ（合格/不合格/判定中等）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.4（判定結果バッジ）（v3.3.0） | GET `/api/v1/experiments/…/data` | - | 判定結果が存在するトランジションのプロパティカードで確認する |
+| 5-6-27 | 定量評価プロパティカードに `quantitativeUncertainties` プリセット値が表示され、選択すると入力欄に反映されること | 正常系 | `ui_work_record_panel.md` §5.4（quantitativeUncertainties プリセット表示）（v3.3.0） | - | - | プリセット選択後に定量評価値入力欄の値が更新されること |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
