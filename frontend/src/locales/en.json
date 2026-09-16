@@ -5336,6 +5336,7 @@
     "updateError": "Failed to update Prefix",
     "deactivateConfirm": "Deactivate \"{prefix}\"?",
     "deactivateContent": "Maiml files using the prefix will become unavailable. Is that okay?",
+    "deactivateOk": "Deactivate",
     "deactivateCancelBtn": "Cancel",
     "deactivateSuccess": "\"{prefix}\" has been deactivated",
     "deactivateError": "Failed to deactivate \"{prefix}\"",

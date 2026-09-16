@@ -304,6 +304,12 @@ interface PropertyCardProps {
    * 保存後にバッジ表示するために使用する。
    */
   lastJudgeResultMap?: Record<string, '良好' | '不良'>;
+  /**
+   * 定量評価（addedValues）の初期値（省略可）。
+   * テンプレート切替後に uncertaintyValuesRef から復元した値を渡すことで
+   * PropertyCard 再マウント時も入力値を保持できる。
+   */
+  initialUncertaintyValues?: UncertaintyValueEntry[];
 }
 
 const CONFIDENCE_STYLE: Record<string, { background: string; borderColor: string; color: string }> = {
@@ -322,6 +328,7 @@ const getConfidenceStyle = (level: string) =>
 
 const PropertyCard: React.FC<PropertyCardProps> = ({
   prop, actual, readOnly, onChange, onUncertaintyValuesChange, onConfidenceChange, onQualitativeReasonChange, lastJudgeResultMap,
+  initialUncertaintyValues,
 }) => {
   const { t } = useLanguage();
   const DEFAULT_CONFIDENCE_OPTIONS: string[] = [
@@ -342,14 +349,21 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
    * 定量評価入力行。
    * quantitativeUncertainties が設定されている場合は件数分の行を初期生成し
    * uncertaintyKey をプリセットする。それ以外は空行1件。
+   * initialUncertaintyValues が渡された場合は uncertaintyKey に対応する value を復元する。
    */
   const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>(() => {
     if (prop.quantitativeUncertainties && prop.quantitativeUncertainties.length > 0) {
-      return prop.quantitativeUncertainties.map((qu) => ({
-        id: qu.uncertaintyKey,
-        uncertaintyKey: qu.uncertaintyKey,
-        value: '',
-      }));
+      return prop.quantitativeUncertainties.map((qu) => {
+        // initialUncertaintyValues から対応するエントリの value を復元（テンプレート切替後の保持）
+        const savedEntry = initialUncertaintyValues?.find(
+          (e) => e.uncertaintyKey === qu.uncertaintyKey
+        );
+        return {
+          id: qu.uncertaintyKey,
+          uncertaintyKey: qu.uncertaintyKey,
+          value: savedEntry?.value ?? '',
+        };
+      });
     }
     return [{ id: 'initial', uncertaintyKey: '', value: '' }];
   });
@@ -719,6 +733,16 @@ interface PropertyListProps {
    */
   onQualitativeReasonChange?: (placeId: string, propKey: string, value: string | null) => void;
   lastJudgeResultMap?: Record<string, '良好' | '不良'>;
+  /**
+   * テンプレート切替後に confidence / qualitativeReason を復元するためのコールバック。
+   * placeId（templateId）と propKey を渡すと confidenceValuesRef の現在値を返す。
+   */
+  onGetInitialConfidence?: (placeId: string, propKey: string) => { confidence: string | null; qualitativeReason: string | undefined };
+  /**
+   * テンプレート切替後に定量評価入力値（addedValues）を復元するためのコールバック。
+   * placeId（templateId）と propKey を渡すと uncertaintyValuesRef の現在値を返す。
+   */
+  onGetInitialUncertaintyValues?: (placeId: string, propKey: string) => UncertaintyValueEntry[];
 }
 
 /** Insertion のデフォルト値 */
@@ -746,6 +770,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onConfidenceChange,
   onQualitativeReasonChange,
   lastJudgeResultMap,
+  onGetInitialConfidence,
+  onGetInitialUncertaintyValues,
 }) => {
   const { t } = useLanguage();
 
@@ -768,10 +794,19 @@ const PropertyList: React.FC<PropertyListProps> = ({
       </Flex>
 
       <Row gutter={[8, 8]}>
-        {template.properties.map((prop) => (
+        {template.properties.map((prop) => {
+          // テンプレート切替後も入力値を保持するため、Ref の現在値で prop を補完する
+          const initialConf = onGetInitialConfidence?.(template.id, prop.key);
+          const enrichedProp: WorkProperty = {
+            ...prop,
+            defaultConfidence: initialConf?.confidence ?? prop.defaultConfidence,
+            qualitativeReason: initialConf?.qualitativeReason ?? prop.qualitativeReason,
+          };
+          const initialUncValues = onGetInitialUncertaintyValues?.(template.id, prop.key) ?? [];
+          return (
           <Col span={8} key={prop.key}>
             <PropertyCard
-              prop={prop}
+              prop={enrichedProp}
               actual={(() => {
                 const v = taskTransition?.actuals[prop.key] ?? null;
                 // Insertionオブジェクトはプロパティ値として使わない
@@ -791,9 +826,11 @@ const PropertyList: React.FC<PropertyListProps> = ({
                 onQualitativeReasonChange?.(template.id, propKey, value);
               }}
               lastJudgeResultMap={lastJudgeResultMap}
+              initialUncertaintyValues={initialUncValues}
             />
           </Col>
-        ))}
+          );
+        })}
         {/* ── カスタムPropertyカード（ユーザーが追加したもの・同グリッドに混在） ── */}
         {taskTransition?.customPropertyIds?.map((pid) => {
           const actualValue = taskTransition.actuals[`property_custom_${pid}`] ?? null;
@@ -1624,6 +1661,16 @@ interface PlanProps {
    * true のとき訂正不可（完全閲覧専用）。
    */
   isErrorStatus: boolean;
+  /**
+   * テンプレート切替後に confidence / qualitativeReason を復元するためのコールバック。
+   * WorkRecordPanel 本体から confidenceValuesRef の現在値を返す。
+   */
+  onGetInitialConfidence?: (placeId: string, propKey: string) => { confidence: string | null; qualitativeReason: string | undefined };
+  /**
+   * テンプレート切替後に定量評価入力値（addedValues）を復元するためのコールバック。
+   * WorkRecordPanel 本体から uncertaintyValuesRef の現在値を返す。
+   */
+  onGetInitialUncertaintyValues?: (placeId: string, propKey: string) => UncertaintyValueEntry[];
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1651,6 +1698,8 @@ const PlanB: React.FC<PlanProps> = ({
   displayKey,
   isReadOnly,
   isErrorStatus,
+  onGetInitialConfidence,
+  onGetInitialUncertaintyValues,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -2073,6 +2122,8 @@ const PlanB: React.FC<PlanProps> = ({
             onConfidenceChange={onConfidenceChange}
             onQualitativeReasonChange={onQualitativeReasonChange}
             lastJudgeResultMap={lastJudgeResultMap}
+            onGetInitialConfidence={onGetInitialConfidence}
+            onGetInitialUncertaintyValues={onGetInitialUncertaintyValues}
           />
         </Content>
       </Layout>
@@ -3405,6 +3456,20 @@ export default function WorkRecordPanel({
     displayKey,
     isReadOnly,
     isErrorStatus,
+    // テンプレート切替後も入力値を保持するためのコールバック
+    // PropertyCard 再マウント時に confidenceValuesRef / uncertaintyValuesRef から初期値を復元する
+    onGetInitialConfidence: (placeId: string, propKey: string) => {
+      const key = `${placeId}__${propKey}`;
+      const entry = confidenceValuesRef.current.get(key);
+      return {
+        confidence: entry?.value ?? null,
+        qualitativeReason: entry?.description ?? undefined,
+      };
+    },
+    onGetInitialUncertaintyValues: (placeId: string, propKey: string): UncertaintyValueEntry[] => {
+      const key = `${placeId}__${propKey}`;
+      return uncertaintyValuesRef.current.get(key) ?? [];
+    },
   };
 
   const commentTarget = viewingKey ?? activeEntry;
