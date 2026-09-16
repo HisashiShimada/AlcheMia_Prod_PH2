@@ -98,7 +98,7 @@ function buildCommonTemplateXMLFromTemplate(
   
   placeRefs.forEach((placeRef: PlaceRef, index: number) => {
     const placeRefId = index === 0 
-      ? (template.placeRefs[0].id || `${templateId}TL`)
+      ? (placeRef.id || `${templateId}TL`)
       : `${templateId}TL_ref${index}`;
     xml += `      <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
     console.log(`  ✅ placeRef追加: id="${placeRefId}" ref="${placeRef.ref}"`);
@@ -465,7 +465,9 @@ function buildMethodXML(
     // materialTemplates: allTemplatesからmethodIdが一致するもののみ取得
     if (allTemplates.material) {
       const contextMaterials = allTemplates.material.filter((t: Template) =>
-        t.methodId === methodId && t.placeRefs && t.placeRefs.length > 0
+        // ✅ Fix: placeRefs が空のテンプレート（テンプレート一覧「+」から新規作成）も XML に含める
+        // 旧: t.methodId === methodId && t.placeRefs && t.placeRefs.length > 0
+        t.methodId === methodId
       );
       contextMaterials.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
@@ -499,7 +501,9 @@ function buildMethodXML(
     // conditionTemplates: allTemplatesからmethodIdが一致するもののみ取得
     if (allTemplates.condition) {
       const contextConditions = allTemplates.condition.filter((t: Template) =>
-        t.methodId === methodId && t.placeRefs && t.placeRefs.length > 0
+        // ✅ Fix: placeRefs が空のテンプレート（テンプレート一覧「+」から新規作成）も XML に含める
+        // 旧: t.methodId === methodId && t.placeRefs && t.placeRefs.length > 0
+        t.methodId === methodId
       );
       contextConditions.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
@@ -533,7 +537,9 @@ function buildMethodXML(
     // resultTemplates: allTemplatesからmethodIdが一致するもののみ取得
     if (allTemplates.result) {
       const contextResults = allTemplates.result.filter((t: Template) =>
-        t.methodId === methodId && t.placeRefs && t.placeRefs.length > 0
+        // ✅ Fix: placeRefs が空のテンプレート（テンプレート一覧「+」から新規作成）も XML に含める
+        // 旧: t.methodId === methodId && t.placeRefs && t.placeRefs.length > 0
+        t.methodId === methodId
       );
       contextResults.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
