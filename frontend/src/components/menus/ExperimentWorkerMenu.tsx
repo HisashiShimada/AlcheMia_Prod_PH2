@@ -335,6 +335,10 @@ export default function ExperimentWorkerMenu({
 
   const handleTabChange = (key: string) => {
     setCurrentTab(key);
+    // 進捗確認タブ（'4'）に切り替えた際、最新の進捗データを再取得する
+    if (key === '4' && selectedProject) {
+      void reloadProgressRows(selectedProject);
+    }
   };
 
   const handleMenuChange = (menuType: MenuType) => {
