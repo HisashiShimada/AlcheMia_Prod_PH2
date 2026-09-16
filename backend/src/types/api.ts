@@ -1202,6 +1202,12 @@ export interface ToleranceValueEntry {
   uncertaintyNote: string | null;
   /** 不確かさ基準名（uncertainty_criteria.termDisplayName。null = 未設定） */
   uncertaintyName: string | null;
+  /**
+   * 作業者が入力した定量評価記録値（experiment_uncertainty_judge.recorded_value）。
+   * getTemplateData 内で最新の判定レコードから付与される。
+   * 未保存の場合は null。
+   */
+  recordedValue?: number | null;
 }
 
 // ============================================================

@@ -101,6 +101,42 @@ export class ExperimentUncertaintyJudgeRepository {
   }
 
   /**
+   * 指定タスク・トランジションの全プロパティについて最新の recorded_value を一括取得する
+   *
+   * @remarks
+   * getTemplateData 内で定量評価の初期表示値を補完するために使用する。
+   * DISTINCT ON で各 (templateId, propertyKey, uncertaintyKey) の最新1件のみを返す。
+   *
+   * @param organizationId - 組織ID
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param taskNo - タスク番号
+   * @param transitionId - トランジションID
+   * @returns 最新 recorded_value の配列（存在しない場合は空配列）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findByTaskNo(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    transitionId: string
+  ): Promise<Array<{ templateId: string; propertyKey: string; uncertaintyKey: string; recordedValue: number }>> {
+    try {
+      const pgp = getPgp();
+      const query = await loadSqlFile('experiment_uncertainty_judge/findByTaskNo.sql');
+      const params = [organizationId, projectId, methodId, taskNo, transitionId];
+      return await pgp.any<{ templateId: string; propertyKey: string; uncertaintyKey: string; recordedValue: number }>(query, params);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding experiment_uncertainty_judge by task',
+        error as Error
+      );
+    }
+  }
+
+
+  /**
    * 指定プロパティの最新判定結果を1件取得する
    *
    * @param organizationId - 組織ID

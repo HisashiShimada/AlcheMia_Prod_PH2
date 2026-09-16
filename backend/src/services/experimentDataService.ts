@@ -28,6 +28,7 @@ import { findByKeysWithDetails, UncertaintyKeyDetail, QualitativeOptionRow } fro
 import { runJudge, UncertaintyValueInput, UncertaintyJudgeResult } from './uncertaintyJudgeService';
 import type { ToleranceValueEntry } from '../types/api';
 import { ExperimentInstructionDetail } from '../types/database';
+import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
 
 /**
  * プロジェクト編集不可エラー
@@ -512,6 +513,17 @@ export async function getTemplateData(
     const experimentInstructionDetails = await experimentInstructionDetailRepository.findByProject(organizationId,projectId);
     const taskInstructions = experimentInstructionDetails.filter((e) => e.method_id == methodId && e.task_no == taskNo && e.transition_id == transitionId );
 
+    // 8c. experiment_uncertainty_judge から最新の recorded_value を一括取得して judgeMap を構築
+    // judgeMap キー: `${templateId}__${propertyKey}__${uncertaintyKey}`
+    const judgeRepo = new ExperimentUncertaintyJudgeRepository();
+    const judgeRows = await judgeRepo.findByTaskNo(
+      organizationId, projectId, methodId, taskNo, transitionId
+    );
+    const judgeMap = new Map<string, number>();
+    for (const jr of judgeRows) {
+      judgeMap.set(`${jr.templateId}__${jr.propertyKey}__${jr.uncertaintyKey}`, jr.recordedValue);
+    }
+
     // 8b. placeId ごとに DB実績 or フォールバックを選択
     // （一部のみ保存済みの場合に、未保存のplaceIdがレスポンスから欠損しないようにするため）
     const fallbackAll = buildFallbackTemplates(parser, methodId, adjacentPlaceIds,taskInstructions, uncertaintyDetailMap);
@@ -589,10 +601,11 @@ export async function getTemplateData(
         const enrichedPs = ps != null
           ? { ...ps, properties: enrichedProperties }
           : { properties: enrichedProperties };
+        const templateId = ps?.templateId ?? '';
         return {
           placeId: dbRecord.place_id,
           templateType: ps?.templateType ?? '',
-          templateId: ps?.templateId ?? '',
+          templateId,
           data: enrichedPs as unknown as Record<string, unknown>,
           recordedBy: dbRecord.update_user_id ?? null,
           recordedAt: dbRecord.update_at instanceof Date
@@ -605,6 +618,22 @@ export async function getTemplateData(
         return fallback ?? null;
       }
     }).filter((item): item is TemplateDataItem => item !== null);
+
+    // 8d. judgeMap の recorded_value を templates の toleranceValues[] に後付けで付与する
+    // convertPropertyForFallback は templateId を持たないため、templates 構築後にプロパティキーで付与する
+    for (const item of templates) {
+      if (!Array.isArray(item.data.properties)) continue;
+      for (const p of item.data.properties as Array<Record<string, unknown>>) {
+        const propKey = String(p['key'] ?? '');
+        if (!Array.isArray(p['toleranceValues'])) continue;
+        p['toleranceValues'] = (p['toleranceValues'] as Array<Record<string, unknown>>).map((tv) => {
+          const ucKey = String(tv['uncertaintyKey'] ?? '');
+          const mapKey = `${item.templateId}__${propKey}__${ucKey}`;
+          const recorded = judgeMap.get(mapKey);
+          return recorded !== undefined ? { ...tv, recordedValue: recorded } : tv;
+        });
+      }
+    }
 
     return {
       projectName,

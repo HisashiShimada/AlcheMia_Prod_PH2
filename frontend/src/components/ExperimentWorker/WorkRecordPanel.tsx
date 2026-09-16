@@ -138,6 +138,11 @@ interface QuantitativeUncertaintyInfo {
   toleranceValue?: string | number;
   /** 説明（uncertaintyNote 相当） */
   description?: string;
+  /**
+   * 作業者が入力した定量評価記録値（experiment_uncertainty_judge.recorded_value）。
+   * getTemplateData API 経由で付与される。未保存の場合は null/undefined。
+   */
+  recordedValue?: number | null;
 }
 
 interface WorkProperty {
@@ -358,10 +363,12 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         const savedEntry = initialUncertaintyValues?.find(
           (e) => e.uncertaintyKey === qu.uncertaintyKey
         );
+        // 次に DB から復元した recordedValue を使用（getTemplateData API 経由で付与）
+        const dbValue = qu.recordedValue != null ? String(qu.recordedValue) : '';
         return {
           id: qu.uncertaintyKey,
           uncertaintyKey: qu.uncertaintyKey,
-          value: savedEntry?.value ?? '',
+          value: savedEntry?.value ?? dbValue,
         };
       });
     }
@@ -2234,6 +2241,7 @@ function convertRawProperty(
         toleranceValue: string | null;
         uncertaintyNote: string | null;
         uncertaintyName: string | null;
+        recordedValue?: number | null;
       }>
     | null
     | undefined;
@@ -2244,6 +2252,7 @@ function convertRawProperty(
           uncertaintyName: tv.uncertaintyName ?? undefined,
           toleranceValue:  tv.toleranceValue ?? undefined,
           description:     tv.uncertaintyNote ?? undefined,
+          recordedValue:   tv.recordedValue ?? null,
         }))
       : undefined;
   return {
@@ -2467,6 +2476,29 @@ export default function WorkRecordPanel({
           methodId,
           templates: templatesMap.get(transitionId) ?? [],
         }));
+
+        // uncertaintyValuesRef を DB の recordedValue で初期化する
+        // ユーザーが操作しなくても handleSave 時に既存記録値が uncertaintyValues として送信されるようにする
+        // 既にユーザーが操作して値が入っている場合（uncertaintyValuesRef.current.has）は上書きしない
+        for (const [, builtTemplates] of templatesMap.entries()) {
+          for (const tpl of builtTemplates) {
+            const refKey = tpl.id;
+            if (uncertaintyValuesRef.current.has(refKey)) continue;
+            const entries: UncertaintyValueEntry[] = tpl.properties.flatMap((wp) =>
+              (wp.quantitativeUncertainties ?? [])
+                .filter((qu) => qu.recordedValue != null)
+                .map((qu) => ({
+                  propKey: wp.key,
+                  uncertaintyKey: qu.uncertaintyKey,
+                  value: String(qu.recordedValue),
+                }))
+            );
+            if (entries.length > 0) {
+              uncertaintyValuesRef.current.set(refKey, entries);
+            }
+          }
+        }
+
         setApiTransitions(builtTransitions);
 
         setTasks((prev) => {
