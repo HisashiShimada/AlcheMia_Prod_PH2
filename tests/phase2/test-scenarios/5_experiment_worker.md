@@ -41,9 +41,9 @@
 | **5-2** | 実験記録（トランジション記録） | **廃止**（2026-08-27） | 0件 | — | 0 | 0 | 0 |
 | **5-3** | 問題報告・ステータス変更 | 要件書（なし）、追加機能D/E/F/G | 18件 | 手動 | 18 | 0 | 0 |
 | **5-4** | プロジェクト指示確認（WorkRecordPanel内）| 要件書#8、`ui_work_record_panel.md`（v3.3.0）| 3件 | 手動 | 3 | 0 | 0 |
-| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K、`docs/改善仕様調査/No.23/result.md`（No.23対応）、`ui_progress_overview_tab.md`（**v3.1.0** / 2026-09-09: 変更履歴重複削除のみ・機能変更なし）| 15件 | 手動 | 1 | 1 | 13 |
-| **5-6** | 作業記録パネル（WorkRecordPanel） | `docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md`（**v3.3.0** / 2026-09-09: PropertyCard新機能追加・API連携状況更新）。API接続済み・カテゴリ別グループ表示・状態記録ダイアログ・指示確認フロー（preparing→ready→in_progress）・状態プルダウン活性化・is_recorded管理・スキップ制御・承認依頼条件 | 27件 | 手動 + 手動 | 16 | 0 | 11 |
-| **合計** | - | - | **67件** | - | **42** | **1** | **24** |
+| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K、`docs/改善仕様調査/No.23/result.md`（No.23対応）、`ui_progress_overview_tab.md`（**v3.1.0** / 2026-09-09: 変更履歴重複削除のみ・機能変更なし）| 15件 | 手動 | 12 | 0 | 0 |
+| **5-6** | 作業記録パネル（WorkRecordPanel） | `docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md`（**v3.3.0** / 2026-09-09: PropertyCard新機能追加・API連携状況更新）。API接続済み・カテゴリ別グループ表示・状態記録ダイアログ・指示確認フロー（preparing→ready→in_progress）・状態プルダウン活性化・is_recorded管理・スキップ制御・承認依頼条件 | 27件 | 手動 + 手動 | 23 | 4 | 0 |
+| **合計** | - | - | **67件** | - | **60** | **4** | **0** |
 
 ### スコープ外
 
@@ -175,20 +175,20 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 5-5-1 | 進捗確認タブでタスク一覧が表示されること | 正常系 | 要件書#1、追加機能C | GET `/api/v1/worker/tasks` | OK | |
-| 5-5-2 | 「記録」ボタンをクリックすると実験記録タブに遷移すること | 正常系 | 要件書#1 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-395 |
-| 5-5-3 | 進捗確認タブ表示時に、全トランジション完了 (`allCompleted`) かつ 全記録済み (`allRecorded`) の場合「承認依頼」ボタンが表示されること | 表示確認 | 追加機能K | - | - | |
-| 5-5-9 | フロー図ボタンをクリックするとフロー図ダイアログが表示されること | 正常系 | `ui_task_list_table.md` §5.2 | - | - | |
-| 5-5-13 | 「承認依頼」ボタンをクリックすると承認依頼が送信され、成功メッセージが表示されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | - | |
-| 5-5-14 | 承認依頼送信後にプロジェクトステータスが「承認待ち（waiting_approval）」に更新されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | - | |
-| 5-5-15 | 既に承認依頼済みのプロジェクトで再度「承認依頼」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | - | |
-| 5-5-21 | `ProgressOverviewTab` の SummaryCard に全体進捗率・タスク完了数・ステータス別件数（未着手/作業中/完了）が表示されること | 表示確認 | `ui_progress_overview_tab.md` §6.1（SummaryCard）、v2.0.0 | - | - | 完了100%時はバー緑色、それ以外は青色 |
-| 5-5-22 | `ProgressOverviewTab` の FilterBar でメソッド名・タスクNo・トランジション名・ステータスの各フィルタが機能すること | 正常系 | `ui_progress_overview_tab.md` §6.2（FilterBar）、v2.0.0 | - | - | メソッドフィルタ変更時はトランジションフィルタが自動リセットされること |
-| 5-5-23 | 前提トランジション（`prerequisiteTransitionIds`）が未完了の場合に「開始」ボタンが disabled になり、Tooltip が表示されること | 表示確認 | `ui_progress_overview_tab.md` §9（操作ボタン仕様）、§10（前提チェックロジック）、v2.0.0 | - | - | Tooltip: 「前の順序のトランジションを先に完了してください」 |
-| 5-5-24 | `on_hold`（一時停止）ステータスのトランジション行に「再開」ボタンが表示され、クリックすると作業記録タブに遷移すること | 表示確認 | `ui_progress_overview_tab.md` §9（操作ボタン仕様）、v2.0.0 | - | - | `onGoToWork(taskNo, transitionId)` が呼び出されること |
-| 5-5-25 | 完了済みトランジション行に「詳細確認」ボタンが表示され、クリックすると作業記録タブが読取専用で開くこと | 正常系 | `ui_progress_overview_tab.md` §9（操作ボタン仕様）、v2.0.0 | - | - | `onViewDetail(taskNo, transitionId)` が呼び出されること |
-| 5-5-26 | 作業中（`in_progress`）トランジション行に「作業へ」ボタンが表示され、クリックすると作業記録タブに遷移すること | 正常系 | `ui_progress_overview_tab.md` §9（操作ボタン仕様）、v2.0.0 | - | - | `onGoToWork(taskNo, transitionId)` が呼び出されること |
-| 5-5-27 | 全トランジションが `completed` であっても `isRecorded=false` の行が1件でもある場合、「承認依頼」ボタンが disabled であること | 表示確認 | `ui_work_record_panel.md` §6.3（v3.1.0）、`ui_progress_overview_tab.md` | - | - | `progressRows` の全行で `isRecorded=true` であることが承認依頼ボタン活性の必要条件 |
-| 5-5-28 | 全トランジションが `completed` かつ全て `isRecorded=true` の場合、「承認依頼」ボタンが活性化されること | 表示確認 | `ui_work_record_panel.md` §6.3（v3.1.0）、`ui_progress_overview_tab.md` | - | - | 全完了 + 全記録済みの両条件を同時に満たした場合のみ活性 |
+| 5-5-2 | 「記録」ボタンをクリックすると実験記録タブに遷移すること | 正常系 | 要件書#1 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-395 |
+| 5-5-3 | 進捗確認タブ表示時に、全トランジション完了 (`allCompleted`) かつ 全記録済み (`allRecorded`) の場合「承認依頼」ボタンが表示されること | 表示確認 | 追加機能K | - | OK | |
+| 5-5-9 | フロー図ボタンをクリックするとフロー図ダイアログが表示されること | 正常系 | `ui_task_list_table.md` §5.2 | - | OK | |
+| 5-5-13 | 「承認依頼」ボタンをクリックすると承認依頼が送信され、成功メッセージが表示されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | OK | |
+| 5-5-14 | 承認依頼送信後にプロジェクトステータスが「承認待ち（waiting_approval）」に更新されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | OK | |
+| 5-5-15 | 既に承認依頼済みのプロジェクトで再度「承認依頼」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | OK | |
+| 5-5-21 | `ProgressOverviewTab` の SummaryCard に全体進捗率・タスク完了数・ステータス別件数（未着手/作業中/完了）が表示されること | 表示確認 | `ui_progress_overview_tab.md` §6.1（SummaryCard）、v2.0.0 | - | OK | 完了100%時はバー緑色、それ以外は青色 |
+| 5-5-22 | `ProgressOverviewTab` の FilterBar でメソッド名・タスクNo・トランジション名・ステータスの各フィルタが機能すること | 正常系 | `ui_progress_overview_tab.md` §6.2（FilterBar）、v2.0.0 | - | OK | メソッドフィルタ変更時はトランジションフィルタが自動リセットされること |
+| 5-5-23 | 前提トランジション（`prerequisiteTransitionIds`）が未完了の場合に「開始」ボタンが disabled になり、Tooltip が表示されること | 表示確認 | `ui_progress_overview_tab.md` §9（操作ボタン仕様）、§10（前提チェックロジック）、v2.0.0 | - | OK | Tooltip: 「前の順序のトランジションを先に完了してください」 |
+| 5-5-24 | `on_hold`（一時停止）ステータスのトランジション行に「再開」ボタンが表示され、クリックすると作業記録タブに遷移すること | 表示確認 | `ui_progress_overview_tab.md` §9（操作ボタン仕様）、v2.0.0 | - | 不要 | 実装では全ステータス共通「記録」ボタンのみ（v3.1.0 修正済み）。「再開」ボタンは実装に存在しない |
+| 5-5-25 | 完了済みトランジション行に「詳細確認」ボタンが表示され、クリックすると作業記録タブが読取専用で開くこと | 正常系 | `ui_progress_overview_tab.md` §9（操作ボタン仕様）、v2.0.0 | - | 不要 | 実装では全ステータス共通「記録」ボタンのみ（v3.1.0 修正済み）。「詳細確認」ボタン・`onViewDetail` は実装に存在しない |
+| 5-5-26 | 作業中（`in_progress`）トランジション行に「作業へ」ボタンが表示され、クリックすると作業記録タブに遷移すること | 正常系 | `ui_progress_overview_tab.md` §9（操作ボタン仕様）、v2.0.0 | - | 不要 | 実装では全ステータス共通「記録」ボタンのみ（v3.1.0 修正済み）。「作業へ」ボタンは実装に存在しない |
+| 5-5-27 | 全トランジションが `completed` であっても `isRecorded=false` の行が1件でもある場合、「承認依頼」ボタンが disabled であること | 表示確認 | `ui_work_record_panel.md` §6.3（v3.1.0）、`ui_progress_overview_tab.md` | - | OK | `progressRows` の全行で `isRecorded=true` であることが承認依頼ボタン活性の必要条件 |
+| 5-5-28 | 全トランジションが `completed` かつ全て `isRecorded=true` の場合、「承認依頼」ボタンが活性化されること | 表示確認 | `ui_work_record_panel.md` §6.3（v3.1.0）、`ui_progress_overview_tab.md` | - | OK | 全完了 + 全記録済みの両条件を同時に満たした場合のみ活性 |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
@@ -247,7 +247,7 @@
 | 5-6-1 | 実験作業者メニューの「作業記録」タブ（key='3'）をクリックすると `WorkRecordPanel` が表示されること | 正常系 | `ui_work_record_panel.md` §1.1、§2.2 | - | OK | |
 | 5-6-2 | `WorkRecordPanel` の上部にプロジェクト指示の折りたたみ（`InstructionCollapse`）が表示され、展開するとプロジェクト指示内容が確認できること | 正常系 | `ui_work_record_panel.md` §1.2（プロジェクト指示の確認）、要件 F-01-04 | GET `/api/v1/instructions` | OK | 黄色背景 `#fffbe6` で表示されること |
 | 5-6-3 | `WorkHeader` にステータスTag・タスク番号・メソッドID・トランジションIDが表示されること | 表示確認 | `ui_work_record_panel.md` §2.2（WorkHeader） | - | OK | |
-| 5-6-4 | 完了済みトランジションを閲覧する場合は「完了済み（参照のみ）」Alertと「戻る」ボタンが表示されること | 表示確認 | `ui_work_record_panel.md` §2.2（完了済み閲覧） | - | - | |
+| 5-6-4 | 完了済みトランジションを閲覧する場合は「完了済み（参照のみ）」Alertと「戻る」ボタンが表示されること | 表示確認 | `ui_work_record_panel.md` §2.2（完了済み閲覧） | - | OK | |
 
 #### 5-6-B: テンプレート選択・プロパティ入力
 
@@ -266,8 +266,8 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 5-6-12 | 「保存」ボタンをクリックすると入力した実績値が保存されること | 正常系 | `ui_work_record_panel.md` §1.2（保存）、要件 F-07-01 | POST `/api/v1/experiments/…/data` | OK | |
-| 5-6-13 | 「スキップ」ボタンをクリックすると現在のトランジションをスキップして次のトランジションに遷移すること | 正常系 | `ui_work_record_panel.md` §1.2（スキップ）、要件 F-07-01 | - | - | |
-| 5-6-14 | 「保存して次へ」（トランジション完了）ボタンをクリックすると実績値を保存してトランジションを完了状態にし、次のトランジションへ遷移すること | 正常系 | `ui_work_record_panel.md` §1.2（保存して次へ（トランジション完了））、要件 F-09-01 | POST `/api/v1/experiments/…/data`、PATCH `…/transitions/…/status` | - | |
+| 5-6-13 | 「スキップ」ボタンをクリックすると現在のトランジションをスキップして次のトランジションに遷移すること | 正常系 | `ui_work_record_panel.md` §1.2（スキップ）、要件 F-07-01 | - | OK | |
+| 5-6-14 | 「保存して次へ」（トランジション完了）ボタンをクリックすると実績値を保存してトランジションを完了状態にし、次のトランジションへ遷移すること | 正常系 | `ui_work_record_panel.md` §1.2（保存して次へ（トランジション完了））、要件 F-09-01 | POST `/api/v1/experiments/…/data`、PATCH `…/transitions/…/status` | OK | |
 
 #### 5-6-D: コメント・カスタム Insertion/Content
 
@@ -282,20 +282,20 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 5-6-19 | 実験データを保存すると対象トランジションの `is_recorded` フラグが `TRUE` に更新されること | 正常系 | `ui_work_record_panel.md` §1.2（v3.1.0）、`transition_data` テーブル | POST `/api/v1/experiments/…/data` | - | 保存後に `transition_data.is_recorded=TRUE` をDBで直接確認する |
-| 5-6-20 | `in_progress`（動作状態）のトランジションが選択中のとき「スキップ」ボタンが disabled であること | 表示確認 | `ui_work_record_panel.md` §6.1（v3.1.0） | - | - | バグ修正確認: in_progress時はスキップ不可 |
-| 5-6-21 | `ready`（準備完了）のトランジションが選択中のとき「スキップ」ボタンが活性であること | 表示確認 | `ui_work_record_panel.md` §6.1（v3.1.0） | - | - | |
-| 5-6-22 | トランジション一覧の表示順が `in_progress` > `ready` > `preparing`（同一ステータス内は `order` 昇順）であること | 表示確認 | `ui_work_record_panel.md` §10.2 #10（v3.1.0） | - | - | 複数のトランジションが各ステータスに混在するテストデータで確認する |
+| 5-6-19 | 実験データを保存すると対象トランジションの `is_recorded` フラグが `TRUE` に更新されること | 正常系 | `ui_work_record_panel.md` §1.2（v3.1.0）、`transition_data` テーブル | POST `/api/v1/experiments/…/data` | OK | 保存後に `transition_data.is_recorded=TRUE` をDBで直接確認する |
+| 5-6-20 | `in_progress`（動作状態）のトランジションが選択中のとき「スキップ」ボタンが disabled であること | 表示確認 | `ui_work_record_panel.md` §6.1（v3.1.0） | - | OK | バグ修正確認: in_progress時はスキップ不可 |
+| 5-6-21 | `ready`（準備完了）のトランジションが選択中のとき「スキップ」ボタンが活性であること | 表示確認 | `ui_work_record_panel.md` §6.1（v3.1.0） | - | OK | |
+| 5-6-22 | トランジション一覧の表示順が `in_progress` > `ready` > `preparing`（同一ステータス内は `order` 昇順）であること | 表示確認 | `ui_work_record_panel.md` §10.2 #10（v3.1.0） | - | OK | 複数のトランジションが各ステータスに混在するテストデータで確認する |
 | 5-6-23 | 定性評価プロパティカードの確信度ボタン選択肢（`qualitativeOptions`）が `intuition_selector` テーブル由来の値で表示され、`confidenceOptionsWithColor` がある場合はボタン色に反映されること | 表示確認 | `ui_work_record_panel.md` §4（WorkProperty型定義）、§5.3（確信度）（v3.3.0） | - | OK | `display_color` フィールドが存在する選択肢でボタン色が変化することを確認する |
 
 #### 5-6-F: PropertyCard 新機能（2026-09-09 追加）
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 5-6-24 | 定性評価プロパティカードの確信度ボタン横に `description`（評価説明）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.3（定性評価説明）（v3.3.0） | - | - | `description` フィールドが設定された定性評価プロパティで確認する |
-| 5-6-25 | 定性評価プロパティカードに定性評価理由の入力欄（TextArea）が表示され、入力した値が保存されること | 正常系 | `ui_work_record_panel.md` §5.3（定性評価理由入力欄）（v3.3.0） | POST `/api/v1/experiments/…/data` | - | 定性評価理由は `qualitativeReason` フィールドとして保存されること |
-| 5-6-26 | 定量評価プロパティカードに判定結果バッジ（合格/不合格/判定中等）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.4（判定結果バッジ）（v3.3.0） | GET `/api/v1/experiments/…/data` | - | 判定結果が存在するトランジションのプロパティカードで確認する |
-| 5-6-27 | 定量評価プロパティカードに `quantitativeUncertainties` プリセット値が表示され、選択すると入力欄に反映されること | 正常系 | `ui_work_record_panel.md` §5.4（quantitativeUncertainties プリセット表示）（v3.3.0） | - | - | プリセット選択後に定量評価値入力欄の値が更新されること |
+| 5-6-24 | 定性評価プロパティカードの確信度ボタン横に `description`（評価説明）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.3（定性評価説明）（v3.3.0） | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416 が解消されたら確認する |
+| 5-6-25 | 定性評価プロパティカードに定性評価理由の入力欄（TextArea）が表示され、入力した値が保存されること | 正常系 | `ui_work_record_panel.md` §5.3（定性評価理由入力欄）（v3.3.0） | POST `/api/v1/experiments/…/data` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416 が解消されたら確認する |
+| 5-6-26 | 定量評価プロパティカードに判定結果バッジ（合格/不合格/判定中等）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.4（判定結果バッジ）（v3.3.0） | GET `/api/v1/experiments/…/data` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416 が解消されたら確認する |
+| 5-6-27 | 定量評価プロパティカードに `quantitativeUncertainties` プリセット値が表示され、選択すると入力欄に反映されること | 正常系 | `ui_work_record_panel.md` §5.4（quantitativeUncertainties プリセット表示）（v3.3.0） | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416 が解消されたら確認する |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み

@@ -23,8 +23,8 @@
 | テスト実施日 | 2026-09-02（4-1、4-3、4-4、4-5、4-7、4-8、4-9、4-11、4-12、4-18 実施済み）; 2026-09-11（4-1-40〜4-1-44 追加実施） |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | 不合格（NG 5件・未実施 48件） |
-| 備考 | NG: 4-8-57（AISOLMAIML-345）、4-9-9（AISOLMAIML-347）、4-10-2、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。未実施: 4-6（27件）／4-10（9件）／4-14（15件）／4-18-C（15件）。2026-09-11: 全グループのスコープ表集計誤りを修正（4-17未実施16件・4-18合格18/未実施15に修正）; 4-1-10/4-1-13/4-1-23/4-1-35 をOKに更新; 4-1-14/4-1-15 をOKに更新（AISOLMAIML-338 解消確認）; スコープ表4-8/4-10/4-14/合計行の集計誤りを修正; 4-6-25/4-6-34/4-6-35/4-6-36/4-6-38 をOKに更新 |
+| 総合判定 | 不合格（NG 4件） |
+| 備考 | NG: 4-13-15（AISOLMAIML-420）、4-17-12（AISOLMAIML-421）、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。2026-09-11: 全グループのスコープ表集計誤りを修正（4-17未実施16件・4-18合格18/未実施15に修正）; 4-1-10/4-1-13/4-1-23/4-1-35 をOKに更新; 4-1-14/4-1-15 をOKに更新（AISOLMAIML-338 解消確認）; スコープ表4-8/4-10/4-14/合計行の集計誤りを修正; 4-6-25/4-6-34/4-6-35/4-6-36/4-6-38 をOKに更新。2026-09-16: 4-8-57/4-9-9/4-10-2 がOKに更新済みのためNG一覧から削除; 4-17-14〜4-17-16 をOKに更新; 合計を348/4/0に修正 |
 
 ---
 
@@ -39,20 +39,20 @@
 | **4-3** | チェックアウト/チェックイン | 要件書#4/#5、`ui_project_management.md`（REVIEW_REJECTED(6)追加） | 11件 | 手動 | 11 | 0 | 0 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 10件 | 手動 | 10 | 0 | 0 |
 | **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | 手動 | 7 | 0 | 0 |
-| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 33件 | 手動 | 23 | 3 | 7 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P、`ui_experiment_instruction_tab.md`（列構成変更・不確かさ判定詳細ダイアログ追加）、`ui_project_management.md`（全体評価タブ追加）、`EvaluationRegistrationTab.tsx`、`OverallEvaluationTab.tsx` | 33件 | 手動 | 33 | 0 | 0 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 3件 | 手動 | 3 | 0 | 0 |
 | **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 49 | 0 | 0 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | 手動 | 10 | 0 | 0 |
-| **4-10** | プロジェクト公開 | 追加機能S | 11件 | 手動（フロントエンド実装後） | 1 | 1 | 9 |
+| **4-10** | プロジェクト公開 | 追加機能S | 11件 | 手動（フロントエンド実装後） | 11 | 0 | 0 |
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件 | 手動 | 17 | 0 | 0 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | 手動 | 8 | 0 | 0 |
-| **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | 16 | 0 | 0 |
+| **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | 15 | 1 | 0 |
 | **4-14** | PropertyViewer 値なし区別表示・ツールチップ | `docs/改善仕様調査/No.8/result.md`（No.8対応） | 15件 | 手動 | 15 | 0 | 0 |
 | **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | 15 | 0 | 0 |
 | **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | 4 | 0 | 0 |
-| **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 8 | 0 | 8 |
+| **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 15 | 1 | 0 |
 | **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 33 | 2 | 0 |
-| **合計** | - | - | **352件** | - | **321** | **6** | **24** |
+| **合計** | - | - | **352件** | - | **348** | **4** | **0** |
 
 ### スコープ外
 
@@ -381,8 +381,8 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 4-6-3 | 「実験指示」タブ（key: `'task_results'`）でフラットテーブルが表示され、タスクNo・ステータス・メソッド名・トランジション名等の列が存在すること | 表示確認 | `ui_experiment_instruction_tab.md` §2.1・§6（v3.1.0） | GET `/api/v1/projects/:projectId/experiment-instructions` | OK | 固定列: `taskNumber`・`propKey`。旧「タスク統計件数表示」を実態に合わせて修正 |
-| 4-6-4 | 「実験指示」タブで「承認処理」ボタンが活性化され、一括承認ダイアログから承認を実行できること | 正常系 | `ui_experiment_instruction_tab.md` §2.2・§8.3承認フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/approve` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-415?atlOrigin=eyJpIjoiMTFlMTljNzE4YWVlNDI2Mjg5ZDNhMDU2MzdiNzY3ZTkiLCJwIjoiaiJ9　`reviewWaitingTasks.length > 0` かつ `isEditable=true` の場合に活性。承認後 `fetchData()` が呼ばれて一覧が更新されること |
-| 4-6-5 | 「実験指示」タブでレビュー待ちタスクに対してNG記録（NG理由入力）ができること | 正常系 | `ui_experiment_instruction_tab.md` §8.4 NG記録フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/ng` | - | NG理由が空の場合は warning が表示されること。NG記録後に一覧が更新されること |
+| 4-6-4 | 「実験指示」タブで「承認処理」ボタンが活性化され、一括承認ダイアログから承認を実行できること | 正常系 | `ui_experiment_instruction_tab.md` §2.2・§8.3承認フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/approve` | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-415?atlOrigin=eyJpIjoiMTFlMTljNzE4YWVlNDI2Mjg5ZDNhMDU2MzdiNzY3ZTkiLCJwIjoiaiJ9　`reviewWaitingTasks.length > 0` かつ `isEditable=true` の場合に活性。承認後 `fetchData()` が呼ばれて一覧が更新されること |
+| 4-6-5 | 「実験指示」タブでレビュー待ちタスクに対してNG記録（NG理由入力）ができること | 正常系 | `ui_experiment_instruction_tab.md` §8.4 NG記録フロー（v3.1.0） | PUT `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/ng` | OK | NG理由が空の場合は warning が表示されること。NG記録後に一覧が更新されること |
 | 4-6-6 | 「実験指示」タブで列カスタマイズドロップダウンから表示列を切り替えられること | 正常系 | `ui_experiment_instruction_tab.md` §1.3 主要機能3（2026-09-09: 列構成変更・旧 uncertaintyCriteriaName 等廃止→定性/定量分離列・experimentUser 追加） | - | OK | 切替可能列: `qualitativeCriteriaName` / `qualitativeAssignedValue` / `quantitativeCriteriaName` / `quantitativeTolerance` / `quantitativeRecordedValue` / `quantitativeJudgeResult` / `experimentUser` 等 |
 | 4-6-7 | 「実験指示」タブでフィルターバー（タスクNo・メソッドID・トランジション・テンプレート・Key）によって表示行が絞り込めること | 表示確認 | `ui_experiment_instruction_tab.md` §2.3・§1.3 主要機能2（v3.1.0） | - | OK | 各フィルターは対応列のユニーク値から選択肢を生成 |
 | 4-6-8 | 「実験指示」タブで「実験指示を編集」ボタンをクリックすると `ExperimentPlanDialog` が開くこと | 正常系 | `ui_experiment_instruction_tab.md` §2.2 通常モードツールバー・§1.3 主要機能7（v3.1.0） | - | OK | `!isEditable \|\| isProjectCompleted \|\| isCheckoutLocked` の場合は disabled |
@@ -392,18 +392,18 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-6-10 | 「実験指示」タブの `quantitativeJudgeResult` 列（定量判定結果）に判定結果 Tag が表示されること | 表示確認 | `ui_experiment_instruction_tab.md` §6.2（2026-09-09 追加） | GET `/api/v1/projects/:projectId/experiment-instructions` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416?atlOrigin=eyJpIjoiYTE1OTZhNTM4ZTFlNGJhNmI2NWQwNDhlZjVjYjEwZjciLCJwIjoiaiJ9 定量評価が存在するトランジションで確認 |
-| 4-6-11 | `quantitativeJudgeResult` 列の判定件数ボタンをクリックすると `UncertaintyJudgeDetailDialog` が開くこと | 正常系 | `ui_experiment_instruction_tab.md` §9（2026-09-09 追加） | - | - | `judges.length > 1` の行でのみボタンが表示される |
-| 4-6-12 | 「実験指示」タブに `experimentUser` 列（実験記録者ID・実験終了日時）が表示されること | 表示確認 | `ui_experiment_instruction_tab.md` §6.2（2026-09-09 追加） | GET `/api/v1/projects/:projectId/experiment-instructions` | - | 値がない場合は `—` で表示されること |
+| 4-6-10 | 「実験指示」タブの `quantitativeJudgeResult` 列（定量判定結果）に判定結果 Tag が表示されること | 表示確認 | `ui_experiment_instruction_tab.md` §6.2（2026-09-09 追加） | GET `/api/v1/projects/:projectId/experiment-instructions` | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-416?atlOrigin=eyJpIjoiYTE1OTZhNTM4ZTFlNGJhNmI2NWQwNDhlZjVjYjEwZjciLCJwIjoiaiJ9 定量評価が存在するトランジションで確認 |
+| 4-6-11 | `quantitativeJudgeResult` 列の判定件数ボタンをクリックすると `UncertaintyJudgeDetailDialog` が開くこと | 正常系 | `ui_experiment_instruction_tab.md` §9（2026-09-09 追加） | - | OK |atlOrigin=eyJpIjoiYTU5MTU1ZGVjNTU5NGU2ZThlZWZmMzY5M2VjYzMwZWMiLCJwIjoiaiJ9 `judges.length > 1` の行でのみボタンが表示される |
+| 4-6-12 | 「実験指示」タブに `experimentUser` 列（実験記録者ID・実験終了日時）が表示されること | 表示確認 | `ui_experiment_instruction_tab.md` §6.2（2026-09-09 追加） | GET `/api/v1/projects/:projectId/experiment-instructions` | OK | 値がない場合は `—` で表示されること |
 
 #### 4-6-D: 実験指示タブ — 記録値訂正機能（2026-09-09 追加）
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-6-13 | 「訂正」ボタンをクリックすると訂正モードに入り、ツールバーが「保存」「キャンセル」に切り替わること | 正常系 | `ui_experiment_instruction_tab.md` §2.2 訂正モード（2026-09-09 追加）、`isCorrectionMode` | - | - | `reviewWaitingTasks.length > 0` かつ `isEditable=true` の場合に活性 |
-| 4-6-14 | 訂正モードではレビュー待ち（`task_status='04'`）の行のみ `actual` 列がインライン `Input` に切り替わること | 表示確認 | `ui_experiment_instruction_tab.md` §8.5 記録値訂正フロー（2026-09-09 追加） | - | - | それ以外のステータス行は読み取り専用のまま |
-| 4-6-15 | 訂正モードで値を変更後「保存」ボタンを押すと `correctRecord` API が呼ばれ保存されること | 正常系 | `ui_experiment_instruction_tab.md` §8.5（2026-09-09 追加） | PATCH `/api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct` | - | 保存後に `isCorrectionMode=false` になり一覧が更新されること |
-| 4-6-16 | 訂正モードで「キャンセル」ボタンを押すと変更が破棄され通常モードに戻ること | 正常系 | `ui_experiment_instruction_tab.md` §8.5（2026-09-09 追加）、`pendingCorrections` クリア | - | - | APIは呼ばれないこと |
+| 4-6-13 | 「訂正」ボタンをクリックすると訂正モードに入り、ツールバーが「保存」「キャンセル」に切り替わること | 正常系 | `ui_experiment_instruction_tab.md` §2.2 訂正モード（2026-09-09 追加）、`isCorrectionMode` | - | OK | `reviewWaitingTasks.length > 0` かつ `isEditable=true` の場合に活性 |
+| 4-6-14 | 訂正モードではレビュー待ち（`task_status='04'`）の行のみ `actual` 列がインライン `Input` に切り替わること | 表示確認 | `ui_experiment_instruction_tab.md` §8.5 記録値訂正フロー（2026-09-09 追加） | - | OK | それ以外のステータス行は読み取り専用のまま |
+| 4-6-15 | 訂正モードで値を変更後「保存」ボタンを押すと `correctRecord` API が呼ばれ保存されること | 正常系 | `ui_experiment_instruction_tab.md` §8.5（2026-09-09 追加） | PATCH `/api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct` | OK | 保存後に `isCorrectionMode=false` になり一覧が更新されること |
+| 4-6-16 | 訂正モードで「キャンセル」ボタンを押すと変更が破棄され通常モードに戻ること | 正常系 | `ui_experiment_instruction_tab.md` §8.5（2026-09-09 追加）、`pendingCorrections` クリア | - | OK | APIは呼ばれないこと |
 
 #### 4-6-E: 評価登録確認タブ（evaluation_registration）（2026-09-09 追加）
 
@@ -423,7 +423,7 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 4-6-30 | プロジェクト管理画面のタブに「全体評価」タブ（key: `'overall_evaluation'`）が表示されること | 表示確認 | `ui_project_management.md` §2.2.5 Tab6（2026-09-09 追加）、`OverallEvaluationTabContent` | - | OK | |
-| 4-6-31 | 「全体評価」タブに定量評価統計パネル（総数・良好件数・不良件数・良好率）が表示されること | 表示確認 | `OverallEvaluationTab.tsx` `JudgeSummaryPanel`、`getUncertaintyJudgeSummary` | GET `/api/v1/projects/:projectId/uncertainty-judge-summary` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-406?atlOrigin=eyJpIjoiMDc5ODhiYjQ1YTgzNDg0Y2JlMjc2ZmVlZGExZmY3YWUiLCJwIjoiaiJ9 |
+| 4-6-31 | 「全体評価」タブに定量評価統計パネル（総数・良好件数・不良件数・良好率）が表示されること | 表示確認 | `OverallEvaluationTab.tsx` `JudgeSummaryPanel`、`getUncertaintyJudgeSummary` | GET `/api/v1/projects/:projectId/uncertainty-judge-summary` | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-406?atlOrigin=eyJpIjoiMDc5ODhiYjQ1YTgzNDg0Y2JlMjc2ZmVlZGExZmY3YWUiLCJwIjoiaiJ9 |
 | 4-6-32 | 「全体評価」タブに階層別サマリーカードが表示されること | 表示確認 | `OverallEvaluationTab.tsx` `EvaluationSummaryBar`、`useOverallEvaluation` | GET `/api/v1/project-overall-evaluations/:projectId/summary` | OK | 「再集計」ボタンで再取得できること |
 | 4-6-33 | 「全体評価」タブに要注意項目テーブル（評価単位・対象・評価値・コメント）が表示されること | 表示確認 | `OverallEvaluationTab.tsx` `attentionColumns`、`AttentionItemList` | GET `/api/v1/project-overall-evaluations/:projectId/summary` | OK | 良好以外の評価が要注意項目として表示される |
 | 4-6-34 | 全体評価決定フォームでデジタル評価（良好/要確認/不良）を選択できること | 正常系 | `OverallEvaluationTab.tsx` `DIGITAL_VALUES`・`digitalValue` State | - | OK | |
@@ -596,16 +596,16 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|--------| --- | --- |
 | 4-10-1 | ファイル操作ツールバーの「公開する」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md` | - | OK | |
-| 4-10-2 | MaimlPublishDialogで「公開する」ボタンをクリックすると公開ジョブが受け付けられ、ポーリング完了後にボタンが「非公開にする」に切り替わること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、GET `/api/v1/projects/:projectName/publish-status` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-417?atlOrigin=eyJpIjoiZTRlYzdmYjViZTM2NGIxNTkyN2MyZjI3ZmRlOTNhZjEiLCJwIjoiaiJ9atlOrigin=eyJpIjoiZDYwYzQ4ZmQ0OTUwNGE3ZjliZWVlZTk1MWFhOWVmZTciLCJwIjoiaiJ9 |
-| 4-10-3 | 公開済みファイルのボタンが「非公開にする」（赤・活性）に切り替わること | 表示確認 | 追加機能S、`ui_maiml_publish_dialog.md` | GET `/api/v1/projects/:projectName/publish-status` | - | |
-| 4-10-4 | 公開済みファイルの「非公開にする」ボタンをクリックするとMaimlUnpublishDialogが表示され、確認後に非公開ジョブが受け付けられ、ポーリング完了後にボタンが「公開する」に戻ること | 正常系 | 追加機能S、`ui_maiml_unpublish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/unpublish`、GET `/api/v1/projects/:projectName/publish-status` | - | |
-| 4-10-5 | 公開/非公開ジョブ処理中（status=pending/running）はボタンがローディング状態になること | 表示確認 | `api_maiml_opendata.md` §5.7、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | |
-| 4-10-6 | 公開条件を満たしていない場合にMaimlPublishDialogにエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §3.4、`ui_maiml_publish_dialog.md` §4 | POST `/api/v1/projects/:projectName/publish` | - | |
-| 4-10-7 | 公開ジョブがエラー終了した場合（status=error）にエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §5.6、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | |
-| 4-10-8 | 公開済みプロジェクトを非公開にした後、再度公開できること（公開⇒非公開⇒公開） | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`ui_maiml_unpublish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、POST `/api/v1/projects/:projectName/unpublish`、GET `/api/v1/projects/:projectName/publish-status` | - | 公開ジョブ完了後→非公開ジョブ完了後→再公開ジョブ完了後のボタン状態遷移（「公開する」→「非公開にする」→「公開する」→「非公開にする」）を確認する |
-| 4-10-9 | スケジューラーによる自動非公開が完了した後、ボタンが「公開する」に切り替わること | 正常系 | `api_maiml_opendata.md` §trigger_type、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | `maiml_publish_job` に `job_type=unpublish`, `status=done`, `trigger_type=schedule` を挿入して状態を再現する |
-| 4-10-10 | スケジューラーによる自動非公開が進行中の場合、ボタンがローディング状態かつクリック不可になること | 表示確認 | `api_maiml_opendata.md` §5.7、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | `maiml_publish_job` に `job_type=unpublish`, `status=running`, `trigger_type=schedule` を挿入して状態を再現する |
-| 4-10-11 | スケジューラーによる自動非公開がエラー終了した場合、エラーメッセージが表示されボタンが「公開する」に戻ること | 異常系 | `api_maiml_opendata.md` §5.6、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | `maiml_publish_job` に `job_type=unpublish`, `status=error`, `trigger_type=schedule` を挿入して状態を再現する |
+| 4-10-2 | MaimlPublishDialogで「公開する」ボタンをクリックすると公開ジョブが受け付けられ、ポーリング完了後にボタンが「非公開にする」に切り替わること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、GET `/api/v1/projects/:projectName/publish-status` | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-417?atlOrigin=eyJpIjoiZTRlYzdmYjViZTM2NGIxNTkyN2MyZjI3ZmRlOTNhZjEiLCJwIjoiaiJ9atlOrigin=eyJpIjoiZDYwYzQ4ZmQ0OTUwNGE3ZjliZWVlZTk1MWFhOWVmZTciLCJwIjoiaiJ9 |
+| 4-10-3 | 公開済みファイルのボタンが「非公開にする」（赤・活性）に切り替わること | 表示確認 | 追加機能S、`ui_maiml_publish_dialog.md` | GET `/api/v1/projects/:projectName/publish-status` | OK | |
+| 4-10-4 | 公開済みファイルの「非公開にする」ボタンをクリックするとMaimlUnpublishDialogが表示され、確認後に非公開ジョブが受け付けられ、ポーリング完了後にボタンが「公開する」に戻ること | 正常系 | 追加機能S、`ui_maiml_unpublish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/unpublish`、GET `/api/v1/projects/:projectName/publish-status` | OK | |
+| 4-10-5 | 公開/非公開ジョブ処理中（status=pending/running）はボタンがローディング状態になること | 表示確認 | `api_maiml_opendata.md` §5.7、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | |
+| 4-10-6 | 公開条件を満たしていない場合にMaimlPublishDialogにエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §3.4、`ui_maiml_publish_dialog.md` §4 | POST `/api/v1/projects/:projectName/publish` | OK | |
+| 4-10-7 | 公開ジョブがエラー終了した場合（status=error）にエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §5.6、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | |
+| 4-10-8 | 公開済みプロジェクトを非公開にした後、再度公開できること（公開⇒非公開⇒公開） | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`ui_maiml_unpublish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、POST `/api/v1/projects/:projectName/unpublish`、GET `/api/v1/projects/:projectName/publish-status` | OK | 公開ジョブ完了後→非公開ジョブ完了後→再公開ジョブ完了後のボタン状態遷移（「公開する」→「非公開にする」→「公開する」→「非公開にする」）を確認する |
+| 4-10-9 | スケジューラーによる自動非公開が完了した後、ボタンが「公開する」に切り替わること | 正常系 | `api_maiml_opendata.md` §trigger_type、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | `maiml_publish_job` に `job_type=unpublish`, `status=done`, `trigger_type=schedule` を挿入して状態を再現する |
+| 4-10-10 | スケジューラーによる自動非公開が進行中の場合、ボタンがローディング状態かつクリック不可になること | 表示確認 | `api_maiml_opendata.md` §5.7、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | `maiml_publish_job` に `job_type=unpublish`, `status=running`, `trigger_type=schedule` を挿入して状態を再現する |
+| 4-10-11 | スケジューラーによる自動非公開がエラー終了した場合、エラーメッセージが表示されボタンが「公開する」に戻ること | 異常系 | `api_maiml_opendata.md` §5.6、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | `maiml_publish_job` に `job_type=unpublish`, `status=error`, `trigger_type=schedule` を挿入して状態を再現する |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -739,7 +739,7 @@
 | 4-13-12 | 「テンプレートDesc」を選択したとき、テンプレートが設定されていないPlaceノードのラベルが空文字（または空白）で表示されること | 正常系 | `PLAN.md` §テスト計画「テンプレートが設定されていないノードで空表示になることを確認」 | OK | テンプレート未設定ノードを含むプロジェクトで確認 |
 | 4-13-13 | ドロップダウンで選択肢を切り替えるとすべてのノードのラベルがリアルタイム（即時）に更新されること | 正常系 | `result.md` §「技術的な補足」Context伝播経路 | OK | ページリロード不要で即時反映されることを確認 |
 | 4-13-14 | ドロップダウンで選択した表示属性がページリロード後も復元されること（localStorage永続化） | 正常系 | `result.md` §「localStorage キー」`maiml_editor_attribute_display` | OK | ブラウザのリロード後に前回選択状態が維持されることを確認 |
-| 4-13-15 | ペトリネットモード→テンプレートモード→ペトリネットモードへ戻した際に直前のドロップダウン選択状態が維持されること | 正常系 | `PLAN.md` §テスト計画「テンプレートモード切替時に影響しないことを確認」 | OK | |
+| 4-13-15 | ペトリネットモード→テンプレートモード→ペトリネットモードへ戻した際に直前のドロップダウン選択状態が維持されること | 正常系 | `PLAN.md` §テスト計画「テンプレートモード切替時に影響しないことを確認」 | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-420?atlOrigin=eyJpIjoiNDliOGExMWRiNzcwNDlmNGEwMDRmMTViNDUyMjk3MDAiLCJwIjoiaiJ9 |
 | 4-13-16 | MaterialTemplateNode・ConditionTemplateNode・ResultTemplateNode・TransitionNode の4種類すべてのノードが `useAttributeDisplay` フックで選択状態を取得していること（全ノードにドロップダウン選択が反映されること） | 正常系 | `result.md` §2「ノードコンポーネント修正」対象ファイル一覧 | OK | 各ノード種別が混在するMAIMLで切替確認 |
 
 **前提条件:**
@@ -984,15 +984,15 @@
 | 4-17-5 | SubNetViewerのPropertyViewer「テンプレートタブ」に `property` 要素がキー / xsi:type / 値 / 説明・単位 の列で表示されること | 正常系 | `result.md` §Fix3「extractTemplateInfo新実装」、§Fix4「テンプレートタブ専用カラム」 | OK | 変更前は「表示するプロパティがありません」と表示されていた |
 | 4-17-6 | SubNetViewerのPropertyViewer「基本情報タブ」に id / 名前 / 説明 / 種別 が表示されること | 正常系 | `result.md` §Fix3「uuid/description追加」 | OK | placeRef が表示されないこと（内部参照のため非表示） |
 | 4-17-7 | SubNetViewerのPropertyViewer「基本情報タブ」に placeRef が表示されないこと | 正常系 | `result.md` §Fix3「placeRef除外」 | OK | 変更前はplaceRef要素がテンプレートタブに表示されていた |
-| 4-17-8 | SubNetViewerのPropertyViewer「データタブ」に `<data><results>` の実験結果値が個別フィールドに展開されて表示されること | 正常系 | `result.md` §Fix8b「SubNetViewerのデータタブ設定」、§Fix8d「property_*の個別展開表示」 | - | `temperature (value)` / `temperature (type)` / `temperature (units)` 等が個別行に展開されること |
-| 4-17-9 | placeId と templateId が異なるケース（placeIdキーでヒットしない場合）でも、templateIdキーでフォールバックしてテンプレート情報が取得されること | 正常系 | `result.md` §Fix2「フォールバック: templateIdキー」 | - | フォールバックケースでも「テンプレート詳細情報が取得できませんでした」と表示されないこと |
+| 4-17-8 | SubNetViewerのPropertyViewer「データタブ」に `<data><results>` の実験結果値が個別フィールドに展開されて表示されること | 正常系 | `result.md` §Fix8b「SubNetViewerのデータタブ設定」、§Fix8d「property_*の個別展開表示」 | OK | `temperature (value)` / `temperature (type)` / `temperature (units)` 等が個別行に展開されること |
+| 4-17-9 | placeId と templateId が異なるケース（placeIdキーでヒットしない場合）でも、templateIdキーでフォールバックしてテンプレート情報が取得されること | 正常系 | `result.md` §Fix2「フォールバック: templateIdキー」 | OK | フォールバックケースでも「テンプレート詳細情報が取得できませんでした」と表示されないこと |
 | 4-17-10 | PetriNetViewer でPlaceノードをクリックすると **`PropertyViewerWithSelection`（Drawer）** が開き、テンプレートタブにプロパティが表示されること | 正常系 | `result.md` §Fix6「extractTemplateInfoForNode新実装」 | OK | SubNetViewer経由ではなく、PetriNetViewer直接クリック時の表示確認。⚠️ PetriNetEditor（編集モード）のPlaceクリックでは `PropertyPanel` が開くため対象外 |
-| 4-17-11 | PetriNetViewer のPlaceノードの `PropertyViewerWithSelection`「データタブ」に実験結果値が表示されること | 正常系 | `result.md` §Fix8c「PetriNetViewerのデータタブ設定」 | - | `templateMap[node.id].element.getAttribute('id')` でテンプレートIDを取得してマッチ |
-| 4-17-12 | PropertyViewer のテンプレートタブで `property_` プレフィックスが除去されたキー名が表示されること | 表示確認 | `result.md` §Fix4「property_プレフィックス除去」 | - | `property_temperature` ではなく `temperature` と表示されること |
-| 4-17-13 | PropertyViewerWithSelection で Object型の値がキー・値ペアに展開されて表示されること（`[object Object]` が表示されないこと） | 表示確認 | `result.md` §Fix5「Object型値のフラット展開表示」 | - | 変更前は `[object Object]` として表示されていた |
-| 4-17-14 | 複数種別（material / condition / result）が混在するMAIMLファイルで SubNetViewer を開いた際、各Placeノードの種別が正しく識別されること | 正常系 | `result.md` §動作確認ポイント1 | - | 同一SubNetViewer内に3種類のPlaceが混在するケースで確認 |
-| 4-17-15 | SubNetViewer（reference版 JavaScript）でも placeIdキーでtemplateMaplにヒットし、テンプレート種別が正しく表示されること | 正常系 | `result.md` §Fix2「reference版（index.js）」 | - | TypeScript版と同様の修正がreference版にも適用されていること |
-| 4-17-16 | SubNetViewer で templateMap にヒットしないPlaceノードが存在した場合でも、他のPlaceノードは正常に表示されること（部分的な失敗が全体に波及しないこと） | 正常系 | `result.md` §Fix2「ログ警告」 | - | 1件のPlaceがtemplateMaplにヒットしなくても他Placeは表示されること |
+| 4-17-11 | PetriNetViewer のPlaceノードの `PropertyViewerWithSelection`「データタブ」に実験結果値が表示されること | 正常系 | `result.md` §Fix8c「PetriNetViewerのデータタブ設定」 | OK | `templateMap[node.id].element.getAttribute('id')` でテンプレートIDを取得してマッチ |
+| 4-17-12 | PropertyViewer のテンプレートタブで `property_` プレフィックスが除去されたキー名が表示されること | 表示確認 | `result.md` §Fix4「property_プレフィックス除去」 | NG | `property_temperature` ではなく `temperature` と表示されること https://soft-service.atlassian.net/browse/AISOLMAIML-421?atlOrigin=eyJpIjoiNDdjMzBmYzM5ZWFkNDdjOGJiNjIxZWFmM2ZmOTQ1YTYiLCJwIjoiaiJ9 |
+| 4-17-13 | PropertyViewerWithSelection で Object型の値がキー・値ペアに展開されて表示されること（`[object Object]` が表示されないこと） | 表示確認 | `result.md` §Fix5「Object型値のフラット展開表示」 | OK | 変更前は `[object Object]` として表示されていた |
+| 4-17-14 | 複数種別（material / condition / result）が混在するMAIMLファイルで SubNetViewer を開いた際、各Placeノードの種別が正しく識別されること | 正常系 | `result.md` §動作確認ポイント1 | OK | 同一SubNetViewer内に3種類のPlaceが混在するケースで確認 |
+| 4-17-15 | SubNetViewer（reference版 JavaScript）でも placeIdキーでtemplateMaplにヒットし、テンプレート種別が正しく表示されること | 正常系 | `result.md` §Fix2「reference版（index.js）」 | OK | TypeScript版と同様の修正がreference版にも適用されていること |
+| 4-17-16 | SubNetViewer で templateMap にヒットしないPlaceノードが存在した場合でも、他のPlaceノードは正常に表示されること（部分的な失敗が全体に波及しないこと） | 正常系 | `result.md` §Fix2「ログ警告」 | OK | 1件のPlaceがtemplateMaplにヒットしなくても他Placeは表示されること |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
