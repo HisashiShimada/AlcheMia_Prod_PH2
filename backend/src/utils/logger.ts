@@ -1,11 +1,19 @@
 /**
  * ロギングユーティリティ
- * 
- * 構造化ロギング機能を提供し、以下をサポート：
+ *
+ * Winston を使用した構造化ロギング機能を提供し、以下をサポート：
  * - ログレベル管理（error, warn, info, debug）
+ * - 環境別出力切り替え
+ *   - production: コンソール出力 + ファイル出力（DailyRotateFile）
+ *   - development: コンソール出力（カラー付き整形）
+ *   - test: 出力抑制（ENABLE_TEST_LOGS 設定時のみ出力）
  * - 認証関連のログ記録
  * - エラーログ記録
  */
+
+import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
+import path from 'path';
 
 interface LogContext {
   userId?: string;
@@ -26,76 +34,115 @@ export enum LogLevel {
   DEBUG = 'debug',
 }
 
+// ログ出力先ディレクトリ（backend/logs/）
+const LOG_DIR = path.resolve(__dirname, '../../logs');
+
+const isProduction = process.env.NODE_ENV === 'production';
+const isTest = process.env.NODE_ENV === 'test';
+const isDevelopment = process.env.NODE_ENV === 'development' || isTest;
+
 /**
- * ベースロガー
+ * 共通のログフォーマット（JSON）
  */
-class Logger {
-  private isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+const jsonFormat = winston.format.combine(
+  winston.format.timestamp(),
+  winston.format.errors({ stack: true }),
+  winston.format.json()
+);
 
-  /**
-   * フォーマット済みログメッセージを出力
-   */
-  private log(level: LogLevel, message: string, context?: LogContext): void {
-    const timestamp = new Date().toISOString();
-    const logEntry = {
-      timestamp,
-      level,
-      message,
-      ...context,
-    };
+/**
+ * 開発環境向けのカラー付き整形フォーマット
+ */
+const devFormat = winston.format.combine(
+  winston.format.colorize(),
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+    const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta, null, 2)}` : '';
+    return `[${timestamp}] ${level}: ${message}${metaStr}`;
+  })
+);
 
-    // テスト環境では出力を抑制（オプション）
-    if (process.env.NODE_ENV === 'test' && !process.env.ENABLE_TEST_LOGS) {
-      return;
-    }
-
-    // コンソールに出力
-    const logString = JSON.stringify(logEntry, null, this.isDevelopment ? 2 : 0);
-    
-    switch (level) {
-      case LogLevel.ERROR:
-        console.error(logString);
-        break;
-      case LogLevel.WARN:
-        console.warn(logString);
-        break;
-      case LogLevel.INFO:
-        console.info(logString);
-        break;
-      case LogLevel.DEBUG:
-        if (this.isDevelopment) {
-          console.debug(logString);
-        }
-        break;
-    }
+/**
+ * トランスポートの構築
+ */
+function buildTransports(): winston.transport[] {
+  // test 環境かつ ENABLE_TEST_LOGS 未設定の場合は Silent transport で抑制
+  if (isTest && !process.env.ENABLE_TEST_LOGS) {
+    return [new winston.transports.Console({ silent: true })];
   }
 
+  const transports: winston.transport[] = [
+    new winston.transports.Console({
+      format: isDevelopment ? devFormat : jsonFormat,
+    }),
+  ];
+
+  // 本番環境のみファイル出力を追加
+  if (isProduction) {
+    // エラーログ専用（error レベルのみ）
+    const errorRotateOptions: DailyRotateFile.DailyRotateFileTransportOptions = {
+      filename: path.join(LOG_DIR, 'error-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      level: 'error',
+      maxFiles: '14d',
+      zippedArchive: true,
+      format: jsonFormat,
+    };
+    transports.push(new DailyRotateFile(errorRotateOptions));
+
+    // 全レベル統合ログ
+    const combinedRotateOptions: DailyRotateFile.DailyRotateFileTransportOptions = {
+      filename: path.join(LOG_DIR, 'combined-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '14d',
+      zippedArchive: true,
+      format: jsonFormat,
+    };
+    transports.push(new DailyRotateFile(combinedRotateOptions));
+  }
+
+  return transports;
+}
+
+/**
+ * Winston ロガーインスタンス（内部使用）
+ */
+const winstonLogger = winston.createLogger({
+  level: isDevelopment ? 'debug' : 'info',
+  transports: buildTransports(),
+});
+
+/**
+ * ベースロガー（公開 API）
+ */
+class Logger {
   /**
    * エラーログ
    */
   error(message: string, context?: LogContext): void {
-    this.log(LogLevel.ERROR, message, context);
+    winstonLogger.error(message, context);
   }
 
   /**
    * 警告ログ
    */
   warn(message: string, context?: LogContext): void {
-    this.log(LogLevel.WARN, message, context);
+    winstonLogger.warn(message, context);
   }
 
   /**
    * 情報ログ
    */
   info(message: string, context?: LogContext): void {
-    this.log(LogLevel.INFO, message, context);
+    winstonLogger.info(message, context);
   }
 
   /**
    * デバッグログ
    */
   debug(message: string, context?: LogContext): void {
-    this.log(LogLevel.DEBUG, message, context);
+    winstonLogger.debug(message, context);
   }
 }
 
@@ -214,7 +261,7 @@ export interface ApiResponseLog {
 
 export function logApiResponse(response: ApiResponseLog): void {
   const { requestId, statusCode, duration, errorCode } = response;
-  
+
   // ステータスコードとパフォーマンスに基づいてログレベルを決定
   if (statusCode >= 500) {
     logger.error('API response - server error', {
