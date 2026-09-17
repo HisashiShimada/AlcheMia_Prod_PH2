@@ -4937,7 +4937,7 @@
     "cancelBtn": "キャンセル",
     "createBtn": "作成",
     "createError": "グループの作成に失敗しました",
-    "createFailed": "グループの作成に失敗しました",
+    "createFailed": "グループの作成に失敗しました: {detail}",
     "createSuccess": "グループを作成しました",
     "groupCdLabel": "グループCD",
     "groupCdPlaceholder": "グループCDを入力",
