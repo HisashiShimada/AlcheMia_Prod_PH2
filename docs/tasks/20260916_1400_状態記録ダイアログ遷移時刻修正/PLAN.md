@@ -165,11 +165,25 @@ property: [
 ### 実施日時
 
 開始: 2026-09-16 14:00
-完了: 2026-09-16 14:30
+完了: 2026-09-16 15:00
+
+### 計画からの変更点
+
+- 調査中に前回（計画フェーズ）の誤った実装（`Alchemia:status` プロパティ追加）が判明したため、修正方針を変更。
+  - ❌ 当初案: 書き込み側（`eventLogRepository.ts`）に `Alchemia:status` を追加
+  - ✅ 修正案: 書き込み側は元の状態に戻し、読み取り側（`progressService.ts`）を `lifecycle:transition` 逆引きに修正
 
 ### 最終的な成果物
 
-- [x] `backend/src/repositories/eventLogRepository.ts` 修正完了
-  - `insertTransitionProgressLog` の `property` 配列先頭に `Alchemia:status` プロパティを追加
-- [x] バックエンド TSエラーなし確認
-- [x] フロントエンド 関連ファイル TSエラーなし確認
+- [x] `backend/src/repositories/eventLogRepository.ts`
+  - 誤追加した `Alchemia:status` プロパティを削除し、仕様どおりの2プロパティ構成（`lifecycle:transition` / `time:timestamp`）に戻した
+- [x] `backend/src/services/progressService.ts`
+  - `getTransitionStateRecords` 内の `Alchemia:status` 検索を `lifecycle:transition` 検索＋逆引きマッピングに修正
+  - `lifecycle:transition` 値 → status 文字列マッピング:
+    - `schedule` → `preparing`
+    - `assign` / `reassign` → `ready`
+    - `start` / `resume` → `running`
+    - `suspend` → `paused`
+    - `complete` / `autoskip` / `manualskip` → `completed`
+    - `withdraw` / `ate_abort` → `error`
+- [x] バックエンドビルドエラーなし確認
