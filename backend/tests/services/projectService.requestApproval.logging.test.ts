@@ -9,7 +9,7 @@
 
 import { ProjectService } from '../../src/services/projectService';
 import { getPool } from '../../src/database/db';
-import winston from 'winston';
+import { logger } from '../../src/utils/logger';
 
 // モック設定
 jest.mock('../../src/database/db');
@@ -26,11 +26,11 @@ describe('ProjectService.requestApproval - ログ記録の機密情報チェッ�
   let debugSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    // Winstonログのスパイを設定
-    infoSpy = jest.spyOn(winston, 'info').mockImplementation();
-    errorSpy = jest.spyOn(winston, 'error').mockImplementation();
-    warnSpy = jest.spyOn(winston, 'warn').mockImplementation();
-    debugSpy = jest.spyOn(winston, 'debug').mockImplementation();
+    // loggerのスパイを設定
+    infoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+    errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    debugSpy = jest.spyOn(logger, 'debug').mockImplementation(() => {});
 
     // console.logのスパイも設定（デバッグログ用）
     jest.spyOn(console, 'log').mockImplementation();
