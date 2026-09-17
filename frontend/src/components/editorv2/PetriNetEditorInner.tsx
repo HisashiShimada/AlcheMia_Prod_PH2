@@ -966,8 +966,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           reset({ nodes: firstMethod.nodes, edges: firstMethod.edges });
           
           // 初期表示でフィットビュー
+          // Note: duration:0 にすることで fitView アニメーション中に screenToFlowPosition が
+          // 中間zoom値を参照して座標がズレる問題を防ぐ
           setTimeout(() => {
-            fitView({ padding: 0.2, duration: 300 });
+            fitView({ padding: 0.2, duration: 0 });
           }, 100);
               
           // 🆕 Phase 3: 複数methodコードパスでも自動バリデーション実行
@@ -2438,8 +2440,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       });
       
       // フィットビュー
+      // Note: duration:0 にすることで fitView アニメーション中に screenToFlowPosition が
+      // 中間zoom値を参照して座標がズレる問題を防ぐ
       setTimeout(() => {
-        fitView({ padding: 0.2, duration: 300 });
+        fitView({ padding: 0.2, duration: 0 });
       }, 100);
       
     } catch (err: unknown) {
@@ -3689,7 +3693,6 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
             onSelectionChange={handleSelectionChange}
             onPaneClick={handlePaneClick}
             nodeTypes={nodeTypes}
-            fitView
             // Phase 3A: 編集機能有効化
             nodesDraggable={true}
             nodesConnectable={true}
