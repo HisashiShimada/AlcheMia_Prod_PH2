@@ -460,11 +460,6 @@ export class EventLogRepository {
         '@ref': eventRefId,
         property: [
           {
-            '@key': 'Alchemia:status',
-            '@xsi:type': 'stringType',
-            '#text': statusLabel,
-          },
-          {
             '@key': 'lifecycle:transition',
             '@xsi:type': 'stringType',
             '#text': lifecycleTransitionValue,
