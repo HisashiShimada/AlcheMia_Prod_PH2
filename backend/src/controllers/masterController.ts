@@ -772,7 +772,7 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
-    const { display_scope, search, is_active } = req.query;
+    const { display_scope, search, is_active, ids } = req.query;
 
     // フィルター構築
     const filters: any = {};
@@ -797,10 +797,16 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
     // フィルタ適用してデータ取得
     const creators = await masterService.getCreatorMastersWithFilters(String(organizationId), corporationId, filters);
 
-    console.log('Filtered creators count:', creators.length);
+    // IDリストによるフィルタリング
+    const idList = ids ? String(ids).split(',').filter(Boolean) : [];
+    const filtered = idList.length > 0
+      ? creators.filter((c: any) => idList.includes(String(c.creatorId)))
+      : creators;
+
+    console.log('Filtered creators count:', filtered.length);
 
     // CSVヘッダーを物理名に変更
-    const csvData = creators.map((c: any) => ({
+    const csvData = filtered.map((c: any) => ({
       'creator_id': c.creatorId,
       'creator_name': c.creatorName,
       'creator_description': c.creatorDescription,
@@ -885,7 +891,7 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
-    const { display_scope, search, is_active } = req.query;
+    const { display_scope, search, is_active, ids } = req.query;
 
     // フィルター構築
     const filters: any = {};
@@ -910,10 +916,16 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
     // フィルタ適用してデータ取得
     const instruments = await masterService.getInstrumentMastersWithFilters(String(organizationId), corporationId, filters);
 
-    console.log('Filtered instruments count:', instruments.length);
+    // IDリストによるフィルタリング
+    const idList = ids ? String(ids).split(',').filter(Boolean) : [];
+    const filtered = idList.length > 0
+      ? instruments.filter((i: any) => idList.includes(String(i.instrumentId)))
+      : instruments;
+
+    console.log('Filtered instruments count:', filtered.length);
 
     // CSVヘッダーを物理名に変更
-    const csvData = instruments.map((i: any) => ({
+    const csvData = filtered.map((i: any) => ({
       'instrument_id': i.instrumentId,
       'instrument_name': i.instrumentName,
       'instrument_description': i.instrumentDescription,
@@ -996,7 +1008,7 @@ export async function downloadVendorsCsv(req: Request, res: Response, next: Next
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
-    const { display_scope, search, is_active } = req.query;
+    const { display_scope, search, is_active, ids } = req.query;
 
     // フィルター構築
     const filters: any = {};
@@ -1021,10 +1033,16 @@ export async function downloadVendorsCsv(req: Request, res: Response, next: Next
     // フィルタ適用してデータ取得
     const vendors = await masterService.getVendorMastersWithFilters(String(organizationId), corporationId, filters);
 
-    console.log('Filtered vendors count:', vendors.length);
+    // IDリストによるフィルタリング
+    const idList = ids ? String(ids).split(',').filter(Boolean) : [];
+    const filtered = idList.length > 0
+      ? vendors.filter((v: any) => idList.includes(String(v.vendorId)))
+      : vendors;
+
+    console.log('Filtered vendors count:', filtered.length);
 
     // CSVヘッダーを物理名に変更
-    const csvData = vendors.map((v: any) => ({
+    const csvData = filtered.map((v: any) => ({
       'vendor_id': v.vendorId,
       'vendor_name': v.vendorName,
       'vendor_description': v.vendorDescription,
@@ -1245,7 +1263,7 @@ export async function updateAttributeStatus(req: Request, res: Response, next: N
 export async function downloadAttributesCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const organizationId = req.user?.organizationId;
-    const { search, is_active } = req.query;
+    const { search, is_active, ids } = req.query;
 
     const filters: any = {};
     if (search) filters.search = String(search);
@@ -1253,7 +1271,13 @@ export async function downloadAttributesCsv(req: Request, res: Response, next: N
 
     const attributes = await masterService.getAttributeMastersWithFilters(String(organizationId), filters);
 
-    const csvData = attributes.map((a: any) => ({
+    // IDリストによるフィルタリング（Attributeは複合PK: attributeName__attributeValue）
+    const idList = ids ? String(ids).split(',').filter(Boolean) : [];
+    const filtered = idList.length > 0
+      ? attributes.filter((a: any) => idList.includes(`${a.attributeName}__${a.attributeValue}`))
+      : attributes;
+
+    const csvData = filtered.map((a: any) => ({
       'attribute_name': a.attributeName,
       'attribute_value': a.attributeValue,
       'attribute_remark': a.attributeRemark,
