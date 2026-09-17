@@ -3,11 +3,11 @@
  * グローバルテンプレートState管理
  * テンプレート一覧表示機能のContext API実装
  * 
- * @version 1.0.0
- * @date 2026-01-28
+ * @version 1.1.0
+ * @date 2026-09-15
  */
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { TemplateError, TemplatesByCategory, MethodData, TemplateContextType } from '@/types/editor';
 import { Template } from '@/types/maiml-unified';
 import {
@@ -60,6 +60,16 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
   const [templateErrors, setTemplateErrors] = useState<Record<string, TemplateError[]>>({});
   const [isLoading, setIsLoading] = useState(false);
 
+  /**
+   * 現在のtemplates stateを参照するためのref
+   * maimlData変化時のuseEffect内でsetTemplates関数型更新を使えない
+   * （依存配列にtemplatesを加えると無限ループになる）ため、refで保持する
+   */
+  const templatesRef = useRef<TemplatesByCategory>(templates);
+  useEffect(() => {
+    templatesRef.current = templates;
+  }, [templates]);
+
   // テンプレート抽出（maimlData変更時）
   useEffect(() => {
     if (maimlData) {
@@ -72,13 +82,49 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
       try {
         const parser = new MaimlParserTyped(maimlData);
         const extracted = parser.getTemplates();
-        setTemplates(extracted);
 
-        console.log('✅ [TemplateContext] テンプレート抽出完了:', {
-          material: extracted.material.length,
-          condition: extracted.condition.length,
-          result: extracted.result.length,
-        });
+        // ✅ Fix: maimlData 再パース時に addTemplate/updateTemplate で追加・更新されたテンプレートを
+        // 失わないようにマージする。
+        // マージルール:
+        //   - XML 抽出結果に存在する ID → XML 抽出結果を優先（S3 保存済みデータ優先）
+        //   - メモリにのみ存在する ID（新規追加・未保存） → メモリ上のテンプレートを保持
+        const current = templatesRef.current;
+        const isInitialLoad =
+          current.material.length === 0 &&
+          current.condition.length === 0 &&
+          current.result.length === 0;
+
+        if (isInitialLoad) {
+          // 初回ロード: マージ不要、そのまま上書き
+          setTemplates(extracted);
+          console.log('✅ [TemplateContext] テンプレート抽出完了（初回ロード）:', {
+            material: extracted.material.length,
+            condition: extracted.condition.length,
+            result: extracted.result.length,
+          });
+        } else {
+          // 再ロード: メモリ上の未保存テンプレートを保持してマージ
+          const merged: TemplatesByCategory = { material: [], condition: [], result: [] };
+          (['material', 'condition', 'result'] as const).forEach((category) => {
+            // XML 抽出結果の ID セット
+            const extractedIds = new Set(extracted[category].map((t: Template) => t.id));
+            // メモリにのみ存在するテンプレート（XML 未保存の新規追加分）
+            const memoryOnlyTemplates = current[category].filter((t: Template) => !extractedIds.has(t.id));
+            // XML 抽出結果 + メモリのみのテンプレートを結合
+            merged[category] = [...extracted[category], ...memoryOnlyTemplates];
+          });
+          setTemplates(merged);
+          console.log('✅ [TemplateContext] テンプレート抽出完了（マージ）:', {
+            material: merged.material.length,
+            condition: merged.condition.length,
+            result: merged.result.length,
+            preserved: {
+              material: merged.material.length - extracted.material.length,
+              condition: merged.condition.length - extracted.condition.length,
+              result: merged.result.length - extracted.result.length,
+            },
+          });
+        }
       } catch (err) {
         console.error('❌ [TemplateContext] テンプレート抽出エラー:', err);
         setTemplates({ material: [], condition: [], result: [] });
