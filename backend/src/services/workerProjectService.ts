@@ -55,7 +55,6 @@ export class WorkerProjectService implements IWorkerProjectService {
   async listWorkerAccessible(
     userId: string,
     organizationId: string,
-    organizationGroupCds: string[],
     params: ListWorkerProjectsParams
   ): Promise<WorkerProjectListResult> {
     try {
@@ -66,6 +65,11 @@ export class WorkerProjectService implements IWorkerProjectService {
       // グループ絞り込みロジック（projectService.ts の list() と同様のアルゴリズム）
       // ─────────────────────────────────────────────────
       let visibleGroupCds: string[] | undefined = undefined;
+
+      // JWT の organizationGroupCds は古い可能性があるため、DB から最新の所属グループCDを取得する
+      // （グループ作成直後など JWT 更新前の操作でも正しい権限で動作させるため）
+      const latestGroupRows = await organizationGroupRepository.findByUser(organizationId, userId);
+      const organizationGroupCds = latestGroupRows.map((g) => g.organization_group_cd);
 
       // 全グループ情報を取得してメモリ内で解決
       const allGroups = await organizationGroupRepository.findAll(organizationId);

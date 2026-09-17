@@ -56,7 +56,6 @@ describe('WorkerProjectController', () => {
         expect(mockService.listWorkerAccessible).toHaveBeenCalledWith(
           'user-123',
           'org-456',
-          ['group-A'],
           { page: 2, limit: 10, status: '1', sortBy: 'project_name', order: 'asc' }
         );
       });
@@ -70,7 +69,6 @@ describe('WorkerProjectController', () => {
         expect(mockService.listWorkerAccessible).toHaveBeenCalledWith(
           'user-123',
           'org-456',
-          ['group-A'],
           { page: 1, limit: 20, status: undefined, sortBy: 'create_at', order: 'desc' }
         );
       });
@@ -105,31 +103,18 @@ describe('WorkerProjectController', () => {
       });
     });
 
-    describe('organizationGroupCds from req.user', () => {
-      test('uses empty array when organizationGroupCds is undefined', async () => {
-        mockReq.user = { userId: 'user-123', organizationId: 'org-456' } as any;
-        mockService.listWorkerAccessible = jest.fn().mockResolvedValue(defaultMockResult);
-
-        await controller.listWorkerAccessible(mockReq as Request, mockRes as Response, mockNext);
-
-        expect(mockService.listWorkerAccessible).toHaveBeenCalledWith(
-          'user-123',
-          'org-456',
-          [],
-          expect.any(Object)
-        );
-      });
-
-      test('passes organizationGroupCds from JWT', async () => {
+    describe('organizationGroupCds', () => {
+      test('service receives userId and organizationId without organizationGroupCds argument (DB lookup is internal)', async () => {
+        // organizationGroupCds は Service 内部で DB から取得するため、Controller からは渡さない
         mockReq.user = { userId: 'user-123', organizationId: 'org-456', organizationGroupCds: ['grp-1', 'grp-2'] } as any;
         mockService.listWorkerAccessible = jest.fn().mockResolvedValue(defaultMockResult);
 
         await controller.listWorkerAccessible(mockReq as Request, mockRes as Response, mockNext);
 
+        // organizationGroupCds 引数なしで呼ばれること
         expect(mockService.listWorkerAccessible).toHaveBeenCalledWith(
           'user-123',
           'org-456',
-          ['grp-1', 'grp-2'],
           expect.any(Object)
         );
       });
