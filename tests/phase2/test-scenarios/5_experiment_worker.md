@@ -42,8 +42,8 @@
 | **5-3** | 問題報告・ステータス変更 | 要件書（なし）、追加機能D/E/F/G | 18件 | 手動 | 18 | 0 | 0 |
 | **5-4** | プロジェクト指示確認（WorkRecordPanel内）| 要件書#8、`ui_work_record_panel.md`（v3.3.0）| 3件 | 手動 | 3 | 0 | 0 |
 | **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K、`docs/改善仕様調査/No.23/result.md`（No.23対応）、`ui_progress_overview_tab.md`（**v3.1.0** / 2026-09-09: 変更履歴重複削除のみ・機能変更なし）| 15件 | 手動 | 12 | 0 | 0 |
-| **5-6** | 作業記録パネル（WorkRecordPanel） | `docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md`（**v3.3.0** / 2026-09-09: PropertyCard新機能追加・API連携状況更新）。API接続済み・カテゴリ別グループ表示・状態記録ダイアログ・指示確認フロー（preparing→ready→in_progress）・状態プルダウン活性化・is_recorded管理・スキップ制御・承認依頼条件 | 27件 | 手動 + 手動 | 23 | 4 | 0 |
-| **合計** | - | - | **67件** | - | **60** | **4** | **0** |
+| **5-6** | 作業記録パネル（WorkRecordPanel） | `docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md`（**v3.3.0** / 2026-09-09: PropertyCard新機能追加・API連携状況更新）。API接続済み・カテゴリ別グループ表示・状態記録ダイアログ・指示確認フロー（preparing→ready→in_progress）・状態プルダウン活性化・is_recorded管理・スキップ制御・承認依頼条件 | 27件 | 手動 + 手動 | 27 | 0 | 0 |
+| **合計** | - | - | **67件** | - | **64** | **0** | **0** |
 
 ### スコープ外
 
@@ -292,10 +292,10 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 5-6-24 | 定性評価プロパティカードの確信度ボタン横に `description`（評価説明）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.3（定性評価説明）（v3.3.0） | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416 が解消されたら確認する |
-| 5-6-25 | 定性評価プロパティカードに定性評価理由の入力欄（TextArea）が表示され、入力した値が保存されること | 正常系 | `ui_work_record_panel.md` §5.3（定性評価理由入力欄）（v3.3.0） | POST `/api/v1/experiments/…/data` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416 が解消されたら確認する |
-| 5-6-26 | 定量評価プロパティカードに判定結果バッジ（合格/不合格/判定中等）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.4（判定結果バッジ）（v3.3.0） | GET `/api/v1/experiments/…/data` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416 が解消されたら確認する |
-| 5-6-27 | 定量評価プロパティカードに `quantitativeUncertainties` プリセット値が表示され、選択すると入力欄に反映されること | 正常系 | `ui_work_record_panel.md` §5.4（quantitativeUncertainties プリセット表示）（v3.3.0） | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-416 が解消されたら確認する |
+| 5-6-24 | 定性評価プロパティカードの確信度ボタン横に `description`（評価説明）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.3（定性評価説明）（v3.3.0） | - | OK | |
+| 5-6-25 | 定性評価プロパティカードに定性評価理由の入力欄（TextArea）が表示され、入力した値が保存されること | 正常系 | `ui_work_record_panel.md` §5.3（定性評価理由入力欄）（v3.3.0） | POST `/api/v1/experiments/…/data` | OK | |
+| 5-6-26 | 定量評価プロパティカードに判定結果バッジ（合格/不合格/判定中等）が表示されること | 表示確認 | `ui_work_record_panel.md` §5.4（判定結果バッジ）（v3.3.0） | GET `/api/v1/experiments/…/data` | OK | |
+| 5-6-27 | 定量評価プロパティカードに `quantitativeUncertainties` プリセット値が表示され、選択すると入力欄に反映されること | 正常系 | `ui_work_record_panel.md` §5.4（quantitativeUncertainties プリセット表示）（v3.3.0） | - | OK | |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
