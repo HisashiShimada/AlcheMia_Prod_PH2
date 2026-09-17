@@ -5056,7 +5056,7 @@
     "dropText": "Select or drag & drop a file",
     "formatLabel": "File Format",
     "importError": "Import failed",
-    "importSuccess": "Imported {inserted} records (Skipped: {skipped})",
+    "importSuccess": "Imported {inserted} records",
     "noFileSelected": "Please select a file to import",
     "scopeLabel": "Scope",
     "scopeOptionCompany": "Company",

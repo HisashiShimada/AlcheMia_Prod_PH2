@@ -577,6 +577,7 @@ export async function bulkInsertCriteria(
           item.nameSpaceId,
           item.uncertaintyKey,
           newVersion,
+          item.createUserId,
         ]);
 
         // 定性評価の場合は intuition_selector に選択肢を INSERT

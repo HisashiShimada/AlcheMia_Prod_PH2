@@ -5056,7 +5056,7 @@
     "dropText": "ファイルを選択またはドラッグ＆ドロップ",
     "formatLabel": "ファイル形式",
     "importError": "インポートに失敗しました",
-    "importSuccess": "{inserted}件インポートしました（スキップ: {skipped}件）",
+    "importSuccess": "{inserted}件インポートしました",
     "noFileSelected": "インポートするファイルを選択してください",
     "scopeLabel": "スコープ",
     "scopeOptionCompany": "会社",
