@@ -9,6 +9,7 @@
  */
 
 import { createApiClient } from '@/utils/authUtils';
+import { setTokenPair } from '@/utils/tokenStorage';
 import type {
   OrganizationGroupRow,
   CreateOrganizationGroupRequest,
@@ -90,6 +91,9 @@ export const getVisibleOrganizationGroups = async (): Promise<
  *
  * @remarks
  * バックエンドの POST /api/v1/organization-groups を呼び出す。
+ * 作成成功後、バックエンドから最新の organizationGroupCds を含む新しいアクセストークンが
+ * レスポンスに含まれる場合は localStorage の sessionToken と userInfo を更新する。
+ * これにより、プロジェクト一覧取得などで新しいグループが即時反映される。
  *
  * @param data - 作成するグループデータ
  * @returns 作成された組織階層グループ行
@@ -101,10 +105,35 @@ export const createOrganizationGroup = async (
 
   console.log('🏢 [organizationGroupApiService] 組織階層グループ作成:', data.organization_group_cd);
 
-  const response = await client.post<{ success: boolean; data: OrganizationGroupRow }>(
+  const response = await client.post<{
+    success: boolean;
+    data: OrganizationGroupRow;
+    accessToken?: string;
+    organizationGroupCds?: string[];
+  }>(
     '/organization-groups',
     data
   );
+
+  // グループ作成後にバックエンドから新しいアクセストークンと最新グループCDが返された場合、
+  // localStorage を更新して次のリクエストから新しいグループが反映されるようにする
+  const { accessToken, organizationGroupCds } = response.data;
+  if (accessToken) {
+    setTokenPair(accessToken);
+    if (organizationGroupCds && typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('userInfo');
+        if (raw) {
+          const userInfo = JSON.parse(raw) as Record<string, unknown>;
+          userInfo.organizationGroupCds = organizationGroupCds;
+          localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        }
+      } catch {
+        // userInfo 更新失敗はログのみ（グループ作成自体は成功）
+        console.warn('[organizationGroupApiService] userInfo 更新失敗');
+      }
+    }
+  }
 
   return response.data.data;
 };
