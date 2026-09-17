@@ -341,7 +341,6 @@ export class ProjectService {
         includeCompleted,
         sortBy = 'create_at',
         order = 'desc',
-        organizationGroupCds = [],
         roleCd,
         userId,
       } = options;
@@ -353,6 +352,14 @@ export class ProjectService {
       let editableGroupCds: string[] | null = null;
 
       if (!isSystemAdmin) {
+        // JWT の organizationGroupCds は古い可能性があるため、DB から最新の所属グループCDを取得する
+        // （グループ作成直後など JWT 更新前の操作でも正しい権限で動作させるため）
+        let organizationGroupCds: string[] = [];
+        if (userId) {
+          const latestGroupRows = await organizationGroupRepository.findByUser(organizationId, userId);
+          organizationGroupCds = latestGroupRows.map((g) => g.organization_group_cd);
+        }
+
         // 全グループ情報を取得してメモリ内で解決（findDescendantCds の前提）
         const allGroups = await organizationGroupRepository.findAll(organizationId);
         const allGroupMap = new Map(allGroups.map((g) => [g.organization_group_cd, g]));
