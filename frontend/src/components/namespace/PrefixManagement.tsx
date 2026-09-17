@@ -25,20 +25,13 @@ import {
   toggleNamespaceActive,
   fetchSuggestedUri,
   getGlobalDeclarations,
-  getOrganizationGroups,
-  sharePrefixes,
 } from '@/services/namespaceApiService';
 import type {
   PrefixManagementProps,
   PrefixRowLocal as PrefixRow,
   NewPrefixRowLocal as NewPrefixRow,
   PrefixEditValuesWithUri,
-  ScopeNode,
-  ShareItem,
-  ShareTarget,
-  OrganizationGroupRow,
 } from '@/types/namespace';
-import ShareScopeModal from './ShareScopeModal';
 
 const { Text } = Typography;
 
@@ -93,7 +86,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   selectedNsKey,
   scopeKey,
   orgGroupCds,
-  targetScopeName,
   tabActivatedAt,
 }) => {
   const { message, modal } = App.useApp();
@@ -113,9 +105,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const [pageSize, setPageSize] = useState(20);
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  // ── ShareScopeModal 用 state
-  const [shareScopeModalOpen, setShareScopeModalOpen] = useState(false);
-  const [shareItemsForModal, setShareItemsForModal] = useState<ShareItem[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
   // stale fetch 対策: フェッチごとにシーケンス番号を払い出し、
   // 古いフェッチ結果（スコープ切替後に遅延完了したもの）を破棄する
@@ -509,42 +498,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }
       },
     });
-  };
-
-  // ── 共有ボタン押下: ShareScopeModal を開く
-  const handleShareButtonClick = (keys: React.Key[]) => {
-    // 選択中の Prefix 行を ShareItem 形式に変換
-    const items: ShareItem[] = (keys as string[]).reduce<ShareItem[]>((acc, prefix) => {
-      const row = rows.find((r) => r.id === prefix);
-      if (row) {
-        const shareItem: ShareItem = {
-          id: row.prefix,
-          label: row.prefix,
-          labelKey: t('prefixManagement.colPrefix'),
-          sublabel: row.description ?? '',
-          sublabelKey: t('prefixManagement.colDescription'),
-        };
-        acc.push(shareItem);
-      }
-      return acc;
-    }, []);
-    setShareItemsForModal(items);
-    setShareScopeModalOpen(true);
-  };
-
-  // ── ShareScopeModal の「共有」ボタン: sharePrefixes API を呼び出す
-  const handlePrefixShare = async (selectedItemIds: string[]) => {
-    // 現在の選択スコープキーを共有先として使用
-    const targetScopeKey = (scopeKey ?? selectedNsKey ?? '').replace(/^personal-/, '') || '';
-    try {
-      await sharePrefixes(selectedItemIds, targetScopeKey);
-      setShareScopeModalOpen(false);
-      setSelectedRowKeys([]);
-      message.success(t('prefixShare.toastSuccess'));
-      reloadNamespaces();
-    } catch {
-      message.error(t('prefixShare.toastError'));
-    }
   };
 
   // ── 一括非アクティブ化
@@ -952,7 +905,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }}>
           {showShareButton && (
             <Button
-              onClick={() => handleShareButtonClick(selectedRowKeys)}
+              onClick={() => onShareSelected?.(selectedRowKeys)}
               style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
             >
               {t('prefixManagement.btnShare', { count: String(selectedRowKeys.length) })}
@@ -1105,14 +1058,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
       </div>
 
-      {/* ── Prefix 共有ダイアログ */}
-      <ShareScopeModal
-        open={shareScopeModalOpen}
-        shareItems={shareItemsForModal}
-        onClose={() => setShareScopeModalOpen(false)}
-        onShare={handlePrefixShare}
-        targetScopeName={targetScopeName}
-      />
     </div>
   );
 };

@@ -1164,6 +1164,20 @@ export interface SharePrefixesBody {
 }
 
 /**
+ * POST /api/v1/namespaces/terms/share リクエストボディ
+ *
+ * @remarks namespaceController.shareTerms で使用
+ */
+export interface ShareTermsBody {
+  /** 共有元スコープキー（organization_group_cd または userId） */
+  sourceScopeKey: string;
+  /** 共有先スコープキー（organization_group_cd または userId） */
+  targetScopeKey: string;
+  /** コピー対象の用語 qname 配列（"prefix:localName" 形式） */
+  termIds: string[];
+}
+
+/**
  * PUT /api/v1/organization-groups/:groupCd/members リクエストボディ
  *
  * @remarks organizationGroupController.setOrganizationGroupMembers で使用

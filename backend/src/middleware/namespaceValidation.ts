@@ -204,3 +204,28 @@ export const validateToggleNamespaceActive = [
     .isBoolean()
     .withMessage('isActive must be a boolean'),
 ];
+
+// ─── 用語共有 ─────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/namespaces/terms/share
+ * body: sourceScopeKey, targetScopeKey は必須文字列、termIds は必須配列
+ */
+export const validateShareTerms = [
+  body('sourceScopeKey')
+    .notEmpty()
+    .withMessage('sourceScopeKey is required')
+    .isString()
+    .withMessage('sourceScopeKey must be a string'),
+  body('targetScopeKey')
+    .notEmpty()
+    .withMessage('targetScopeKey is required')
+    .isString()
+    .withMessage('targetScopeKey must be a string'),
+  body('termIds')
+    .isArray({ min: 1 })
+    .withMessage('termIds must be a non-empty array'),
+  body('termIds.*')
+    .isString()
+    .withMessage('each termId must be a string'),
+];

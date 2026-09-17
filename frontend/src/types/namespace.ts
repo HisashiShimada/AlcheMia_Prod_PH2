@@ -365,11 +365,6 @@ export interface PrefixManagementProps {
    */
   orgGroupCds?: string[];
   /**
-   * 共有ダイアログに表示する共有先スコープ名（例: "研究開発部"）
-   * ShareScopeModal の確認メッセージに使用する
-   */
-  targetScopeName?: string;
-  /**
    * Prefix管理タブがアクティブになったタイムスタンプ（ms）。
    * 外部（UncertaintyManagement 等）でタブへ切り替えた際に Date.now() をセットすることで、
    * PrefixManagement 内の Prefix 一覧を強制再取得させる。
@@ -527,6 +522,11 @@ export interface NamespaceMainProps {
    * undefined の場合はスキップ（初回マウント時は externalSelectedNsKey の useEffect に任せる）。
    */
   tabActivatedAt?: number;
+  /**
+   * 用語共有が成功したときに呼び出されるコールバック。
+   * 呼び出し元（UncertaintyManagement 等）で用語一覧の再取得などを行う際に使用する。
+   */
+  onAfterShare?: () => void;
 }
 
 // ──────────────────────────────────────────────
@@ -654,41 +654,19 @@ export interface ShareTarget {
 }
 
 /**
- * 共有ダイアログで一覧表示される共有対象アイテム（Prefix / 用語など）
- */
-export interface ShareItem {
-  /** 一意識別子（prefix または term.id など） */
-  id: string;
-  /** メイン値（prefix 文字列やローカル名など） */
-  label: string;
-  /** サブ値（説明や表示名など） */
-  sublabel?: string;
-  /** メイン値の項目名ラベル（例: "Prefix", "ローカル名"） */
-  labelKey?: string;
-  /** サブ値の項目名ラベル（例: "説明", "表示名"） */
-  sublabelKey?: string;
-}
-
-/**
  * ShareScopeModal コンポーネントの Props
  */
 export interface ShareScopeModalProps {
   open: boolean;
+  /** 共有する用語の件数（省略時はタイトルに件数を表示しない） */
+  termCount?: number;
+  /** ログインユーザーのロール（共有先の範囲を制限するため） */
+  sourceRole?: ShareSourceRole;
+  /** 共有先ツリーデータ（NamespaceMain から渡す） */
+  scopeNodes: ScopeNode[];
   onClose: () => void;
-  /**
-   * 共有ボタン押下時コールバック
-   * @param selectedItemIds 共有対象アイテムの id 一覧
-   */
-  onShare: (selectedItemIds: string[]) => void;
-  /**
-   * 共有対象アイテム一覧（ダイアログ内にリスト表示される）
-   */
-  shareItems: ShareItem[];
-  /**
-   * 共有先のスコープ名（例: "研究開発部"）
-   * 確認メッセージ「{targetScopeName} に共有します。よろしいですか？」に使用する
-   */
-  targetScopeName?: string;
+  /** 共有先が確定されたときのコールバック */
+  onShare: (target: ShareTarget) => void;
 }
 
 /**
