@@ -1017,8 +1017,13 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
                   </Button>
                   <Button
                     icon={<ExportOutlined />}
-                    disabled={selectedIds.length === 0}
-                    onClick={() => setExportModalOpen(true)}
+                    onClick={() => {
+                      if (selectedIds.length === 0) {
+                        message.error(t('uncertainty.management.exportSelectAtLeastOne'));
+                        return;
+                      }
+                      setExportModalOpen(true);
+                    }}
                   >
                     {t('uncertainty.management.btnExport')}
                   </Button>

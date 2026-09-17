@@ -441,11 +441,16 @@ export default function UserManagement() {
   };
 
   const handleDownload = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.error(t('userManagement.messages.csvDownloadSelectRequired'));
+      return;
+    }
     try {
       setLoading(true);
       await downloadCsv({
         search: searchText,
         role_cd: selectedRole,
+        ids: selectedRowKeys.map(String),
       });
       message.success(t('userManagement.messages.csvDownloadSuccess'));
     } catch (error) {

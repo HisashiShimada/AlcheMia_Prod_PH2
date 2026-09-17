@@ -13,8 +13,8 @@
 | テスト実施日 | 2026-09-01 |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | 不合格（NG 8件） |
-| 備考 | NG: 3-1-9・3-2-7・3-3-7（AISOLMAIML-324）、3-1-10・3-2-8・3-3-8（AISOLMAIML-325）、3-1-15・3-2-13（AISOLMAIML-326） |
+| 総合判定 | 不合格（NG 4件） |
+| 備考 | NG: 3-1-9・3-2-7（AISOLMAIML-324）、3-1-10・3-2-8（AISOLMAIML-325） |
 
 ---
 
@@ -24,10 +24,10 @@
 
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|------|-----------|-----------|------|-------|-------|
-| **3-1** | Creator マスタ管理 | 要件書#3 | 19件 | Playwright自動 | 12 | 3 | 4 |
-| **3-2** | Vendor マスタ管理 | 要件書#3 | 17件 | Playwright自動 | 12 | 3 | 2 |
-| **3-3** | Instrument マスタ管理 | 要件書#3 | 18件 | Playwright自動 | 12 | 3 | 3 |
-| **合計** | - | - | **54件** | - | **37** | **8** | **9** |
+| **3-1** | Creator マスタ管理 | 要件書#3 | 19件 | Playwright自動 | 17 | 2 | 0 |
+| **3-2** | Vendor マスタ管理 | 要件書#3 | 17件 | Playwright自動 | 15 | 2 | 0 |
+| **3-3** | Instrument マスタ管理 | 要件書#3 | 18件 | Playwright自動 | 18 | 0 | 0 |
+| **合計** | - | - | **54件** | - | **50** | **4** | **0** |
 
 ### スコープ外
 
@@ -54,20 +54,20 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 3-1-1 | Creator マスタ一覧が表示されること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.1 | GET `/api/v1/master/creator` | OK | |
-| 3-1-2 | 表示切替「すべて」で全組織の Creator が表示されること | 正常系 | `api_master_management.md` §display_scope=all | GET `/api/v1/master/creator?display_scope=all` | - | |
-| 3-1-3 | 表示切替「自組織のみ」で自組織作成の Creator のみ表示されること | 正常系 | `api_master_management.md` §display_scope=own | GET `/api/v1/master/creator?display_scope=own` | - | |
+| 3-1-2 | 表示切替「すべて」で全組織の Creator が表示されること | 正常系 | `api_master_management.md` §display_scope=all | GET `/api/v1/master/creator?display_scope=all` | OK | 「すべて」→「全体」 |
+| 3-1-3 | 表示切替「自組織のみ」で自組織作成の Creator のみ表示されること | 正常系 | `api_master_management.md` §display_scope=own | GET `/api/v1/master/creator?display_scope=own` | OK | |
 | 3-1-4 | Creator ID・Creator 名のキーワードで検索できること | 正常系 | `ui_master_main.md` §5.2.1 | GET `/api/v1/master/creator` | OK | |
-| 3-1-5 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/creator` | - | ステータスフィルタなし |
-| 3-1-6 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/creator` | - | ステータスフィルタなし |
+| 3-1-5 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/creator` | OK | ステータスフィルタなし |
+| 3-1-6 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/creator` | OK | ステータスフィルタなし |
 | 3-1-7 | 「追加」ボタンから Creator を新規作成できること | 正常系 | 要件書#3、`ui_master_add_dialog.md` §5.2 | POST `/api/v1/master/creator` | OK | |
 | 3-1-8 | Creator ID が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.1 | - | OK | |
-| 3-1-9 | Creator ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-324 |
+| 3-1-9 | Creator ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-414?atlOrigin=eyJpIjoiY2Y2M2NmMzc1OWZkNDJkYzk0OGNiYWU0OTEzNzY0ODAiLCJwIjoiaiJ9 |
 | 3-1-10 | Creator ID が 50 文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-325 |
 | 3-1-11 | 既存の Creator ID と重複する場合に重複エラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.2（MASTER_ID_DUPLICATE） | POST `/api/v1/master/creator` | OK | |
 | 3-1-12 | 「編集」ボタンから Creator 名を編集して保存できること | 正常系 | 要件書#3、`ui_master_edit_dialog.md` §5.2 | PUT `/api/v1/master/creator/:creatorId` | OK | |
 | 3-1-13 | 編集ダイアログで Creator ID が読み取り専用（変更不可）であること | 表示確認 | `ui_master_edit_dialog.md` §4.1 | - | OK | |
 | 3-1-14 | Creator 名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_edit_dialog.md` §8.1 | - | OK | |
-| 3-1-15 | 操作カラムの「非アクティブ化」ボタンから Creator を非アクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.1（操作カラム） | PATCH `/api/v1/master/creator/:creatorId/status` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-326 |
+| 3-1-15 | 操作カラムの「非アクティブ化」ボタンから Creator を非アクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.1（操作カラム） | PATCH `/api/v1/master/creator/:creatorId/status` | OK | |
 | 3-1-16 | 操作カラムの「アクティブ化」ボタンから Creator をアクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.1（操作カラム） | PATCH `/api/v1/master/creator/:creatorId/status` | OK | |
 | 3-1-17 | CSV ダウンロードボタンをクリックすると Creator 一覧 CSV がダウンロードされること | 正常系 | 要件書#3、`ui_master_main.md` §5.2.3 | GET `/api/v1/master/creator/download-csv` | OK | |
 | 3-1-18 | CSV ファイルを編集してアップロードすると Creator が一括作成されること | 正常系 | 要件書#3、`ui_master_main.md` §5.2.4 | POST `/api/v1/master/creator/upload-csv` | OK | |
@@ -101,8 +101,8 @@
 |-----------|-----------|------|------|---------|------|------|
 | 3-2-1 | Vendor マスタ一覧が表示されること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.2 | GET `/api/v1/master/vendor` | OK | |
 | 3-2-2 | Vendor ID・Vendor 名のキーワードで検索できること | 正常系 | `ui_master_main.md` §5.2.1 | GET `/api/v1/master/vendor` | OK | |
-| 3-2-3 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/vendor` | - | ステータスフィルタなし |
-| 3-2-4 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/vendor` | - | ステータスフィルタなし |
+| 3-2-3 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/vendor` | OK | ステータスフィルタなし |
+| 3-2-4 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/vendor` | OK | ステータスフィルタなし |
 | 3-2-5 | 「追加」ボタンから Vendor を新規作成できること | 正常系 | 要件書#3、`ui_master_add_dialog.md` §5.2 | POST `/api/v1/master/vendor` | OK | |
 | 3-2-6 | Vendor ID が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.1 | - | OK | |
 | 3-2-7 | Vendor ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-324 |
@@ -111,7 +111,7 @@
 | 3-2-10 | 「編集」ボタンから Vendor 名を編集して保存できること | 正常系 | 要件書#3、`ui_master_edit_dialog.md` §5.2 | PUT `/api/v1/master/vendor/:vendorId` | OK | |
 | 3-2-11 | 編集ダイアログで Vendor ID が読み取り専用（変更不可）であること | 表示確認 | `ui_master_edit_dialog.md` §4.1 | - | OK | |
 | 3-2-12 | Vendor 名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_edit_dialog.md` §8.1 | - | OK | |
-| 3-2-13 | 操作カラムの「非アクティブ化」ボタンから Vendor を非アクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.2（操作カラム） | PATCH `/api/v1/master/vendor/:vendorId/status` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-326 |
+| 3-2-13 | 操作カラムの「非アクティブ化」ボタンから Vendor を非アクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.2（操作カラム） | PATCH `/api/v1/master/vendor/:vendorId/status` | OK |
 | 3-2-14 | 操作カラムの「アクティブ化」ボタンから Vendor をアクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.2（操作カラム） | PATCH `/api/v1/master/vendor/:vendorId/status` | OK | |
 | 3-2-15 | CSV ダウンロードボタンをクリックすると Vendor 一覧 CSV がダウンロードされること | 正常系 | 要件書#3、`ui_master_main.md` §5.2.3 | GET `/api/v1/master/vendor/download-csv` | OK | |
 | 3-2-16 | CSV ファイルを編集してアップロードすると Vendor が一括作成されること | 正常系 | 要件書#3、`ui_master_main.md` §5.2.4 | POST `/api/v1/master/vendor/upload-csv` | OK | |
@@ -144,18 +144,18 @@
 |-----------|-----------|------|------|---------|------|------|
 | 3-3-1 | Instrument マスタ一覧が表示されること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.3 | GET `/api/v1/master/instrument` | OK | |
 | 3-3-2 | Instrument ID・Instrument 名のキーワードで検索できること | 正常系 | `ui_master_main.md` §5.2.1 | GET `/api/v1/master/instrument` | OK | |
-| 3-3-3 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/instrument` | - | ステータスフィルタなし |
-| 3-3-4 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/instrument` | - | ステータスフィルタなし |
+| 3-3-3 | ステータスフィルターで「アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/instrument` | OK | ステータスフィルタなし |
+| 3-3-4 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/instrument` | OK | ステータスフィルタなし |
 | 3-3-5 | 「追加」ボタンから Instrument を新規作成できること（Vendor ID を選択して保存） | 正常系 | 要件書#3、`ui_master_add_dialog.md` §3.3 | POST `/api/v1/master/instrument` | OK | |
 | 3-3-6 | Instrument ID が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.1 | - | OK | |
-| 3-3-7 | Instrument ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-324 |
-| 3-3-8 | Instrument ID が 50 文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-325 |
+| 3-3-7 | Instrument ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | OK |
+| 3-3-8 | Instrument ID が 50 文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | OK |  |
 | 3-3-9 | 既存の Instrument ID と重複する場合に重複エラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.2（MASTER_ID_DUPLICATE） | POST `/api/v1/master/instrument` | OK | |
-| 3-3-10 | Instrument 追加ダイアログで Vendor ID が未選択の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.3 | - | - | Vender選択機能はない |
+| 3-3-10 | Instrument 追加ダイアログで Vendor ID が未選択の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.3 | - | OK | Vender選択機能はない |
 | 3-3-11 | 「編集」ボタンから Instrument 名・Vendor ID を編集して保存できること | 正常系 | 要件書#3、`ui_master_edit_dialog.md` §5.2 | PUT `/api/v1/master/instrument/:instrumentId` | OK | |
 | 3-3-12 | 編集ダイアログで Instrument ID が読み取り専用（変更不可）であること | 表示確認 | `ui_master_edit_dialog.md` §4.1 | - | OK | |
 | 3-3-13 | Instrument 名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_edit_dialog.md` §8.1 | - | OK | |
-| 3-3-14 | 操作カラムの「非アクティブ化」ボタンから Instrument を非アクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.3（操作カラム） | PATCH `/api/v1/master/instrument/:instrumentId/status` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-326 |
+| 3-3-14 | 操作カラムの「非アクティブ化」ボタンから Instrument を非アクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.3（操作カラム） | PATCH `/api/v1/master/instrument/:instrumentId/status` | OK |  |
 | 3-3-15 | 操作カラムの「アクティブ化」ボタンから Instrument をアクティブ化できること | 正常系 | 要件書#3、`ui_master_main.md` §6.2.3（操作カラム） | PATCH `/api/v1/master/instrument/:instrumentId/status` | OK | |
 | 3-3-16 | CSV ダウンロードボタンをクリックすると Instrument 一覧 CSV がダウンロードされること | 正常系 | 要件書#3、`ui_master_main.md` §5.2.3 | GET `/api/v1/master/instrument/download-csv` | OK | |
 | 3-3-17 | CSV ファイルを編集してアップロードすると Instrument が一括作成されること | 正常系 | 要件書#3、`ui_master_main.md` §5.2.4 | POST `/api/v1/master/instrument/upload-csv` | OK | |

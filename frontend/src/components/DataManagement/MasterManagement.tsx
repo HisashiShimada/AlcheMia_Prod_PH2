@@ -707,6 +707,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   // CSVダウンロード
   const handleDownload = async () => {
     if (!selectedMasterInfo) return;
+
+    if (selectedRowKeys.length === 0) {
+      message.error(t('masterManagement.messages.csvDownloadSelectRequired'));
+      return;
+    }
     
     // DB連携マスタ（Instrument, Vendor, Creator, Attribute）の場合はAPI経由
     if (['3', '2', '1', '4'].includes(selectedMasterInfo.masterId)) {
@@ -741,6 +746,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           params.append(key, value);
         }
       });
+
+      // 選択行のIDリストを追加
+      params.append('ids', selectedRowKeys.map(String).join(','));
         
         const queryString = params.toString();
         const fullUrl = queryString ? `${endpoint}?${queryString}` : endpoint;
