@@ -41,6 +41,7 @@ import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { createMaimlBackup } from '../utils/maimlArchiveHelper';
 import { extractParentUuids, injectParentTag } from '../utils/maimlParentInjector';
 import { toJSTIsoString } from '../utils/dateUtils';
+import { StorageService } from './storageService';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -63,7 +64,7 @@ export interface FileStreamResponse {
  */
 export class FileAccessService {
   private repository: FileMetadataRepository;
-  private storageService: any;
+  private storageService: StorageService;
   private accessValidator: ProjectAccessValidator;
 
   constructor(
