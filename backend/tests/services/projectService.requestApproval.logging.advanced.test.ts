@@ -1,25 +1,25 @@
 /**
- * ProjectService.requestApproval - 追加の機寁E��報チェチE��チE��チE
+ * ProjectService.requestApproval - 追加の機寁E��報チェチE��チE��チE
  * 
- * Task 5.2.4.2: 追加の機寁E��報検証チE��チE
- * Requirement: 12 (セキュリチE��とマルチテナント�E離)
+ * Task 5.2.4.2: 追加の機寁E��報検証チE��チE
+ * Requirement: 12 (セキュリチE��とマルチテナント�E離)
  * 
- * 目皁E API key、秘寁E��、クレチE��シャル等�E追加機寁E��報が漏洩しなぁE��とを検証
+ * 目皁E API key、秘寁E��、クレチE��シャル等�E追加機寁E��報が漏洩しなぁE��とを検証
  */
 
 import { ProjectService } from '../../src/services/projectService';
 import { getPool } from '../../src/database/db';
 import { NotificationRepository } from '../../src/repositories/notificationRepository';
-import winston from 'winston';
+import { logger } from '../../src/utils/logger';
 
-// モチE��設宁E
+// モチE��設宁E
 jest.mock('../../src/database/db');
 jest.mock('../../src/repositories/notificationRepository');
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-notification-id'),
 }));
 
-describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', () => {
+describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', () => {
   let projectService: ProjectService;
   let mockPool: any;
   let mockClient: any;
@@ -33,10 +33,10 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
   beforeEach(() => {
     // Winstonログのスパイを設宁E
-    infoSpy = jest.spyOn(winston, 'info').mockImplementation();
-    errorSpy = jest.spyOn(winston, 'error').mockImplementation();
-    warnSpy = jest.spyOn(winston, 'warn').mockImplementation();
-    debugSpy = jest.spyOn(winston, 'debug').mockImplementation();
+    infoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+    errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    debugSpy = jest.spyOn(logger, 'debug').mockImplementation(() => {});
 
     // console.logのスパイも設宁E
     jest.spyOn(console, 'log').mockImplementation();
@@ -72,8 +72,8 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
     debugSpy.mockRestore();
   });
 
-  describe('5.2.4.2: API キーと秘寁E��の漏洩防止', () => {
-    it('ログにAWS Access Keyが含まれなぁE��と', async () => {
+  describe('5.2.4.2: API キーと秘寁E��の漏洩防止', () => {
+    it('ログにAWS Access Keyが含まれなぁE��と', async () => {
       const projectData = {
         project_id: 'project-123',
         project_name: 'Test Project',
@@ -119,7 +119,7 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
       });
     });
 
-    it('ログにAPI Keyが含まれなぁE��と', async () => {
+    it('ログにAPI Keyが含まれなぁE��と', async () => {
       const projectData = {
         project_id: 'project-123',
         project_name: 'Test Project',
@@ -141,7 +141,7 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
       mockNotificationRepository.create.mockResolvedValue(undefined);
 
-      // 一般皁E��API Keyパターン
+      // 一般皁E��API Keyパターン
       const commentWithApiKey = 'API Key: sk_live_51234567890abcdef';
 
       await projectService.requestApproval(
@@ -161,11 +161,11 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
       allLogCalls.forEach((call) => {
         const logMessage = JSON.stringify(call);
         expect(logMessage).not.toContain('sk_live_51234567890abcdef');
-        expect(logMessage).not.toContain('sk_live_'); // Stripe等�E接頭辁E
+        expect(logMessage).not.toContain('sk_live_'); // Stripe等�E接頭辁E
       });
     });
 
-    it('ログに秘寁E���E�Erivate Key�E�が含まれなぁE��と', async () => {
+    it('ログに秘寁E���E�Erivate Key�E�が含まれなぁE��と', async () => {
       const projectData = {
         project_id: 'project-123',
         project_name: 'Test Project',
@@ -187,7 +187,7 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
       mockNotificationRepository.create.mockResolvedValue(undefined);
 
-      // 秘寁E��を含むcomment
+      // 秘寁E��を含むcomment
       const commentWithPrivateKey = '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAA\n-----END PRIVATE KEY-----';
 
       await projectService.requestApproval(
@@ -212,8 +212,8 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
     });
   });
 
-  describe('5.2.4.2: チE�Eタベ�Eス接続情報の漏洩防止', () => {
-    it('ログにチE�Eタベ�Eス接続文字�Eが含まれなぁE��と', async () => {
+  describe('5.2.4.2: チE�Eタベ�Eス接続情報の漏洩防止', () => {
+    it('ログにチE�Eタベ�Eス接続文字�Eが含まれなぁE��と', async () => {
       const projectData = {
         project_id: 'project-123',
         project_name: 'Test Project',
@@ -235,7 +235,7 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
       mockNotificationRepository.create.mockResolvedValue(undefined);
 
-      // チE�Eタベ�Eス接続文字�Eを含むcomment
+      // チE�Eタベ�Eス接続文字�Eを含むcomment
       const commentWithDbConnection = 'postgresql://user:password@localhost:5432/dbname';
 
       await projectService.requestApproval(
@@ -254,14 +254,14 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
       allLogCalls.forEach((call) => {
         const logMessage = JSON.stringify(call);
-        // 接続文字�E全体が含まれなぁE��と
+        // 接続文字�E全体が含まれなぁE��と
         expect(logMessage).not.toContain('postgresql://user:password@');
-        // パスワード部刁E��含まれなぁE��と
+        // パスワード部刁E��含まれなぁE��と
         expect(logMessage).not.toMatch(/:\w+@localhost/);
       });
     });
 
-    it('ログにクレチE��シャル惁E��が含まれなぁE��と', async () => {
+    it('ログにクレチE��シャル惁E��が含まれなぁE��と', async () => {
       const projectData = {
         project_id: 'project-123',
         project_name: 'Test Project',
@@ -283,7 +283,7 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
       mockNotificationRepository.create.mockResolvedValue(undefined);
 
-      // クレチE��シャル惁E��を含むcomment
+      // クレチE��シャル惁E��を含むcomment
       const commentWithCredentials = 'username: admin, password: secret123, token: abc';
 
       await projectService.requestApproval(
@@ -302,7 +302,7 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
       allLogCalls.forEach((call) => {
         const logMessage = JSON.stringify(call).toLowerCase();
-        // パスワードフィールドが含まれなぁE��と
+        // パスワードフィールドが含まれなぁE��と
         if (logMessage.includes('password')) {
           expect(logMessage).not.toContain('secret123');
         }
@@ -310,8 +310,8 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
     });
   });
 
-  describe('5.2.4.2: 機寁E��報パターンマッチング', () => {
-    it('ログにクレジチE��カード番号が含まれなぁE��と', async () => {
+  describe('5.2.4.2: 機寁E��報パターンマッチング', () => {
+    it('ログにクレジチE��カード番号が含まれなぁE��と', async () => {
       const projectData = {
         project_id: 'project-123',
         project_name: 'Test Project',
@@ -333,7 +333,7 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
       mockNotificationRepository.create.mockResolvedValue(undefined);
 
-      // クレジチE��カード番号を含むcomment
+      // クレジチE��カード番号を含むcomment
       const commentWithCreditCard = 'Card: 4532-1234-5678-9010';
 
       await projectService.requestApproval(
@@ -352,14 +352,14 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
       allLogCalls.forEach((call) => {
         const logMessage = JSON.stringify(call);
-        // クレジチE��カード番号パターン�E�E6桁E��E
+        // クレジチE��カード番号パターン�E�E6桁E��E
         expect(logMessage).not.toMatch(/\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}/);
         expect(logMessage).not.toContain('4532-1234-5678-9010');
       });
     });
 
-    it('環墁E��数の機寁E��報が含まれなぁE��と', async () => {
-      // 環墁E��数に機寁E��報を含むエラー�E�本来は発生すべきでなぁE��、テスト！E
+    it('環墁E��数の機寁E��報が含まれなぁE��と', async () => {
+      // 環墁E��数に機寁E��報を含むエラー�E�本来は発生すべきでなぁE��、テスト！E
       const errorWithEnvVar = new Error('Failed to connect: JWT_SECRET=my_secret_key_123');
 
       mockPool.query.mockRejectedValueOnce(errorWithEnvVar);
@@ -380,9 +380,9 @@ describe('ProjectService.requestApproval - 追加の機寁E��報チェチE��', (
 
       allLogCalls.forEach((call) => {
         const logMessage = JSON.stringify(call);
-        // JWT_SECRET等�E環墁E��数値が含まれなぁE��と
+        // JWT_SECRET等�E環墁E��数値が含まれなぁE��と
         expect(logMessage).not.toContain('my_secret_key_123');
-        // JWT_SECRETとぁE��キー名�E許容�E�値が含まれなぁE��と�E�E
+        // JWT_SECRETとぁE��キー名�E許容�E�値が含まれなぁE��と�E�E
       });
     });
   });

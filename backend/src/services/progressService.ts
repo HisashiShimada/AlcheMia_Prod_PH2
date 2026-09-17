@@ -1288,15 +1288,32 @@ export class ProgressService {
 
         if (!Array.isArray(properties)) continue;
 
-        // Alchemia:status プロパティを持つエントリのみを対象とする
-        // （transitionProgress ログのみ Alchemia:status を保持し、transitionComment ログは保持しない）
-        const statusProp = properties.find((p) => p['@key'] === 'Alchemia:status');
-        if (!statusProp) continue;
+        // lifecycle:transition プロパティを持つエントリのみを対象とする
+        // （transitionProgress ログのみ lifecycle:transition を保持し、transitionComment ログは保持しない）
+        const lifecycleProp = properties.find((p) => p['@key'] === 'lifecycle:transition');
+        if (!lifecycleProp) continue;
 
         const timestampProp = properties.find((p) => p['@key'] === 'time:timestamp');
 
-        const status = statusProp?.['#text'] as string | undefined;
+        const lifecycleValue = lifecycleProp?.['#text'] as string | undefined;
         const timestamp = timestampProp?.['#text'] as string | undefined;
+
+        // lifecycle:transition 値 → status 文字列への逆引きマッピング
+        // LIFECYCLE_TRANSITION_VALUE_MAP の逆引き（eventLogRepository.ts の定義と対応）
+        const LIFECYCLE_TO_STATUS: Record<string, string> = {
+          schedule:   'preparing',
+          assign:     'ready',
+          reassign:   'ready',
+          start:      'running',
+          resume:     'running',
+          suspend:    'paused',
+          complete:   'completed',
+          autoskip:   'completed',
+          manualskip: 'completed',
+          withdraw:   'error',
+          ate_abort:  'error',
+        };
+        const status = lifecycleValue ? LIFECYCLE_TO_STATUS[lifecycleValue] : undefined;
 
         if (!status || !timestamp) continue;
 

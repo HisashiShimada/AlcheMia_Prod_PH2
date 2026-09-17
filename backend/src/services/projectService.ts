@@ -9,7 +9,7 @@ import { getPool, getPgp } from '../database/db';
 import { getStorageService } from './storageService';
 import { escapeHtml } from '../utils/sanitize';
 import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
-import winston from 'winston';
+import { logger } from '../utils/logger';
 import * as projectRepository from '../repositories/projectRepository';
 import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
@@ -1293,7 +1293,7 @@ export class ProjectService {
     const pgp = getPgp();
 
     // Task 5.2.4: ログ記録開始（機密情報フィルタリング）
-    winston.info('Approval request initiated', {
+    logger.info('Approval request initiated', {
       projectId,
       organizationId,
       userId,
@@ -1379,7 +1379,7 @@ export class ProjectService {
           userId
         );
 
-        winston.info('requestApproval - task_status updated IN_PROGRESS -> REVIEW_WAITING', {
+        logger.info('requestApproval - task_status updated IN_PROGRESS -> REVIEW_WAITING', {
           organizationId,
           projectId,
           userId,
@@ -1390,7 +1390,7 @@ export class ProjectService {
       const escapedComment = escapeHtml(comment);
 
       // Task 5.2.4: 承認依頼成功ログ
-      winston.info('Approval request completed successfully', {
+      logger.info('Approval request completed successfully', {
         projectId,
         projectName: project.project_name,
         organizationId,
@@ -1429,7 +1429,7 @@ export class ProjectService {
       };
     } catch (error) {
       // Task 5.2.4: エラーログ記録（機密情報フィルタリング）
-      winston.error('Approval request failed', {
+      logger.error('Approval request failed', {
         projectId,
         organizationId,
         userId,
@@ -1792,7 +1792,7 @@ export class ProjectService {
             const fileBuffer = await storageService.downloadFile(organizationId, relativeFileKey);
             const content = fileBuffer.toString('utf-8');
 
-            winston.info('MAIML file retrieved via project_uuid', {
+            logger.info('MAIML file retrieved via project_uuid', {
               projectId,
               projectName,
               organizationId,
@@ -1823,7 +1823,7 @@ export class ProjectService {
 
       if (!exists) {
         console.log('[DEBUG] getProjectMaiml - ファイル不在、空のcontentを返却', { filePath });
-        winston.info('MAIML file not found (new project), returning empty content', {
+        logger.info('MAIML file not found (new project), returning empty content', {
           projectId,
           projectName,
           organizationId,
@@ -1843,7 +1843,7 @@ export class ProjectService {
         const fileBuffer = await storageService.downloadFile(organizationId, filePath);
         const content = fileBuffer.toString('utf-8');
 
-        winston.info('MAIML file retrieved successfully (legacy path)', {
+        logger.info('MAIML file retrieved successfully (legacy path)', {
           projectId,
           projectName,
           organizationId,
@@ -1915,7 +1915,7 @@ export class ProjectService {
           (s3Error.message && s3Error.message.toLowerCase().includes('does not exist'));
 
         if (isNotFound) {
-          winston.warn('MAIML file not found in S3', {
+          logger.warn('MAIML file not found in S3', {
             projectId,
             projectName,
             organizationId,
@@ -1933,7 +1933,7 @@ export class ProjectService {
           };
         }
 
-        winston.error('S3 error during MAIML file retrieval', {
+        logger.error('S3 error during MAIML file retrieval', {
           projectId,
           projectName,
           organizationId,
@@ -1951,7 +1951,7 @@ export class ProjectService {
         };
       }
     } catch (error) {
-      winston.error('Database error during MAIML file retrieval', {
+      logger.error('Database error during MAIML file retrieval', {
         projectId,
         organizationId,
         error: sanitizeErrorForLog(error as Error),
