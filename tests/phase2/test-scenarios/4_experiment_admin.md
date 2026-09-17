@@ -23,8 +23,8 @@
 | テスト実施日 | 2026-09-02（4-1、4-3、4-4、4-5、4-7、4-8、4-9、4-11、4-12、4-18 実施済み）; 2026-09-11（4-1-40〜4-1-44 追加実施） |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | 不合格（NG 4件） |
-| 備考 | NG: 4-13-15（AISOLMAIML-420）、4-17-12（AISOLMAIML-421）、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。2026-09-11: 全グループのスコープ表集計誤りを修正（4-17未実施16件・4-18合格18/未実施15に修正）; 4-1-10/4-1-13/4-1-23/4-1-35 をOKに更新; 4-1-14/4-1-15 をOKに更新（AISOLMAIML-338 解消確認）; スコープ表4-8/4-10/4-14/合計行の集計誤りを修正; 4-6-25/4-6-34/4-6-35/4-6-36/4-6-38 をOKに更新。2026-09-16: 4-8-57/4-9-9/4-10-2 がOKに更新済みのためNG一覧から削除; 4-17-14〜4-17-16 をOKに更新; 合計を348/4/0に修正 |
+| 総合判定 | 不合格（NG 2件） |
+| 備考 | NG: 4-13-15（AISOLMAIML-420）、4-17-12（AISOLMAIML-421）。2026-09-11: 全グループのスコープ表集計誤りを修正（4-17未実施16件・4-18合格18/未実施15に修正）; 4-1-10/4-1-13/4-1-23/4-1-35 をOKに更新; 4-1-14/4-1-15 をOKに更新（AISOLMAIML-338 解消確認）; スコープ表4-8/4-10/4-14/合計行の集計誤りを修正; 4-6-25/4-6-34/4-6-35/4-6-36/4-6-38 をOKに更新。2026-09-16: 4-8-57/4-9-9/4-10-2 がOKに更新済みのためNG一覧から削除; 4-17-14〜4-17-16 をOKに更新; 合計を348/4/0に修正。2026-09-17: 4-18-D-2/4-18-D-3 をOKに更新; 合計を350/2/0に修正 |
 
 ---
 
@@ -51,8 +51,8 @@
 | **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | 15 | 0 | 0 |
 | **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | 4 | 0 | 0 |
 | **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 15 | 1 | 0 |
-| **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 33 | 2 | 0 |
-| **合計** | - | - | **352件** | - | **348** | **4** | **0** |
+| **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 35 | 0 | 0 |
+| **合計** | - | - | **352件** | - | **350** | **2** | **0** |
 
 ### スコープ外
 
@@ -1169,8 +1169,8 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 4-18-D-1 | 用語管理タブを開くと用語一覧が表示されること | 正常系 | `ui_term_management.md` §一覧表示 / `UncertaintyManagement` `activeTab='namespace'` | GET `/api/v1/namespaces/:id/terms` | OK | `NamespaceMain`（hideTree=true）が表示されること |
-| 4-18-D-2 | 新規用語を追加できること（インライン入力行） | 正常系 | `ui_term_management.md` §追加 / `ui_namespace_main.md` §4.3.2 | POST `/api/v1/namespaces/:id/terms` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-334 |
-| 4-18-D-3 | 既存用語を編集できること（インライン編集） | 正常系 | `ui_term_management.md` §編集 / `ui_namespace_main.md` §8 | PUT `/api/v1/namespaces/:id/terms/:termId` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-291 <br> https://soft-service.atlassian.net/browse/AISOLMAIML-317 <br> https://soft-service.atlassian.net/browse/AISOLMAIML-315 |
+| 4-18-D-2 | 新規用語を追加できること（インライン入力行） | 正常系 | `ui_term_management.md` §追加 / `ui_namespace_main.md` §4.3.2 | POST `/api/v1/namespaces/:id/terms` | OK | |
+| 4-18-D-3 | 既存用語を編集できること（インライン編集） | 正常系 | `ui_term_management.md` §編集 / `ui_namespace_main.md` §8 | PUT `/api/v1/namespaces/:id/terms/:termId` | OK | |
 | 4-18-D-4 | 用語を非アクティブ化できること | 正常系 | `ui_namespace_main.md` §4.3.3 操作ボタン仕様 | PATCH `/api/v1/namespaces/:id/terms/:termId` | OK | 「非アクティブ」ボタン → 確認ダイアログ後に行がグレーアウト表示 |
 | 4-18-D-5 | 非アクティブな用語を再アクティブ化できること | 正常系 | `ui_namespace_main.md` §4.3.3 「アクティブ」ボタン | PATCH `/api/v1/namespaces/:id/terms/:termId` | OK | 「アクティブ」ボタン → 確認なしで即時アクティブに戻ること |
 | 4-18-D-6 | 用語名（ローカル名）が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_namespace_main.md` §4.3.4 バリデーション | - | OK | インライン入力行の「保存」クリック時に表示されること |
