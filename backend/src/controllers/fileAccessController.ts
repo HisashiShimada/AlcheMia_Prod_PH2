@@ -20,7 +20,7 @@ import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import { renameFile } from '../services/renameService';
 import { Project } from '../types/database';
 import { AppError } from '../enums/errorCodes';
-import { ValidationError } from '../utils/errorClasses';
+import { ValidationError, AuthorizationError, AuthenticationError, NotFoundError, StorageError } from '../utils/errorClasses';
 import { ProjectStatusEnum } from '../enums/codeMaster.enum';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { injectParentTag, extractParentUuids } from '../utils/maimlParentInjector';
@@ -37,6 +37,21 @@ function resolveFileError(error: unknown): { statusCode: number; errorCode: stri
   // AppError より先にチェックする（ValidationError は AppError でないため）
   if (error instanceof ValidationError) {
     return { statusCode: error.statusCode, errorCode: error.code, errorMessage: msg };
+  }
+
+  // errorClasses.ts 由来のカスタムエラーを instanceof で明示判定する。
+  // これらは AppError ではないため AppError チェックより先に評価する。
+  if (error instanceof AuthorizationError) {
+    return { statusCode: 403, errorCode: 'E5015', errorMessage: msg };
+  }
+  if (error instanceof AuthenticationError) {
+    return { statusCode: 401, errorCode: 'E5013', errorMessage: msg };
+  }
+  if (error instanceof NotFoundError) {
+    return { statusCode: 404, errorCode: 'E6001', errorMessage: msg };
+  }
+  if (error instanceof StorageError) {
+    return { statusCode: 500, errorCode: 'E4006', errorMessage: msg };
   }
 
   if (error instanceof AppError) {

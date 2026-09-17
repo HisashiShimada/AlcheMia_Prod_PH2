@@ -16,6 +16,10 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as organizationGroupService from '../services/organizationGroupService';
+import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
+import { JwtService } from '../services/jwtService';
+import { RolePermissionRepository } from '../repositories/rolePermissionRepository';
+import { v4 as uuidv4 } from 'uuid';
 import type {
   CreateOrganizationGroupBody,
   UpdateOrganizationGroupBody,
@@ -197,7 +201,51 @@ export async function createOrganizationGroup(
       lang
     );
 
-    res.status(201).json({ success: true, data: created });
+    // グループ作成後、ログインユーザーの最新所属グループCDを DB から取得して
+    // アクセストークンを再発行する。
+    // これにより、フロントエンドが JWT を更新して次のリクエストから新しいグループが反映される。
+    let newAccessToken: string | undefined;
+    let latestOrganizationGroupCds: string[] = [];
+    try {
+      const jwtService = new JwtService();
+      const rolePermissionRepository = new RolePermissionRepository();
+
+      // 最新の所属グループCDを取得
+      const latestGroupRows = await organizationGroupRepository.findByUser(organizationId, userId);
+      latestOrganizationGroupCds = latestGroupRows.map((g) => g.organization_group_cd);
+
+      // 権限情報を取得
+      const roleCd = (req.user as any).roleCd as string;
+      const permissions = await rolePermissionRepository.getPermissionsByRoleId(roleCd, organizationId);
+
+      // アクセストークンのみ再発行（リフレッシュトークンはそのまま）
+      const tokenId = (req.user as any).tokenId ?? uuidv4();
+      const corporationId = (req.user as any).corporationId as string | undefined;
+      const tokenResult = await jwtService.generateAccessToken({
+        userId,
+        organizationId,
+        corporationId,
+        sessionId: tokenId,
+        tokenId,
+        permissions,
+        organizationGroupCds: latestOrganizationGroupCds,
+      });
+      if (tokenResult.success) {
+        newAccessToken = tokenResult.data;
+      }
+    } catch (tokenError) {
+      // トークン再発行に失敗してもグループ作成自体は成功として返す（ログのみ）
+      console.warn('[organizationGroupController.createOrganizationGroup] アクセストークン再発行失敗:', tokenError);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: created,
+      ...(newAccessToken && {
+        accessToken: newAccessToken,
+        organizationGroupCds: latestOrganizationGroupCds,
+      }),
+    });
   } catch (error) {
     next(error);
   }

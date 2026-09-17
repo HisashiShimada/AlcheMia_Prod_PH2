@@ -1040,3 +1040,45 @@ export const sharePrefixes = async (
   return response.data;
 };
 
+// ============================================================================
+// 用語共有
+// ============================================================================
+
+/**
+ * POST /api/v1/namespaces/terms/share のレスポンス型
+ */
+export interface ShareTermsResponse {
+  /** 共有に成功した用語数 */
+  copiedCount: number;
+  /** 共有先に既に存在してスキップされた用語数 */
+  skippedCount: number;
+}
+
+/**
+ * 選択した用語を指定スコープへ共有（コピー → 共有元から削除）する
+ *
+ * POST /api/v1/namespaces/terms/share
+ *
+ * @param termIds - コピー対象の用語 qname 配列（"prefix:localName" 形式）
+ * @param sourceScopeKey - 共有元スコープキー（organization_group_cd または userId）
+ * @param targetScopeKey - 共有先スコープキー（organization_group_cd または userId）
+ * @returns コピー件数とスキップ件数
+ */
+export const shareTerms = async (
+  termIds: string[],
+  sourceScopeKey: string,
+  targetScopeKey: string
+): Promise<ShareTermsResponse> => {
+  const client = createApiClient();
+
+  console.log('🔗 [namespaceApiService] 用語共有:', termIds, sourceScopeKey, '->', targetScopeKey);
+
+  const requestBody = {
+    termIds,
+    sourceScopeKey,
+    targetScopeKey,
+  };
+  const response = await client.post<ShareTermsResponse>('/namespaces/terms/share', requestBody);
+  return response.data;
+};
+

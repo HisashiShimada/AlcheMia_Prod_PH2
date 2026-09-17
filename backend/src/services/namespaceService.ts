@@ -761,6 +761,74 @@ export async function getDeclarationsByProject(
 }
 
 /**
+ * 用語を指定スコープへ共有（コピー → 共有元から削除）する
+ *
+ * @param organizationId  - 組織ID
+ * @param sourceScopeKey  - 共有元スコープキー
+ * @param targetScopeKey  - 共有先スコープキー
+ * @param userId          - 操作ユーザーID
+ * @param termIds         - コピー対象の用語 qname 配列（"prefix:localName" 形式）
+ * @returns { copiedCount, skippedCount }
+ * @throws E6001 共有元または共有先スコープの namespace が存在しない場合
+ */
+export async function shareTermsToScopeService(
+  organizationId: string,
+  sourceScopeKey: string,
+  targetScopeKey: string,
+  userId: string,
+  termIds: string[]
+): Promise<{ copiedCount: number; skippedCount: number }> {
+  if (termIds.length === 0) {
+    return { copiedCount: 0, skippedCount: 0 };
+  }
+
+  // 共有元の namespace_id を取得
+  const sourceNamespaceId = await namespaceTermRepository.findNamespaceIdByScopeKey(
+    organizationId,
+    sourceScopeKey
+  );
+  if (!sourceNamespaceId) {
+    const sourceErr: Error & { statusCode?: number; code?: string } = new Error(
+      `共有元スコープ "${sourceScopeKey}" の namespace が見つかりません`
+    );
+    sourceErr.statusCode = HTTP_STATUS.NOT_FOUND;
+    sourceErr.code = 'E6001';
+    throw sourceErr;
+  }
+
+  // 共有先の namespace_id を取得
+  const targetNamespaceId = await namespaceTermRepository.findNamespaceIdByScopeKey(
+    organizationId,
+    targetScopeKey
+  );
+  if (!targetNamespaceId) {
+    const targetErr: Error & { statusCode?: number; code?: string } = new Error(
+      `共有先スコープ "${targetScopeKey}" の namespace が見つかりません`
+    );
+    targetErr.statusCode = HTTP_STATUS.NOT_FOUND;
+    targetErr.code = 'E6001';
+    throw targetErr;
+  }
+
+  // termIds（"prefix:localName" 形式）を { prefix, localName } に分解
+  const termIdentifiers = termIds.map((qname) => {
+    const colonIndex = qname.indexOf(':');
+    const prefix = qname.substring(0, colonIndex);
+    const localName = qname.substring(colonIndex + 1);
+    return { prefix, localName };
+  });
+
+  return namespaceTermRepository.shareTermsToScope(
+    organizationId,
+    sourceNamespaceId,
+    targetNamespaceId,
+    targetScopeKey,
+    userId,
+    termIdentifiers
+  );
+}
+
+/**
  * 選択した Prefix を指定スコープへ共有（コピー）する
  *
  * @param organizationId  - 組織ID
