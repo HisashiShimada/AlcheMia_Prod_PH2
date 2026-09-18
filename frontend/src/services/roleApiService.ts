@@ -320,6 +320,7 @@ export async function downloadCsv(
   filters?: {
     searchText?: string;
     roleNameFilter?: string;
+    ids?: string[];
   }
 ): Promise<void> {
   const config = getRoleConfig();
@@ -337,6 +338,9 @@ export async function downloadCsv(
   }
   if (filters?.roleNameFilter?.trim()) {
     params.roleNameFilter = filters.roleNameFilter.trim();
+  }
+  if (filters?.ids && filters.ids.length > 0) {
+    params.ids = filters.ids.join(',');
   }
   
   const endpoint = `${config.apiEndpoint}/download-csv`;

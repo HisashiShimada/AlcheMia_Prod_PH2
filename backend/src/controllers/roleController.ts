@@ -69,7 +69,7 @@ export async function downloadRoleCsv(
     }
 
     // フィルター条件を取得
-    const { searchText, roleNameFilter } = req.query;
+    const { searchText, roleNameFilter, ids } = req.query;
 
     // ロール一覧と権限情報を取得
     const roles = await masterService.getRoles(String(organizationId));
@@ -89,6 +89,14 @@ export async function downloadRoleCsv(
       const searchLower = searchText.toLowerCase();
       filteredRoles = filteredRoles.filter((role) =>
         role.functionName.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // IDリストによるフィルタリング
+    const idList = ids ? String(ids).split(',').filter(Boolean) : [];
+    if (idList.length > 0) {
+      filteredRoles = filteredRoles.filter((role) =>
+        idList.includes(String(role.roleId))
       );
     }
 

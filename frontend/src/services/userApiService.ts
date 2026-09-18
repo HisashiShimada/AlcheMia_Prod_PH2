@@ -265,7 +265,7 @@ export async function uploadCsv(
  * CSVファイルをダウンロード
  */
 export async function downloadCsv(
-  filters?: UserFilters
+  filters?: UserFilters & { ids?: string[] }
 ): Promise<void> {
   const client = createApiClient();
   
@@ -282,6 +282,9 @@ export async function downloadCsv(
   }
   if (filters?.role_cd) {
     params.role_cd = filters.role_cd;
+  }
+  if (filters?.ids && filters.ids.length > 0) {
+    params.ids = filters.ids.join(',');
   }
   
   const endpoint = `${API_ENDPOINT}/download-csv`;
