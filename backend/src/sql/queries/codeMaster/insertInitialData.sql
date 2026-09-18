@@ -37,6 +37,7 @@ VALUES
   ($1, 'project_status',       '3', 'reviewPending',       'プロジェクトの進捗ステータス',          'タスク結果レビュー待ち',     $2, $2, NOW(), NOW()),
   ($1, 'project_status',       '4', 'completed',           'プロジェクトの進捗ステータス',          'プロジェクト完了',           $2, $2, NOW(), NOW()),
   ($1, 'project_status',       '5', 'taskFailed',          'プロジェクトの進捗ステータス',          'タスク異常終了',             $2, $2, NOW(), NOW()),
+  ($1, 'project_status',       '6', 'reviewRejected',      'プロジェクトの進捗ステータス',          'レビュー差戻',               $2, $2, NOW(), NOW()),
   ($1, 'task_status',          '0', 'pending',             'タスクの進捗ステータス',                '実行待ち',                   $2, $2, NOW(), NOW()),
   ($1, 'task_status',          '1', 'inProgress',          'タスクの進捗ステータス',                '実行中',                     $2, $2, NOW(), NOW()),
   ($1, 'task_status',          '2', 'reviewPending',       'タスクの進捗ステータス',                'レビュー待ち',               $2, $2, NOW(), NOW()),

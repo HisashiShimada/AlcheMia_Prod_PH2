@@ -37,7 +37,7 @@ import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { getStorageService } from './storageService';
 import { MaimlWriterService } from './maimlWriterService';
 import { EventLogRepository } from '../repositories/eventLogRepository';
-import { ReviewTypeEnum } from '../enums/codeMaster.enum';
+import { ReviewTypeEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import * as projectRepository from '../repositories/projectRepository';
 import * as uncertaintyCriteriaRepository from '../repositories/uncertaintyCriteriaRepository';
 import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
@@ -943,7 +943,7 @@ export async function correctRecord(
     methodId,
     taskNo
   );
-  if (!taskDetail || taskDetail.task_status !== 2) {
+  if (!taskDetail || Number(taskDetail.task_status) !== TaskStatusEnum.REVIEW_WAITING) {
     const err: any = new Error('訂正対象タスクがレビュー待ち状態（task_status=2）ではありません');
     err.statusCode = 409;
     err.code = 'TASK_NOT_REVIEW_WAITING';

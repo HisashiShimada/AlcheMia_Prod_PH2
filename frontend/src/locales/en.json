@@ -3465,7 +3465,8 @@
       "taskInProgress": "Task In Progress",
       "reviewPending": "Review Pending",
       "completed": "Completed",
-      "taskFailed": "Task Failed"
+      "taskFailed": "Task Failed",
+      "reviewRejected": "Review Rejected"
     },
     "task_status": {
       "pending": "Pending",
