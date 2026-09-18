@@ -214,3 +214,34 @@ PropertyViewerWithSelection.tsx のデータタブも PropertyViewer.tsx と同�
 - [x] `frontend/src/components/viewer/dialogs/SubNetViewer.tsx` — 同上
 - [x] `frontend/src/components/viewer/dialogs/StructuredPropertySelector.tsx` — `keyof StructuredProperties` 型依存を `'basic'|'template'|'data'` に変更（dataGroups 追加に伴う型整合性対応）
 - [x] TypeScript コンパイルエラー 0件・Next.js ビルド成功確認
+
+---
+
+## 追加修正記録（別件バグ修正）
+
+### 実施日時
+開始: 2026-09-18  
+完了: 2026-09-18  
+
+### 概要
+`PetriNetViewer.tsx` でノードクリック時に `node.data.templateType` を参照していたが、
+`reactFlowConverter.ts` は `placeType` にのみカテゴリ（material/condition/result）を設定しており、
+`templateType` は常に `undefined` となっていた。
+フォールバックの `'material'` が使われることで、condition/result ノードの実績データが取得できなかった。
+
+### 修正内容
+
+**`frontend/src/components/viewer/PetriNetViewer.tsx`（3箇所）**
+
+| 行 | 修正前 | 修正後 |
+|----|--------|--------|
+| 342行目 | `node.data.templateType \|\| 'material'` | `node.data.placeType \|\| 'material'` |
+| 350行目 | `node.data.templateType \|\| 'material'` | `node.data.placeType \|\| 'material'` |
+| 364行目 | `node.data.templateType \|\| 'material'` | `node.data.placeType \|\| 'material'` |
+
+### 根本原因
+- `reactFlowConverter.ts`（146行目）: `nodeData.placeType = template?.category || 'material'` と設定
+- `NodeData` 型（`editor.ts`）に `templateType` プロパティは存在しない（`placeType` のみ存在）
+- `SubNetViewer.tsx` は `subnetReactFlowConverter.ts` が `node.data.templateType` を明示的にセットするため問題なし
+
+- [x] TypeScript コンパイルエラー 0件確認

@@ -60,6 +60,8 @@ import {
 // データタブ用ユーティリティ
 import { fetchAllDataInfoFromMaiml } from '../../../utils/maimlDataExtractor';
 
+import { useLanguage } from '@/contexts/LanguageContext';
+
 const { Title, Text } = Typography;
 
 // カスタムノードタイプの定義
@@ -128,6 +130,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
   multiMethodMode = false,
 }) => {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   
   // React Flow状態
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -178,7 +181,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
   } => {
     if (!templateElement) {
       console.error('❌ [SubNetViewer] テンプレート要素がありません');
-      return { basicInfo: { id: 'unknown', type: templateType, name: '不明' }, templateProps: {} };
+      return { basicInfo: { id: 'unknown', type: templateType, name: t('viewer.subNetViewer.nameNotSet') }, templateProps: {} };
     }
 
     // ※ xmlns 付き XML は querySelector(':scope > tag') がヒットしないため
@@ -203,7 +206,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
     const basicInfo: Record<string, string> = {
       id: templateElement.getAttribute('id') || '',
       type: templateType.charAt(0).toUpperCase() + templateType.slice(1),
-      name: templateElement.getAttribute('name') || '名称未設定',
+      name: templateElement.getAttribute('name') || t('viewer.subNetViewer.nameNotSet'),
     };
 
     // uuid 子要素
@@ -316,7 +319,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
         );
         
         if (transitionArcs.length === 0) {
-          setError(`トランジション "${nodeName}" に接続されたアークがありません`);
+          setError(t('viewer.subNetViewer.noArcsError').replace('{name}', nodeName));
           setLoading(false);
           return;
         }
@@ -440,7 +443,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
         
       } catch (err) {
         console.error('❌ [SubNetViewer] サブネットデータ構築エラー:', err);
-        setError('サブネットデータの構築中にエラーが発生しました');
+        setError(t('viewer.subNetViewer.buildError'));
         setLoading(false);
       }
     };
@@ -478,7 +481,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
           type: propObj.xsiType ?? 'string',
           description: [
             propObj.description,
-            propObj.units ? `単位: ${propObj.units}` : undefined,
+          propObj.units ? t('viewer.subNetViewer.unitLabel').replace('{units}', propObj.units) : undefined,
           ].filter(Boolean).join(' / ') || undefined,
         };
       });
@@ -502,9 +505,9 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
     // Transitionノードの場合
     else if (node.data.nodeType === 'transition') {
       const basicProperties: Record<string, PropertyObject> = {
-        id: { key: 'id', value: String(node.id), type: 'string', description: 'トランジションID' },
-        type: { key: 'type', value: 'Transition', type: 'string', description: 'ノード種別' },
-        name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'トランジション名' },
+        id: { key: 'id', value: String(node.id), type: 'string', description: t('viewer.subNetViewer.descTransitionId') },
+        type: { key: 'type', value: 'Transition', type: 'string', description: t('viewer.subNetViewer.descNodeType') },
+        name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: t('viewer.subNetViewer.descTransitionName') },
       };
 
       setStructuredProperties({
@@ -516,9 +519,9 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
     // その他のノード
     else {
       const basicProperties: Record<string, PropertyObject> = {
-        id: { key: 'id', value: String(node.id), type: 'string', description: 'ノードID' },
-        type: { key: 'type', value: String(node.data.templateType || node.data.nodeType || 'place'), type: 'string', description: 'ノード種別' },
-        name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'ノード名' },
+        id: { key: 'id', value: String(node.id), type: 'string', description: t('viewer.subNetViewer.descNodeId') },
+        type: { key: 'type', value: String(node.data.templateType || node.data.nodeType || 'place'), type: 'string', description: t('viewer.subNetViewer.descNodeType') },
+        name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: t('viewer.subNetViewer.descNodeName') },
       };
 
       setStructuredProperties({
@@ -540,7 +543,11 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
 
   // 情報表示（簡易版 - Alertで表示）
   const handleShowInfo = useCallback(() => {
-    alert(`サブネット情報\n\n中心ノード: ${nodeName}\n関連プレース数: ${subnetData?.places.length || 0}\nアーク数: ${subnetData?.arcs.length || 0}\nテンプレート参照: ${Object.keys(templateMap).length}件`);
+    alert(t('viewer.subNetViewer.infoAlert')
+      .replace('{name}', nodeName)
+      .replace('{places}', String(subnetData?.places.length || 0))
+      .replace('{arcs}', String(subnetData?.arcs.length || 0))
+      .replace('{templates}', String(Object.keys(templateMap).length)));
   }, [nodeName, subnetData, templateMap]);
   
   // PropertyViewerを閉じる
@@ -580,7 +587,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
           }}
         >
           <Space size="small">
-            <Tooltip title="ビューリセット">
+            <Tooltip title={t('viewer.subNetViewer.resetView')}>
               <Button
                 type="text"
                 icon={<ReloadOutlined />}
@@ -588,7 +595,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
                 size="small"
               />
             </Tooltip>
-            <Tooltip title="情報表示">
+            <Tooltip title={t('viewer.subNetViewer.showInfo')}>
               <Button
                 type="text"
                 icon={<InfoCircleOutlined />}
@@ -607,7 +614,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
           >
             <Space>
               <Spin />
-              <Text>読み込み中...</Text>
+              <Text>{t('viewer.subNetViewer.loading')}</Text>
             </Space>
           </Flex>
         )}

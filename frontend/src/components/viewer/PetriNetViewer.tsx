@@ -339,7 +339,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       let templateProperties: Record<string, PropertyObject>;
 
       if (tmplEntry?.element) {
-        const templateType = String(node.data.templateType || 'material');
+        const templateType = String(node.data.placeType || 'material');
         const { basicInfo, templateProps } = extractTemplateInfoForNode(tmplEntry.element, templateType);
         basicProperties = basicInfo;
         templateProperties = templateProps;
@@ -347,7 +347,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         // templateMap にヒットしない場合は node.data からフォールバック
         basicProperties = {
           id: { key: 'id', value: String(node.id), type: 'string', description: 'ノードID' },
-          type: { key: 'type', value: String(node.data.templateType || 'material'), type: 'string', description: 'ノード種別' },
+          type: { key: 'type', value: String(node.data.placeType || 'material'), type: 'string', description: 'ノード種別' },
           name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'ノード名' },
           description: { key: 'description', value: String(node.data.description || '説明なし'), type: 'string', description: 'ノード説明' },
         };
@@ -361,7 +361,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
 
       // データタブ: MAIMLの<data><results>から実験結果値を全件取得（N件対応）
       // data.results.*.ref はテンプレートIDを指しているため、テンプレートIDを使用する
-      const templateType = String(node.data.templateType || 'material').toLowerCase() as 'material' | 'condition' | 'result';
+      const templateType = String(node.data.placeType || 'material').toLowerCase() as 'material' | 'condition' | 'result';
       // templateMap から templateId を取得（templateMap[node.id].element の id 属性）
       const templateIdForData =
         tmplEntry?.element?.getAttribute('id') ??

@@ -9,6 +9,7 @@ import { CloseOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { PropertyObject, StructuredProperties } from '@/types/editor';
 import type { DataResultsGroup } from '@/utils/maimlDataExtractor';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -32,6 +33,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   onClose,
 }) => {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   
   // アクティブなタブの状態
   const [activeTab, setActiveTab] = useState('basic');
@@ -97,15 +99,15 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
     // undefined: プロパティ自体が未設定
     if (value === undefined) {
       return (
-        <Tooltip title="値が設定されていません">
-          <Text type="secondary" italic style={{ color: '#bfbfbf' }}>未設定</Text>
+        <Tooltip title={t('viewer.propertyViewer.valueNotSet')}>
+          <Text type="secondary" italic style={{ color: '#bfbfbf' }}>{t('viewer.propertyViewer.valueNotSetLabel')}</Text>
         </Tooltip>
       );
     }
     // null: 明示的に null が設定されている
     if (value === null) {
       return (
-        <Tooltip title="null が設定されています">
+        <Tooltip title={t('viewer.propertyViewer.nullSet')}>
           <Text type="secondary" italic style={{ color: '#bfbfbf' }}>null</Text>
         </Tooltip>
       );
@@ -113,9 +115,9 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
     // 空文字: 値は存在するが中身が空
     if (value === '') {
       return (
-        <Tooltip title="空の文字列が設定されています">
+        <Tooltip title={t('viewer.propertyViewer.emptyStringSet')}>
           <Text type="secondary" italic style={{ color: '#bfbfbf' }}>
-            {`""`} <Text type="secondary" style={{ fontSize: 10 }}>(空文字)</Text>
+            {`""`} <Text type="secondary" style={{ fontSize: 10 }}>({t('viewer.propertyViewer.emptyStringLabel')})</Text>
           </Text>
         </Tooltip>
       );
@@ -146,14 +148,14 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   // 基本情報・データタブ用カラム
   const columns = [
     {
-      title: 'プロパティ',
+      title: t('viewer.propertyViewer.colProperty'),
       dataIndex: 'propKey',
       key: 'propKey',
       width: '35%',
       render: (text: string) => <Text strong>{text}</Text>,
     },
     {
-      title: '値',
+      title: t('viewer.propertyViewer.colValue'),
       dataIndex: 'value',
       key: 'value',
       render: renderValue,
@@ -163,7 +165,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   // ✅ Fix4: テンプレートタブ専用カラム（type/description列追加）
   const templateColumns = [
     {
-      title: 'キー',
+      title: t('viewer.propertyViewer.colKey'),
       dataIndex: 'propKey',
       key: 'propKey',
       width: '30%',
@@ -177,20 +179,20 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
       render: (text: string) => text
         ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
         : (
-          <Tooltip title="xsi:type が設定されていません">
+          <Tooltip title={t('viewer.propertyViewer.xsiTypeNotSet')}>
             <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
           </Tooltip>
         ),
     },
     {
-      title: '値',
+      title: t('viewer.propertyViewer.colValue'),
       dataIndex: 'value',
       key: 'value',
       width: '25%',
       render: renderValue,
     },
     {
-      title: '説明/単位',
+      title: t('viewer.propertyViewer.colDescriptionUnit'),
       dataIndex: 'description',
       key: 'description',
       width: '25%',
@@ -199,7 +201,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
         return text && text.trim()
           ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
           : (
-            <Tooltip title="説明・単位が設定されていません">
+            <Tooltip title={t('viewer.propertyViewer.descriptionNotSet')}>
               <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
             </Tooltip>
           );
@@ -238,7 +240,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   /** データタブ カラム定義（テンプレートタブと同等の4列） */
   const dataTabColumns: ColumnsType<DataTabRow> = [
     {
-      title: 'キー',
+      title: t('viewer.propertyViewer.colKey'),
       dataIndex: 'propKey',
       key: 'propKey',
       width: '22%',
@@ -252,27 +254,27 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
       render: (text?: string) => text
         ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
         : (
-          <Tooltip title="xsi:type が設定されていません">
+          <Tooltip title={t('viewer.propertyViewer.xsiTypeNotSet')}>
             <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
           </Tooltip>
         ),
     },
     {
-      title: '値',
+      title: t('viewer.propertyViewer.colValue'),
       dataIndex: 'value',
       key: 'value',
       width: '28%',
       render: (text?: string) => renderValue(text),
     },
     {
-      title: '説明/単位',
+      title: t('viewer.propertyViewer.colDescriptionUnit'),
       dataIndex: 'description',
       key: 'description',
       width: '28%',
       render: (text?: string) => text && text.trim()
         ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
         : (
-          <Tooltip title="説明・単位が設定されていません">
+          <Tooltip title={t('viewer.propertyViewer.descriptionNotSet')}>
             <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
           </Tooltip>
         ),
@@ -286,8 +288,8 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   const renderDataGroups = (groups: DataResultsGroup[]) => {
     if (groups.length === 0) {
       return (
-        <Tooltip title="このノードにはデータが設定されていません">
-          <Text type="secondary" style={{ cursor: 'default' }}>表示するプロパティがありません</Text>
+        <Tooltip title={t('viewer.propertyViewer.dataNotSet')}>
+          <Text type="secondary" style={{ cursor: 'default' }}>{t('viewer.propertyViewer.noPropertiesToDisplay')}</Text>
         </Tooltip>
       );
     }
@@ -304,7 +306,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
             propKey: p.key,
             xsiType: p.xsiType,
             value: p.value,
-            description: [p.description, p.units ? `単位: ${p.units}` : undefined]
+            description: [p.description, p.units ? t('viewer.propertyViewer.unitLabel').replace('{units}', p.units) : undefined]
               .filter(Boolean)
               .join(' / ') || undefined,
           }));
@@ -358,7 +360,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
                 />
               ) : (
                 <Text type="secondary" style={{ fontSize: 12, paddingLeft: 8 }}>
-                  プロパティがありません
+                  {t('viewer.propertyViewer.noProperties')}
                 </Text>
               )}
             </div>
@@ -385,12 +387,12 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
     }
     const keyMap: Record<string, string> = {
       id: 'ID',
-      name: '名前',
-      type: 'タイプ',
-      description: '説明',
+      name: t('viewer.propertyKeyMap.name'),
+      type: t('viewer.propertyKeyMap.type'),
+      description: t('viewer.propertyKeyMap.description'),
       uuid: 'UUID',
       annotation: 'Annotation',
-      placeRefs: 'Place参照',
+      placeRefs: t('viewer.propertyKeyMap.placeRefs'),
       template_uuid: 'Template UUID',
       template_description: 'Template Description',
       instruction_id: 'Instruction ID',
@@ -414,7 +416,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   const tabItems = [
     {
       key: 'basic',
-      label: '基本情報',
+      label: t('viewer.propertyViewer.tabBasic'),
       children: (
         <Table
           columns={columns}
@@ -427,7 +429,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
     },
     {
       key: 'template',
-      label: 'テンプレート',
+      label: t('viewer.propertyViewer.tabTemplate'),
       children: Object.keys(structuredProperties.template || {}).length > 0 ? (
         <Table
           columns={templateColumns}
@@ -438,8 +440,8 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
           scroll={{ x: true }}
         />
       ) : (
-        <Tooltip title="このノードにはテンプレートが設定されていません">
-          <Text type="secondary" style={{ cursor: 'default' }}>表示するプロパティがありません</Text>
+        <Tooltip title={t('viewer.propertyViewer.templateNotSet')}>
+          <Text type="secondary" style={{ cursor: 'default' }}>{t('viewer.propertyViewer.noPropertiesToDisplay')}</Text>
         </Tooltip>
       ),
     },
@@ -447,9 +449,9 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
       key: 'data',
       label: (
         <Space>
-          データ
+          {t('viewer.propertyViewer.tabData')}
           {(structuredProperties.dataGroups ?? []).length > 0 && (
-            <Tag color="blue">{(structuredProperties.dataGroups ?? []).length}件</Tag>
+            <Tag color="blue">{t('viewer.propertyViewer.itemCount').replace('{count}', String((structuredProperties.dataGroups ?? []).length))}</Tag>
           )}
         </Space>
       ),
@@ -461,11 +463,11 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   if (!properties || Object.keys(properties).length === 0) {
     return (
       <Card
-        title="プロパティ"
+        title={t('viewer.propertyViewer.propertyCardTitle')}
         extra={onClose && <Button type="text" icon={<CloseOutlined />} onClick={onClose} />}
         style={{ height: '100%' }}
       >
-        <Text type="secondary">プロパティ情報がありません</Text>
+        <Text type="secondary">{t('viewer.propertyViewer.noPropertyInfo')}</Text>
       </Card>
     );
   }
@@ -490,7 +492,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
       >
         <Space>
           <Title level={5} style={{ margin: 0, color: 'white' }}>
-            {properties.name || 'ノード'} プロパティ
+            {t('viewer.propertyViewer.headerTitle').replace('{name}', properties.name || t('viewer.propertyViewer.nodeDefault'))}
           </Title>
           {properties.type && (
             <Tag color="white" style={{ color: headerColor }}>
