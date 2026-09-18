@@ -388,6 +388,52 @@ describe('MAIMLバリデーション緩和 - lenient vs strict モード比較',
   });
 
   // ----------------------------------------------------------
+  // ケース13: 子タグでの xmlns 宣言スコープ対応
+  // ----------------------------------------------------------
+  describe('ケース13: 子タグxmlns宣言スコープ（13_child_xmlns.maiml）', () => {
+    /**
+     * 検証ポイント:
+     *   G) <result xmlns:tiff="https://www.iso.org/..."> 内の tiff:ImageWidth
+     *      → 子タグ外部URI宣言 → スキップ（エラーなし）
+     *   H) <result xmlns:myco="https://myco.Alchemia.co.jp"> 内の myco:UnknownKey
+     *      → 子タグ Alchemia URI 宣言 → DB未登録 → エラー
+     *   I) 上記ケースGの <result> の外にある tiff:OutOfScope
+     *      → tiff: が宣言されていないスコープ → 即エラー
+     * 期待: H + I で TERM_NOT_REGISTERED エラーが 2件
+     */
+    test('strict: 子タグ外部NSはスキップ、子タグAlchemia NS未登録とスコープ外はエラー（計2件）', async () => {
+      const result = await analyzeFile('13_child_xmlns.maiml', 'strict');
+      const termErrors = result.errors.filter(e => e.type === 'term_not_registered');
+      // ケースG（tiff:ImageWidth）はエラーにならないこと
+      const tiffImageWidthError = termErrors.find(e => e.message.includes('tiff:ImageWidth'));
+      expect(tiffImageWidthError).toBeUndefined();
+      // ケースH（myco:UnknownKey）はエラーになること
+      const mycoError = termErrors.find(e => e.message.includes('myco:UnknownKey'));
+      expect(mycoError).toBeDefined();
+      expect(mycoError?.severity).toBe('error');
+      // ケースI（tiff:OutOfScope）はエラーになること
+      const outOfScopeError = termErrors.find(e => e.message.includes('tiff:OutOfScope'));
+      expect(outOfScopeError).toBeDefined();
+      expect(outOfScopeError?.severity).toBe('error');
+      // 合計 2件
+      expect(termErrors.length).toBe(2);
+    });
+
+    test('lenient: 子タグ外部NSはスキップ、子タグAlchemia NS未登録とスコープ外はアップロード許可エラー（計2件）', async () => {
+      const result = await analyzeFile('13_child_xmlns.maiml', 'lenient');
+      const termErrors = result.errors.filter(e => e.type === 'term_not_registered');
+      // ケースG: エラーなし
+      const tiffImageWidthError = termErrors.find(e => e.message.includes('tiff:ImageWidth'));
+      expect(tiffImageWidthError).toBeUndefined();
+      // ケースH・I: エラーあり（canBeIgnoredOnUpload=true）
+      expect(termErrors.length).toBe(2);
+      for (const e of termErrors) {
+        expect(e.canBeIgnoredOnUpload).toBe(true);
+      }
+    });
+  });
+
+  // ----------------------------------------------------------
   // ベースファイル（ito_test_3.maiml）: 実際のファイルで両モード正常動作確認
   // ----------------------------------------------------------
   describe('ベースファイル（ito_test_3.maiml）', () => {

@@ -1105,19 +1105,46 @@ function validateReferences(parsedXML : any) {
   }
 
   /**
-   * property / uncertainty タグの key 属性値を再帰的に収集する
+   * property / uncertainty タグの key 属性値を、そのスコープで有効な xmlns マップと共に再帰収集する。
    *
-   * @param obj - パース済みXMLオブジェクト（任意の階層）
-   * @param keys - 収集した key 値を格納する Set（重複排除のため Set を使用）
+   * XML 名前空間仕様に準拠し、各ノードで宣言された xmlns:prefix は
+   * そのノードおよびすべての子孫ノードに適用される。
+   * 親から引き継いだ inheritedXmlns をコピーして上書きすることで
+   * スコープのイミュータブルな引き継ぎを実現する。
+   *
+   * @param obj            - パース済みXMLオブジェクト（任意の階層）
+   * @param entries        - 収集結果を追加する配列 { key, xmlnsMap }
+   * @param inheritedXmlns - 親スコープから引き継いだ prefix → URI マップ
    */
-  function collectPropertyAndUncertaintyKeys(obj: any, keys: Set<string>): void {
+  function collectPropertyAndUncertaintyKeys(
+    obj: any,
+    entries: Array<{ key: string; xmlnsMap: Map<string, string> }>,
+    inheritedXmlns: Map<string, string>
+  ): void {
     if (typeof obj !== 'object' || obj === null) return;
 
     if (Array.isArray(obj)) {
       for (const item of obj) {
-        collectPropertyAndUncertaintyKeys(item, keys);
+        collectPropertyAndUncertaintyKeys(item, entries, inheritedXmlns);
       }
       return;
+    }
+
+    // このノードで宣言された xmlns を親スコープに追加（コピーして上書き・イミュータブル）
+    // xmlns 宣言がないノードではコピーを作らずそのまま引き継ぐ（パフォーマンス最適化）
+    let currentXmlns = inheritedXmlns;
+    for (const attr of Object.keys(obj)) {
+      if (attr.startsWith('@_xmlns:')) {
+        // 初めて宣言が見つかったときだけ Map をコピーする
+        if (currentXmlns === inheritedXmlns) {
+          currentXmlns = new Map(inheritedXmlns);
+        }
+        const prefix = attr.slice('@_xmlns:'.length);
+        const uri = String(obj[attr]);
+        if (prefix && uri) {
+          currentXmlns.set(prefix, uri);
+        }
+      }
     }
 
     for (const tagName of Object.keys(obj)) {
@@ -1125,13 +1152,15 @@ function validateReferences(parsedXML : any) {
         const elements = Array.isArray(obj[tagName]) ? obj[tagName] : [obj[tagName]];
         for (const el of elements) {
           if (el && typeof el === 'object' && el['@_key']) {
-            keys.add(String(el['@_key']));
+            // キーとそのスコープの xmlns マップをセットで記録する
+            entries.push({ key: String(el['@_key']), xmlnsMap: currentXmlns });
           }
           // ネスト内も再帰的に走査
-          collectPropertyAndUncertaintyKeys(el, keys);
+          collectPropertyAndUncertaintyKeys(el, entries, currentXmlns);
         }
-      } else {
-        collectPropertyAndUncertaintyKeys(obj[tagName], keys);
+      } else if (!tagName.startsWith('@_')) {
+        // 属性キー（@_xxx）は値が文字列などのプリミティブなため再帰しない
+        collectPropertyAndUncertaintyKeys(obj[tagName], entries, currentXmlns);
       }
     }
   }
@@ -1144,7 +1173,8 @@ function validateReferences(parsedXML : any) {
    *    → ネームスペースに依存しない用語はMaiml仕様上エラーとしない → 常にスキップ
    * 2. key に含まれる prefix がグローバルCSV（global-declarations.csv）に登録されている
    *    → エラーなし（グローバル宣言の prefix を持つ用語として許可）
-   * 3. MAIMLの xmlns 宣言を参照して prefix の URI を確認
+   * 3. そのキーのスコープ（maiml ルートの xmlns ＋ 祖先タグの xmlns を引き継いだマップ）で
+   *    prefix の URI を確認
    *    a. xmlns 宣言なし（prefix が不明）
    *       → DB 確認なしで即エラー
    *    b. xmlns 宣言あり かつ 非Alchemia URI（外部名前空間）
@@ -1168,16 +1198,24 @@ function validateReferences(parsedXML : any) {
     const errors: ErrorContent[] = [];
     const warnings: ErrorContent[] = [];
 
-    // MAIMLルート要素の xmlns 宣言を prefix → URI のマップとして抽出
-    const xmlnsMap = extractXmlnsDeclarations(parsedXML);
+    // MAIMLルート要素の xmlns 宣言を初期スコープとして抽出
+    const rootXmlnsMap = extractXmlnsDeclarations(parsedXML);
 
-    // property / uncertainty タグの key 属性値を全収集
-    const collectedKeys = new Set<string>();
-    collectPropertyAndUncertaintyKeys(parsedXML, collectedKeys);
+    // property / uncertainty タグの key 属性値をスコープ付きで収集
+    // entries: { key: string; xmlnsMap: Map<string, string> }[]
+    // xmlnsMap はそのキーが収集された時点で有効な xmlns 宣言のマップ
+    const keyEntries: Array<{ key: string; xmlnsMap: Map<string, string> }> = [];
+    collectPropertyAndUncertaintyKeys(parsedXML, keyEntries, rootXmlnsMap);
 
-    console.log(`🔍 [validatePropertyTermKeys] 収集された key 数: ${collectedKeys.size}`);
+    console.log(`🔍 [validatePropertyTermKeys] 収集された key 数: ${keyEntries.length}`);
 
-    for (const key of collectedKeys) {
+    // 同一キーのエラーは1件のみ報告する（異なるスコープで同一キーが現れるケース対策）
+    const reportedErrorKeys = new Set<string>();
+
+    for (const { key, xmlnsMap } of keyEntries) {
+      // 既にエラー報告済みのキーはスキップ
+      if (reportedErrorKeys.has(key)) continue;
+
       // prefix:localName 形式かプレーンキーかを判定
       const colonIdx = key.indexOf(':');
       if (colonIdx !== -1) {
@@ -1190,7 +1228,8 @@ function validateReferences(parsedXML : any) {
           continue;
         }
 
-        // Step 2: MAIMLの xmlns 宣言でこの prefix の URI を確認
+        // Step 2: そのキーのスコープ xmlns マップで prefix の URI を確認
+        // スコープ = maiml ルートの xmlns ＋ 祖先タグの xmlns を順に引き継いだマップ
         const prefixUri = xmlnsMap.get(prefix);
 
         if (prefixUri === undefined) {
@@ -1224,6 +1263,7 @@ function validateReferences(parsedXML : any) {
         canBeIgnoredOnUpload: mode === 'lenient',
       };
 
+      reportedErrorKeys.add(key);
       errors.push(errorEntry);
     }
 
