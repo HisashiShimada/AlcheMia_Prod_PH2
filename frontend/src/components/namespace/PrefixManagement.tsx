@@ -562,12 +562,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
   // ── エクスポート（CSV）
   const handleCsvDownload = () => {
-    if (rows.length === 0) {
-      message.error(t('prefixManagement.exportEmptyError'));
+    if (selectedRowKeys.length === 0) {
+      message.error(t('prefixManagement.exportSelectAtLeastOne'));
       return;
     }
+    const exportRows = rows.filter((r) => selectedRowKeys.includes(r.id as React.Key));
     const header = 'prefix,uri,description';
-    const csvRows = rows.map((r) =>
+    const csvRows = exportRows.map((r) =>
       [r.prefix, r.uri, r.description ?? '']
         .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
         .join(',')

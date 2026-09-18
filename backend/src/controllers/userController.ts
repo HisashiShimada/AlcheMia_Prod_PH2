@@ -318,7 +318,7 @@ export async function downloadUsersCsv(req: Request, res: Response, next: NextFu
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
-    const { search, is_active, role_cd } = req.query;
+    const { search, is_active, role_cd, ids } = req.query;
 
     // フィルター構築
     const filters: any = {};
@@ -338,10 +338,17 @@ export async function downloadUsersCsv(req: Request, res: Response, next: NextFu
 
     // フィルタ適用してデータ取得
     const users = await userService.getUsers(String(organizationId), filters);
-    console.log('Filtered users count:', users.length);
+
+    // IDリストによるフィルタリング
+    const idList = ids ? String(ids).split(',').filter(Boolean) : [];
+    const filtered = idList.length > 0
+      ? users.filter((u: any) => idList.includes(String(u.user_id)))
+      : users;
+
+    console.log('Filtered users count:', filtered.length);
 
     // CSVデータ生成（Service層の関数を使用）
-    const csv = userService.generateCSV(users);
+    const csv = userService.generateCSV(filtered);
 
     // タイムスタンプ付きファイル名を生成 (yyyyMMddhhmmss)
     const timestamp = new Date()

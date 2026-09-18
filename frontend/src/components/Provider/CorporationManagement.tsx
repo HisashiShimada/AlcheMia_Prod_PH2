@@ -328,6 +328,10 @@ export default function CorporationManagement() {
 
   // CSVダウンロード
   const handleDownload = async () => {
+    if (selectedRowKeys.length === 0) {
+      messageApi.error(t('corporationManagement.messages.csvDownloadSelectRequired'));
+      return;
+    }
     try {
       setLoading(true);
       const client = createApiClient();
@@ -337,6 +341,7 @@ export default function CorporationManagement() {
       if (searchText.trim()) {
         params.search = searchText.trim();
       }
+      params.ids = selectedRowKeys.map(String).join(',');
       
       const response = await client.get('/provider/corporation/download-csv', {
         params,
