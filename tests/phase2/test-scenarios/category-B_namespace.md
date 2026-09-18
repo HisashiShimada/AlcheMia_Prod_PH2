@@ -102,7 +102,6 @@
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 8/27 | 佐藤 | NG |ユーザーが登録できない。https://soft-service.atlassian.net/browse/AISOLMAIML-410?atlOrigin=eyJpIjoiNmY1MmNiYjJjZTE0NDJkZmFhOTViMzYyMTJkNGQwYTgiLCJwIjoiaiJ9|
 | 9/17 | 佐藤 | OK | |
 
 ---
@@ -472,12 +471,10 @@
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 8/27 | 佐藤 | NG | 用語重複がインライン表示でエラーになっているhttps://soft-service.atlassian.net/browse/AISOLMAIML-411?atlOrigin=eyJpIjoiYmRmN2I0ZjliNWE4NDZjN2EyNGEwZGZlYTVkMDExZTciLCJwIjoiaiJ9|
 | 9/17 | 佐藤 | OK | |
 
 ---
 
-## B-NS-05：グループ追加と名前空間URI自動採番（実験管理者）
 ## B-NS-05：グループ追加と名前空間URI自動採番（実験管理者）
 
 ### 概要
