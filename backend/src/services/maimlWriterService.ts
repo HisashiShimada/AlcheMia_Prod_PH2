@@ -31,10 +31,11 @@ import {
   injectNamespaceDeclarations,
   appendOwnerToDocument,
   extractOwnerIdsFromEventLogs,
+  buildPlannedValuesResultsXML,
 } from '../utils/maimlDataWriter';
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
-import { findDeclarationsByProjectScope, findProjectGroupCd } from '../repositories/namespaceTermRepository';
+import { findDeclarationsByProjectScope, findProjectGroupCd, findAllByOrganization, findNamespacesByOrganization } from '../repositories/namespaceTermRepository';
 import { readGlobalDeclarations } from './globalNamespaceFileService';
 import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
 import { OrganizationUserRepository } from '../repositories/organizationUserRepository';
@@ -513,8 +514,6 @@ export class MaimlWriterService {
     experimentPlans: ExperimentPlan[]
   ): Promise<void> {
     const storageService = getStorageService();
-    const pool = getPool();
-    const templateDataRepo = new TemplateDataRepository();
 
     // --- 1. MAIMLファイルの存在確認 ---
     const filePath = await resolveMaimlFilePath(organizationId, projectId, projectName);
@@ -531,178 +530,72 @@ export class MaimlWriterService {
     const fileBuffer = await storageService.downloadFile(organizationId, filePath);
     let maimlContent = fileBuffer.toString('utf-8');
 
-    // --- 3. planned_values → template_data.property_set に反映（トランザクション）---
-    // planned_values 構造: { [transitionId]: { [fieldKey]: value }, "__meta__": {...} }
-    // "__meta__" キーはシステム用メタデータなのでスキップする。
-    // 全トランジションの fieldKey: value を1つのフラットマップに集約して
-    // updatePropertySetByPlan に渡す。
-    let updatedCount = 0;
-    // mgr-instruction 注入用: planId(method_id + task_no) → mgrInstructionValues マップ
-    const mgrInstructionValuesMap = new Map<string, Record<string, unknown>>();
+    // --- 3. planned_values から直接 <results> XML を生成して MAIML の <data> を置き換え ---
+    // planned_values の各 fieldKey を解析し、prop_key を
+    // {prefix}:SupervisorDirective{localName} 形式に変換して出力する。
+    // template_data を経由しないため、チェックアウト時点で template_data が空でも正しく出力される。
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
-      for (const plan of experimentPlans) {
-        if (!plan.planned_values) continue;
-
-        const plannedValues = plan.planned_values as Record<string, unknown>;
-
-        // 全トランジション分の fieldKey → value をフラットに集約
-        // { [fieldKey]: value } 形式（文字列スカラーのみ対象）
-        const planFlatValues: Record<string, string> = {};
-        // mgr-instruction:* 値（文字列・配列問わず収集）
-        const planMgrInstructionValues: Record<string, unknown> = {};
-
-        for (const [transitionId, fieldMap] of Object.entries(plannedValues)) {
-          // "__meta__" キー（システム用メタデータ）はスキップ
-          if (transitionId === '__meta__') continue;
-          if (!fieldMap || typeof fieldMap !== 'object') continue;
-
-          for (const [fieldKey, value] of Object.entries(
-            fieldMap as Record<string, unknown>
-          )) {
-          if (fieldKey === '__uncertainty__') {
-              // __uncertainty__ キーは旧方式（ExperimentPlanDialog での不確かさ割り当て）のデータ。
-              // 新方式（WorkRecordPanel での手入力）では使用しないためスキップ。
-              continue;
-            } else if (fieldKey.startsWith('mgr-instruction:')) {
-              // mgr-instruction:* 値は文字列・配列問わず収集（_injectExperimentPlanProps で MAIML に書き込む）
-              if (value !== null && value !== undefined) {
-                planMgrInstructionValues[fieldKey] = value;
-              }
-            } else {
-              // 文字列・数値スカラーを反映（string[] や object はスキップ）
-              // intType / floatType のフィールドは数値として保存されるため typeof number も許容する
-              if (value !== null && value !== undefined && (typeof value === 'string' || typeof value === 'number')) {
-                planFlatValues[fieldKey] = String(value);
-              }
-            }
-          }
-        }
-
-        const hasFlatValues = Object.keys(planFlatValues).length > 0;
-        const hasMgrInstruction = Object.keys(planMgrInstructionValues).length > 0;
-
-        console.log(
-          `[MaimlWriterService.writeExperimentPlanProperties] method_id=${plan.method_id} task_no=${plan.task_no}: ` +
-            `planFlatValues=${JSON.stringify(planFlatValues)}, ` +
-            `planMgrInstructionValues=${JSON.stringify(planMgrInstructionValues)}`
-        );
-
-        // mgr-instruction 値を後で MAIML に注入するためにマップに保持
-        if (hasMgrInstruction) {
-          const planKey = `${plan.method_id}__${plan.task_no}`;
-          mgrInstructionValuesMap.set(planKey, planMgrInstructionValues);
-        }
-
-        if (!hasFlatValues) continue;
-
-        // template_data.property_set に想定値を反映
-        if (hasFlatValues) {
-          await templateDataRepo.updatePropertySetByPlan(
-            organizationId,
-            projectId,
-            plan.method_id,
-            plan.task_no,
-            planFlatValues,
-            'system', // チェックアウト処理はシステム操作
-            client
-          );
-        }
-
-        updatedCount++;
-      }
-
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
-
-    // updatedCount === 0（planned_values が全て null）でも template_data のレコードは存在するため
-    // XML 生成・MAIML 保存を必ず実行する（スキップしない）
-    if (updatedCount > 0) {
-      console.log(
-        `[MaimlWriterService.writeExperimentPlanProperties] planned_values 反映完了: ${updatedCount}件`
-      );
-    } else {
-      console.log(
-        '[MaimlWriterService.writeExperimentPlanProperties] planned_values は全て null のため DB 更新なし。template_data のデータをそのまま XML に反映します。'
-      );
-    }
-
-    // --- 4. 更新後の template_data を全件取得して <data> XML を再生成 ---
-    const templateDataResult = await pool.query<TemplateDataRow>(
-      `SELECT
-         organization_id,
-         project_id,
-         method_id,
-         task_no,
-         place_id,
-         property_set,
-         create_user_id,
-         update_user_id,
-         create_at,
-         update_at
-       FROM template_data
-       WHERE organization_id = $1
-         AND project_id = $2
-       ORDER BY method_id, task_no, place_id`,
-      [organizationId, projectId]
-    );
-    const templateDataRows: TemplateDataRow[] = templateDataResult.rows;
-
-    // --- 5. <data> ID を既存 XML から抽出 ---
+    // --- 4. <data> ID を既存 XML から抽出 ---
     const dataIdMatch = maimlContent.match(/<data[^>]*\sid="([^"]+)"/);
     const dataId = dataIdMatch ? dataIdMatch[1] : 'dataID';
 
-    // --- 6. 既存 MAIML から UUID マッピングを抽出（改竄防止: UUID 再利用）---
+    // --- 5. 既存 MAIML から UUID マッピングを抽出（UUID 再利用）---
     const existingUuids = extractUuidsFromMaiml(maimlContent);
 
-    // --- 7. <data> XML を生成して MAIML に埋め込む ---
-    const dataXml = buildDataXML(templateDataRows, dataId, existingUuids);
-
-    // <data> タグだけを置き換え（<eventLog> はそのまま保持）
-    // replaceDataAndEventLogInMaiml は両方置き換えるため、<data> だけを手動で置換
-    maimlContent = this._replaceDataSection(maimlContent, dataXml);
-
-    // --- 7b. mgr-instruction:* 値を MAIML の <task><properties> セクションに注入 ---
-    // experiment_plan.planned_values に含まれる mgr-instruction: プレフィックス付き値は
-    // template_data.property_set には存在しないため buildDataXML() では書き込まれない。
-    // _injectExperimentPlanProps() を使って各タスクの <properties> セクションに直接書き込む。
-    if (mgrInstructionValuesMap.size > 0) {
-      for (const plan of experimentPlans) {
-        const planKey = `${plan.method_id}__${plan.task_no}`;
-        const mgrValues = mgrInstructionValuesMap.get(planKey);
-        if (!mgrValues || Object.keys(mgrValues).length === 0) continue;
-
-        // task_no をゼロ埋め3桁文字列に変換（MAIML の taskNo 属性は "001" 形式）
-        const taskNoStr = String(plan.task_no).padStart(3, '0');
-
-        // 配列値は JSON 文字列化して <property value="..."> に格納する
-        const serializedValues: Record<string, unknown> = {};
-        for (const [key, val] of Object.entries(mgrValues)) {
-          // mgr-instruction: プレフィックスはキーに含まれているため、
-          // _injectExperimentPlanProps 内でさらにプレフィックスが付かないよう
-          // キーから mgr-instruction: を除去して渡す
-          const bareKey = key.startsWith('mgr-instruction:') ? key.slice('mgr-instruction:'.length) : key;
-          serializedValues[bareKey] = Array.isArray(val) ? JSON.stringify(val) : val;
-        }
-
-        maimlContent = this._injectExperimentPlanProps(
-          maimlContent,
-          plan.method_id,
-          taskNoStr,
-          serializedValues
-        );
+    // --- 5.5. MAIML xmlns 解析 + DB 照合 → validSupervisorKeySet 構築 ---
+    // 1. MAIML の <maiml> タグから xmlns:prefix="URI" を正規表現で解析
+    const maimlTagRawMatch = maimlContent.match(/<maiml[\s\S]*?>/);
+    const xmlnsUriMap: Record<string, string> = {};
+    if (maimlTagRawMatch) {
+      const xmlnsPattern = /xmlns:([a-zA-Z0-9_.-]+)="([^"]*)"/g;
+      let xmlnsMatch: RegExpExecArray | null;
+      while ((xmlnsMatch = xmlnsPattern.exec(maimlTagRawMatch[0])) !== null) {
+        xmlnsUriMap[xmlnsMatch[1]] = xmlnsMatch[2];
       }
+    }
+    const maimlUriSet = new Set<string>(Object.values(xmlnsUriMap));
 
+    // 2. DB から組織の全 prefix → URI と全用語を並列取得
+    const [dbNamespaces, allTerms] = await Promise.all([
+      findNamespacesByOrganization(organizationId),
+      findAllByOrganization(organizationId),
+    ]);
+
+    // 3. MAIML の URI セット内に存在する URI を持つ DB prefix を収集
+    //    同一 URI に複数 prefix が紐づく場合（例: material/condition/result/test が同一URI）は全て有効
+    const validPrefixSet = new Set<string>(
+      dbNamespaces
+        .filter((ns) => maimlUriSet.has(ns.uri))
+        .map((ns) => ns.prefix)
+    );
+
+    // 4. 有効な prefix に属する SupervisorDirective 系用語の qname セット
+    //    validPrefixSet が空（xmlns なし or DB 未登録）の場合は undefined → チェックスキップ
+    const validSupervisorKeySet: Set<string> | undefined =
+      validPrefixSet.size > 0
+        ? new Set<string>(
+            allTerms
+              .filter(
+                (t) =>
+                  t.localName.startsWith('SupervisorDirective') &&
+                  validPrefixSet.has(t.prefix)
+              )
+              .map((t) => t.qname) // "{prefix}:{localName}" 形式
+          )
+        : undefined;
+
+    // --- 6. planned_values から <data> XML を生成 ---
+    const plannedDataXml = buildPlannedValuesResultsXML(experimentPlans, dataId, existingUuids, validSupervisorKeySet);
+
+    if (plannedDataXml) {
+      // planned_values に値がある場合のみ <data> セクションを置き換える
+      maimlContent = this._replaceDataSection(maimlContent, plannedDataXml);
       console.log(
-        `[MaimlWriterService.writeExperimentPlanProperties] mgr-instruction 注入完了: ${mgrInstructionValuesMap.size}タスク`
+        `[MaimlWriterService.writeExperimentPlanProperties] planned_values から <data> XML 生成・置換完了`
+      );
+    } else {
+      console.log(
+        '[MaimlWriterService.writeExperimentPlanProperties] planned_values に値がないため <data> セクションの置換をスキップ'
       );
     }
 
@@ -766,7 +659,7 @@ export class MaimlWriterService {
     console.log(
       `[MaimlWriterService.writeExperimentPlanProperties] MAIMLファイル更新完了（<results>層）: ` +
         `organizationId=${organizationId}, projectId=${projectId}, ` +
-        `updatedTasks=${updatedCount}件, templateDataRows=${templateDataRows.length}件`
+        `experimentPlans=${experimentPlans.length}件`
     );
   }
 

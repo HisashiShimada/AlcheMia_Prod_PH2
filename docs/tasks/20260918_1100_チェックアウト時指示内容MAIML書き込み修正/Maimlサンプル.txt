@@ -1,0 +1,64 @@
+
+      <program id="program_method_test_ito4_2deb02ba">
+        <uuid>2b56c3d0-cb94-405d-8a0c-09cbd6dd3561</uuid>
+        <instruction id="instruction_transition-1788910721483">
+          <uuid>2c0f0682-d394-4723-bfa1-091f512bba91</uuid>
+          <description>transition-1788910721483</description>
+          <transitionRef id="TR_transition-1788910721483" ref="transition-1788910721483"/>
+        </instruction>
+        <materialTemplate id="materialTemplate_1788910730323">
+          <uuid>9c4d8b8f-637c-41c2-854c-f0c38e685dfb</uuid>
+          <insertion>
+            <uri></uri>
+            <hash></hash>
+          </insertion>
+          <property key="material:material1" units="mL" xsi:type="floatType">
+            <value>49.5</value>
+          </property>
+          <placeRef id="materialTemplate_1788910730323TL" ref="material-1788910714305"/>
+        </materialTemplate>
+        <conditionTemplate id="conditionTemplate_1788910761118">
+          <uuid>5a3c9578-512e-4957-8621-a3078c1bbe32</uuid>
+          <property key="condition:condition1" units="s" xsi:type="intType">
+            <value>30</value>
+          </property>
+          <placeRef id="conditionTemplate_1788910761118TL" ref="condition-1788910717284"/>
+        </conditionTemplate>
+        <resultTemplate id="resultTemplate_1788910785454">
+          <uuid>26e77430-9b75-4ad5-8032-10622252a530</uuid>
+          <insertion>
+            <uri></uri>
+            <hash></hash>
+          </insertion>
+          <property key="result:result1" units="mg" xsi:type="floatType">
+            <value>20.5</value>
+          </property>
+          <placeRef id="resultTemplate_1788910785454TL" ref="result-1788910722259"/>
+        </resultTemplate>
+      </program>
+    </method>
+  </protocol>
+  <data id="dataID">
+    <uuid>da1631c3-30ae-497c-8aba-1f51802ea756</uuid>
+    <results id="results_method_test_ito4_2deb02ba_1">
+      <uuid>9dc91a15-5d90-4920-9cec-8128c62d38b8</uuid>
+      <material id="data-material-1788910714305" ref="materialTemplate_1788910730323">
+        <uuid>13c2afcb-bcda-4d9d-8543-791fc308f994</uuid>
+        <property key="material:SupervisorDirectivematerial1" units="mL" xsi:type="floatType">
+          <value>49.5</value>
+        </property>
+      </material>
+      <condition id="data-condition-1788910717284" ref="conditionTemplate_1788910761118">
+        <uuid>27a5aeb6-f25a-4e85-8dd1-92a90be75106</uuid>
+        <property key="condition:SupervisorDirectivecondition1" units="s" xsi:type="intType">
+          <value>30</value>
+        </property>
+      </condition>
+      <result id="data-result-1788910722259" ref="resultTemplate_1788910785454">
+        <uuid>2469936b-c18b-40a7-b23e-eabf7a7cbbe9</uuid>
+        <property key="result:SupervisorDirectiveresult1" units="mg" xsi:type="floatType">
+          <value>20.5</value>
+        </property>
+      </result>
+    </results>
+  </data>

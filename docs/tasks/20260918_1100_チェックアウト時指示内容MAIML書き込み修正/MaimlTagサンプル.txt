@@ -1,0 +1,12 @@
+<maiml version="1.0" xsi:schemaLocation="http://www.maiml.org/schemas maiml.xsd"
+  xmlns:maiml="http://www.maiml.org/schemas"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:Alchemia="https://Alchemia.co.jp"
+  xmlns:time="http://www.xes-standard.org/time.xesext#"
+  xmlns:lifecycle="http://www.xes-standard.org/lifecycle.xesext#"
+  xmlns:concept="http://www.xes-standard.org/concept.xesext#"
+  xmlns:condition="https://ORG001-AIML.Alchemia.co.jp/test_group"
+  xmlns:material="https://ORG001-AIML.Alchemia.co.jp/test_group"
+  xmlns:result="https://ORG001-AIML.Alchemia.co.jp/test_group"
+  xmlns:test="https://ORG001-AIML.Alchemia.co.jp/test_group"
+>
