@@ -48,6 +48,10 @@ export const validateCreateOrganizationGroup = [
     .withMessage('organization_group_cd は必須です')
     .isString()
     .withMessage('organization_group_cd は文字列で指定してください')
+    .matches(/^[A-Za-z0-9\-_]+$/)
+    .withMessage('organization_group_cd は半角英数・ハイフン・アンダースコアのみ使用できます')
+    .isLength({ max: 50 })
+    .withMessage('organization_group_cd は50文字以内で指定してください')
     .trim(),
   body('organization_group_name')
     .notEmpty()
