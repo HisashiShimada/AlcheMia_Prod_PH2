@@ -91,8 +91,8 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
     return propKey;
   };
 
-  // 構造名のマッピング
-  const structureLabels: Record<keyof StructuredProperties, string> = {
+  // 構造名のマッピング（選択可能な3区分のみ。dataGroups はプロパティ選択対象外）
+  const structureLabels: Record<'basic' | 'template' | 'data', string> = {
     basic: '基本情報',
     template: 'テンプレート',
     data: 'データ'
@@ -101,12 +101,12 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
   // 選択済みチップの表示
   const renderSelectedChips = () => {
     const allSelected: Array<{
-      structure: keyof StructuredProperties;
+      structure: 'basic' | 'template' | 'data';
       property: string;
       label: string;
     }> = [];
 
-    (Object.keys(structureLabels) as Array<keyof StructuredProperties>).forEach(structure => {
+    (Object.keys(structureLabels) as Array<'basic' | 'template' | 'data'>).forEach(structure => {
       if (selectedProperties[structure]) {
         selectedProperties[structure].forEach(prop => {
           allSelected.push({
@@ -145,7 +145,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
   };
 
   // プロパティリストの表示（Table形式）
-  const renderPropertyList = (structure: keyof StructuredProperties) => {
+  const renderPropertyList = (structure: 'basic' | 'template' | 'data') => {
     const properties = structuredProperties[structure] || {};
     const selected = selectedProperties[structure] || [];
 
@@ -261,7 +261,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
   };
 
   // タブのバッジカウント
-  const getTabLabel = (structure: keyof StructuredProperties) => {
+  const getTabLabel = (structure: 'basic' | 'template' | 'data') => {
     const count = selectedProperties[structure]?.length || 0;
     return (
       <Space>

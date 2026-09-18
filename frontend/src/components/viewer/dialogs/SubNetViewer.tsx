@@ -58,7 +58,7 @@ import {
 } from '../../../utils/subnetReactFlowConverter';
 
 // データタブ用ユーティリティ
-import { fetchDataInfoFromMaiml, DataPropertyObject } from '../../../utils/maimlDataExtractor';
+import { fetchAllDataInfoFromMaiml } from '../../../utils/maimlDataExtractor';
 
 const { Title, Text } = Typography;
 
@@ -157,6 +157,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
     basic: Record<string, PropertyObject>;
     template: Record<string, PropertyObject>;
     data: Record<string, PropertyObject>;
+    dataGroups?: import('@/utils/maimlDataExtractor').DataResultsGroup[];
   }>({
     basic: {},
     template: {},
@@ -482,68 +483,20 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
         };
       });
 
-      // ✅ Fix8b: データタブ: MAIMLの<data><results>から実験結果値を取得
+      // データタブ: MAIMLの<data><results>から実験結果値を全件取得（N件対応）
       // data.results.*.ref はテンプレートIDを指しているため、テンプレートIDを使用する
       const templateIdForData = (node.data.template?.element as Element | undefined)?.getAttribute('id') ?? node.id;
-      const dataInfo = fetchDataInfoFromMaiml(
+      const dataGroups = fetchAllDataInfoFromMaiml(
         maimlData,
         templateIdForData,
-        (node.data.templateType as string).toLowerCase() as 'material' | 'condition' | 'result'
+        (node.data.templateType as string).toLowerCase()
       );
-      const dataProperties: Record<string, PropertyObject> = {};
-          if (dataInfo) {
-            Object.entries(dataInfo).forEach(([rawKey, val]) => {
-              if (rawKey.startsWith('property_')) {
-                const propObj = val as DataPropertyObject;
-                const displayKey = rawKey.slice('property_'.length);
-                // property_* の各フィールドを個別エントリに展開して表示
-                if (propObj.value !== undefined) {
-                  dataProperties[`${rawKey}_value`] = {
-                    key: `${displayKey} (value)`,
-                    value: propObj.value,
-                    type: propObj.xsiType ?? 'string',
-                    description: propObj.description ?? undefined,
-                  };
-                }
-                if (propObj.xsiType) {
-                  dataProperties[`${rawKey}_type`] = {
-                    key: `${displayKey} (type)`,
-                    value: propObj.xsiType,
-                    type: 'string',
-                    description: `${displayKey} の xsi:type`,
-                  };
-                }
-                if (propObj.units) {
-                  dataProperties[`${rawKey}_units`] = {
-                    key: `${displayKey} (units)`,
-                    value: propObj.units,
-                    type: 'string',
-                    description: `${displayKey} の単位`,
-                  };
-                }
-                if (propObj.description) {
-                  dataProperties[`${rawKey}_desc`] = {
-                    key: `${displayKey} (description)`,
-                    value: propObj.description,
-                    type: 'string',
-                    description: `${displayKey} の説明`,
-                  };
-                }
-              } else {
-                dataProperties[rawKey] = {
-                  key: rawKey,
-                  value: String(val ?? ''),
-                  type: 'string',
-                  description: rawKey,
-                };
-              }
-            });
-          }
 
       setStructuredProperties({
         basic: basicProperties,
         template: templateProperties,
-        data: dataProperties,
+        data: {},
+        dataGroups,
       });
     }
     // Transitionノードの場合

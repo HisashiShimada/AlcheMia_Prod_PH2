@@ -39,7 +39,7 @@ import { convertToReactFlowFormat } from '../../utils/reactFlowConverter';
 import type { Method } from '../../types/maiml-unified';
 
 // データタブ用ユーティリティ
-import { fetchDataInfoFromMaiml, DataPropertyObject } from '../../utils/maimlDataExtractor';
+import { fetchAllDataInfoFromMaiml } from '../../utils/maimlDataExtractor';
 
 const { Title, Text } = Typography;
 
@@ -127,6 +127,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
     basic: Record<string, PropertyObject>;
     template: Record<string, PropertyObject>;
     data: Record<string, PropertyObject>;
+    dataGroups?: import('@/utils/maimlDataExtractor').DataResultsGroup[];
   }>({
     basic: {},
     template: {},
@@ -358,87 +359,29 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         }
       }
 
-      // ✅ Fix8c: データタブ: MAIMLの<data><results>から実験結果値を取得
+      // データタブ: MAIMLの<data><results>から実験結果値を全件取得（N件対応）
       // data.results.*.ref はテンプレートIDを指しているため、テンプレートIDを使用する
       const templateType = String(node.data.templateType || 'material').toLowerCase() as 'material' | 'condition' | 'result';
       // templateMap から templateId を取得（templateMap[node.id].element の id 属性）
       const templateIdForData =
         tmplEntry?.element?.getAttribute('id') ??
         String(node.data.templateId || node.data.template?.id || node.id);
-      const dataInfo = maimlData
-        ? fetchDataInfoFromMaiml(maimlData, templateIdForData, templateType)
-        : null;
-
-      const dataProperties: Record<string, PropertyObject> = {};
-      if (dataInfo) {
-        Object.entries(dataInfo).forEach(([rawKey, val]) => {
-          if (rawKey.startsWith('property_')) {
-            const propObj = val as DataPropertyObject;
-            const displayKey = rawKey.slice('property_'.length);
-            // property_* の各フィールドを個別エントリに展開して表示
-            if (propObj.value !== undefined) {
-              dataProperties[`${rawKey}_value`] = {
-                key: `${displayKey} (value)`,
-                value: propObj.value,
-                type: propObj.xsiType ?? 'string',
-                description: propObj.description ?? displayKey,
-              };
-            }
-            if (propObj.xsiType) {
-              dataProperties[`${rawKey}_type`] = {
-                key: `${displayKey} (type)`,
-                value: propObj.xsiType,
-                type: 'string',
-                description: `${displayKey} の xsi:type`,
-              };
-            }
-            if (propObj.units) {
-              dataProperties[`${rawKey}_units`] = {
-                key: `${displayKey} (units)`,
-                value: propObj.units,
-                type: 'string',
-                description: `${displayKey} の単位`,
-              };
-            }
-            if (propObj.description) {
-              dataProperties[`${rawKey}_desc`] = {
-                key: `${displayKey} (description)`,
-                value: propObj.description,
-                type: 'string',
-                description: `${displayKey} の説明`,
-              };
-            }
-          } else {
-            dataProperties[rawKey] = {
-              key: rawKey,
-              value: String(val ?? ''),
-              type: 'string',
-              description: rawKey,
-            };
-          }
-        });
-      } else {
-        // data要素が見つからない場合はノード座標のみ
-        dataProperties.coordinates = {
-          key: 'coordinates',
-          value: `(${node.position.x.toFixed(2)}, ${node.position.y.toFixed(2)})`,
-          type: 'coordinates',
-          description: 'ノード座標',
-        };
-      }
+      const dataGroups = maimlData
+        ? fetchAllDataInfoFromMaiml(maimlData, templateIdForData, templateType)
+        : [];
 
       console.log('🔍 [PetriNetViewer] プロパティ設定:', {
         basic: Object.keys(basicProperties).length,
         template: Object.keys(templateProperties).length,
-        data: Object.keys(dataProperties).length,
+        dataGroups: dataGroups.length,
         tmplHit: !!tmplEntry?.element,
-        dataHit: !!dataInfo,
       });
 
       setStructuredProperties({
         basic: basicProperties,
         template: templateProperties,
-        data: dataProperties,
+        data: {},
+        dataGroups,
       });
 
       setDrawerOpen(true);
@@ -498,8 +441,9 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
           const selectedPropsData: Record<string, string> = {};
 
           Object.entries(newNodeProps).forEach(([struct, props]) => {
+            const structKey = struct as 'basic' | 'template' | 'data';
             props.forEach(propKey => {
-              const propData = structuredProperties[struct as keyof typeof structuredProperties]?.[propKey];
+              const propData = structuredProperties[structKey]?.[propKey];
               if (propData && typeof propData === 'object' && 'value' in propData) {
                 selectedPropsData[propKey] = String(propData.value);
               }

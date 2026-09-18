@@ -6,7 +6,9 @@
 import React, { useState } from 'react';
 import { Typography, Tabs, Table, Card, Button, Space, Tag, theme, Tooltip } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import type { PropertyObject, StructuredProperties } from '@/types/editor';
+import type { DataResultsGroup } from '@/utils/maimlDataExtractor';
 
 const { Title, Text } = Typography;
 
@@ -219,6 +221,152 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
       };
     });
   };
+
+  // -----------------------------------------------------------------------
+  // データタブ: Results N件グループ表示用
+  // -----------------------------------------------------------------------
+
+  /** データタブ テーブル行データ型 */
+  interface DataTabRow {
+    key: string;
+    propKey: string;
+    xsiType?: string;
+    value?: string;
+    description?: string;
+  }
+
+  /** データタブ カラム定義（テンプレートタブと同等の4列） */
+  const dataTabColumns: ColumnsType<DataTabRow> = [
+    {
+      title: 'キー',
+      dataIndex: 'propKey',
+      key: 'propKey',
+      width: '22%',
+      render: (text: string) => <Text strong style={{ fontSize: 12 }}>{text}</Text>,
+    },
+    {
+      title: 'xsi:type',
+      dataIndex: 'xsiType',
+      key: 'xsiType',
+      width: '22%',
+      render: (text?: string) => text
+        ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
+        : (
+          <Tooltip title="xsi:type が設定されていません">
+            <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
+          </Tooltip>
+        ),
+    },
+    {
+      title: '値',
+      dataIndex: 'value',
+      key: 'value',
+      width: '28%',
+      render: (text?: string) => renderValue(text),
+    },
+    {
+      title: '説明/単位',
+      dataIndex: 'description',
+      key: 'description',
+      width: '28%',
+      render: (text?: string) => text && text.trim()
+        ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
+        : (
+          <Tooltip title="説明・単位が設定されていません">
+            <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
+          </Tooltip>
+        ),
+    },
+  ];
+
+  /**
+   * DataResultsGroup[] をタブ内コンテンツとしてレンダリングする
+   * 各グループにカウントヘッダーを付与し、テンプレートタブと同等の4列テーブルで表示する
+   */
+  const renderDataGroups = (groups: DataResultsGroup[]) => {
+    if (groups.length === 0) {
+      return (
+        <Tooltip title="このノードにはデータが設定されていません">
+          <Text type="secondary" style={{ cursor: 'default' }}>表示するプロパティがありません</Text>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <div>
+        {groups.map((group, index) => {
+          const headerLabel = group.resultsName
+            ? `Results #${index + 1}  ${group.resultsName}`
+            : `Results #${index + 1}`;
+
+          const rows: DataTabRow[] = group.properties.map((p, i) => ({
+            key: `${index}_${i}`,
+            propKey: p.key,
+            xsiType: p.xsiType,
+            value: p.value,
+            description: [p.description, p.units ? `単位: ${p.units}` : undefined]
+              .filter(Boolean)
+              .join(' / ') || undefined,
+          }));
+
+          return (
+            <div key={group.resultsId} style={{ marginBottom: 24 }}>
+              {/* グループヘッダー */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginBottom: 6,
+                  paddingBottom: 6,
+                  borderBottom: '1px solid #d9d9d9',
+                }}
+              >
+                <Tag color="geekblue" style={{ fontWeight: 600, fontSize: 12, margin: 0 }}>
+                  {headerLabel}
+                </Tag>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  id: {group.resultsId}
+                </Text>
+              </div>
+              {/* Results メタ情報 */}
+              {(group.resultsDescription || group.resultsUuid) && (
+                <div style={{ marginBottom: 6, paddingLeft: 4 }}>
+                  {group.resultsDescription && (
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {group.resultsDescription}
+                    </Text>
+                  )}
+                  {group.resultsUuid && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 10, color: '#bfbfbf' }}>
+                        uuid: {group.resultsUuid}
+                      </Text>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* プロパティテーブル */}
+              {rows.length > 0 ? (
+                <Table<DataTabRow>
+                  columns={dataTabColumns}
+                  dataSource={rows}
+                  pagination={false}
+                  size="small"
+                  showHeader={true}
+                  scroll={{ x: true }}
+                />
+              ) : (
+                <Text type="secondary" style={{ fontSize: 12, paddingLeft: 8 }}>
+                  プロパティがありません
+                </Text>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
   
   // 基本情報・データタブ用データ変換
   const convertToTableData = (data: Record<string, unknown>) => {
@@ -297,20 +445,15 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
     },
     {
       key: 'data',
-      label: 'データ',
-      children: Object.keys(dataProps).length > 0 ? (
-        <Table
-          columns={columns}
-          dataSource={convertToTableData(dataProps)}
-          pagination={false}
-          size="small"
-          showHeader={false}
-        />
-      ) : (
-        <Tooltip title="このノードにはデータが設定されていません">
-          <Text type="secondary" style={{ cursor: 'default' }}>表示するプロパティがありません</Text>
-        </Tooltip>
+      label: (
+        <Space>
+          データ
+          {(structuredProperties.dataGroups ?? []).length > 0 && (
+            <Tag color="blue">{(structuredProperties.dataGroups ?? []).length}件</Tag>
+          )}
+        </Space>
       ),
+      children: renderDataGroups(structuredProperties.dataGroups ?? []),
     },
   ];
   
