@@ -337,9 +337,7 @@ export class ExperimentDataService {
         if (!propKey) continue;
 
         const actualValue = (() => {
-          const content = (prop as unknown as Record<string, unknown>)['content'] as Record<string, unknown> | undefined;
-          if (!content) return null;
-          const v = content['value'];
+          const v = (prop as unknown as Record<string, unknown>)['value'];
           return v != null ? String(v) : null;
         })();
 

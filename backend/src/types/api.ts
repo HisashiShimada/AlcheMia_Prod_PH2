@@ -1235,6 +1235,8 @@ export interface ToleranceValueEntry {
 export interface CorrectRecordItem {
   /** プレースID（template_data の place_id） */
   placeId: string;
+  /** トランジションID（experiment_instruction_detail の actual_value 更新に使用） */
+  transitionId: string;
   /** 訂正後のデータ */
   data: {
     templateId: string;

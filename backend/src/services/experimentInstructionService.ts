@@ -1004,6 +1004,22 @@ export async function correctRecord(
         if (String(beforeValue) !== String(afterValue)) {
           corrections.push({ instanceUuid, propKey, beforeValue, afterValue });
         }
+
+        // experiment_instruction_detail の actual_value を更新する（transitionId が指定されている場合のみ）
+        if (record.transitionId) {
+          const actualValue = afterValue != null ? String(afterValue) : null;
+          await experimentInstructionDetailRepository.updateActualOnly({
+            organizationId,
+            projectId,
+            methodId,
+            taskNo,
+            transitionId: record.transitionId,
+            templateId:   record.data.templateId,
+            propKey,
+            actualValue,
+            updateUserId: correctedByUserId,
+          });
+        }
       }
     }
 

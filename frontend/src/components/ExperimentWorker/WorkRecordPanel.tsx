@@ -2800,6 +2800,7 @@ export default function WorkRecordPanel({
         }
         return {
           placeId: item.placeId,
+          transitionId,
           data: {
             templateId: item.templateId,
             templateType: item.templateType,
