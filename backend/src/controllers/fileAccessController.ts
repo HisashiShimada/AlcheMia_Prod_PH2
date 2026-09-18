@@ -6,7 +6,7 @@
  * Task 4.2: プロジェクト一括ダウンロードAPIエンドポイントの実装
  */
 
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { FileAccessService } from '../services/fileAccessService';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { ProjectAccessValidator } from '../services/projectAccessValidator';
@@ -20,69 +20,33 @@ import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import { renameFile } from '../services/renameService';
 import { Project } from '../types/database';
 import { AppError } from '../enums/errorCodes';
-import { ValidationError, AuthorizationError, AuthenticationError, NotFoundError, StorageError } from '../utils/errorClasses';
 import { ProjectStatusEnum } from '../enums/codeMaster.enum';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
-import { injectParentTag, extractParentUuids } from '../utils/maimlParentInjector';
+import { injectParentTag } from '../utils/maimlParentInjector';
 import { getStorageService } from '../services/storageService';
 
 /**
- * AppError.code または日本語メッセージキーワードから HTTP ステータスとエラーコードを導出する
- * （fileAccessService が AppError に移行するまでのフォールバックを含む）
+ * AppError のエラーコードから HTTP ステータスコードを導出する
  */
-function resolveFileError(error: unknown): { statusCode: number; errorCode: string; errorMessage: string } {
-  const msg = error instanceof Error ? error.message : '';
+function statusFromCode(code: string): number {
+  if (code.startsWith('E1')) return 400;
+  if (code === 'E5015' || code === 'E5012') return 403;
+  if (code.startsWith('E5')) return 401;
+  if (code === 'E6001' || code === 'E6002') return 404;
+  if (code === 'E7013') return 400;
+  if (code.startsWith('E7')) return 400;
+  return 500;
+}
 
-  // ValidationError（errorClasses.ts）は statusCode=400 固定・code は動的
-  // AppError より先にチェックする（ValidationError は AppError でないため）
-  if (error instanceof ValidationError) {
-    return { statusCode: error.statusCode, errorCode: error.code, errorMessage: msg };
-  }
-
-  // errorClasses.ts 由来のカスタムエラーを instanceof で明示判定する。
-  // これらは AppError ではないため AppError チェックより先に評価する。
-  if (error instanceof AuthorizationError) {
-    return { statusCode: 403, errorCode: 'E5015', errorMessage: msg };
-  }
-  if (error instanceof AuthenticationError) {
-    return { statusCode: 401, errorCode: 'E5013', errorMessage: msg };
-  }
-  if (error instanceof NotFoundError) {
-    return { statusCode: 404, errorCode: 'E6001', errorMessage: msg };
-  }
-  if (error instanceof StorageError) {
-    return { statusCode: 500, errorCode: 'E4006', errorMessage: msg };
-  }
-
+/**
+ * AppError に statusCode を付与して next に渡すヘルパー
+ * errorHandlerMiddleware は err.statusCode を参照するため必要
+ */
+function nextWithStatus(error: unknown, next: NextFunction): void {
   if (error instanceof AppError) {
-    let statusCode = 500;
-    if (error.code === 'E1003') statusCode = 400;
-    else if (error.code === 'E7013') statusCode = 400;
-    else if (error.code === 'E5015') statusCode = 403;
-    else if (error.code === 'E6001' || error.code === 'E6002') statusCode = 404;
-    else if (error.code === 'E4006') statusCode = 500;
-    return { statusCode, errorCode: error.code, errorMessage: msg };
+    (error as any).statusCode = statusFromCode(error.code);
   }
-
-  // フォールバック: 日本語メッセージキーワードで分類（service 移行まで維持）
-  if (msg.includes('パストラバーサル') || msg.includes('不正なファイルパス') ||
-      msg.includes('ファイル名') || msg.includes('無効な') || msg.includes('ファイルキー') ||
-      msg.includes('不正なフォルダパス') || msg.includes('フォルダパス') ||
-      msg.includes('ファイルが選択されていません') || msg.includes('単一ファイルモード')) {
-    return { statusCode: 400, errorCode: 'E1003', errorMessage: msg };
-  }
-  if (msg.includes('アクセス権限') || msg.includes('権限がありません')) {
-    return { statusCode: 403, errorCode: 'E5015', errorMessage: msg };
-  }
-  if (msg.includes('見つかりません') || msg.includes('存在しません')) {
-    return { statusCode: 404, errorCode: 'E6001', errorMessage: msg };
-  }
-  if (msg.includes('署名付きURL') || msg.includes('ストレージ') || msg.includes('メタデータ') ||
-      msg.includes('ZIP生成') || msg.includes('ファイル一覧') || msg.includes('アップロード') ||
-      msg.includes('削除')) {
-    return { statusCode: 500, errorCode: 'E4006', errorMessage: msg };
-  }
-  return { statusCode: 500, errorCode: 'E4001', errorMessage: 'システムエラーが発生しました' };
+  next(error as Error);
 }
 
 /**
@@ -92,7 +56,7 @@ function resolveFileError(error: unknown): { statusCode: number; errorCode: stri
  * Task 4.1: Controller層実装
  * Requirements: 1, 2, 4, 5, 7, 8, 9, 11
  */
-export async function downloadFile(req: Request, res: Response): Promise<void> {
+export async function downloadFile(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
   
   try {
@@ -120,7 +84,7 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
     // 5. ファイルバッファをレスポンスとして送信
     res.status(200).send(result.buffer);
 
-  } catch (error: any) {
+  } catch (error) {
     // 6. エラーハンドリング
     logError('File download error', error, {
       action: 'file_download',
@@ -130,12 +94,7 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
       requestId,
     });
 
-    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -149,7 +108,7 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
  * - 同名ファイルが存在する場合はエラー
  * - S3 コピー→削除 + file_metadata 更新（アーカイブも含む）
  */
-export async function renameFileHandler(req: Request, res: Response): Promise<void> {
+export async function renameFileHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
 
   try {
@@ -193,7 +152,7 @@ export async function renameFileHandler(req: Request, res: Response): Promise<vo
       data: { newFileKey: result.newFileKey },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
-  } catch (error: any) {
+  } catch (error) {
     logError('File rename error', error, {
       action: 'file_rename',
       organizationId: req.user?.organizationId,
@@ -201,11 +160,7 @@ export async function renameFileHandler(req: Request, res: Response): Promise<vo
       newFileName: req.body?.newFileName,
       requestId,
     });
-    res.status(500).json({
-      success: false,
-      error: { code: 'E4001', message: 'システムエラーが発生しました' },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -217,7 +172,7 @@ export async function renameFileHandler(req: Request, res: Response): Promise<vo
  * - 指定されたフォルダパス配下のファイルをZIP形式でダウンロード
  * - プロジェクト、フォーマット、その他あらゆるフォルダで利用可能
  */
-export async function downloadFolderAsZip(req: Request, res: Response): Promise<void> {
+export async function downloadFolderAsZip(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
   
   try {
@@ -242,7 +197,7 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
     // 5. ZIPストリームをレスポンスとしてパイプ
     zipStream.pipe(res);
 
-  } catch (error: any) {
+  } catch (error) {
     // 6. エラーハンドリング
     logError('Folder ZIP download error', error, {
       action: 'folder_zip_download',
@@ -251,12 +206,7 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
       requestId,
     });
 
-    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -270,7 +220,7 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
  * 
  * Phase1-3: 空フォルダプレースホルダー対応（2026-02-18）
  */
-export async function uploadFiles(req: Request, res: Response): Promise<void> {
+export async function uploadFiles(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
   
   try {
@@ -340,7 +290,7 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
       }
     }
 
-  } catch (error: any) {
+  } catch (error) {
     // エラーハンドリング
     logError('File upload error', error, {
       action: 'file_upload',
@@ -351,9 +301,10 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
     });
 
     // MAIMLバリデーションエラーのチェック（致命的エラー）- 特殊形式のため先行処理
-    if (error.message?.startsWith('MAIML_VALIDATION_ERROR:')) {
+    const errorMessage = error instanceof Error ? error.message : '';
+    if (errorMessage.startsWith('MAIML_VALIDATION_ERROR:')) {
       try {
-        const payload = JSON.parse(error.message.slice('MAIML_VALIDATION_ERROR:'.length));
+        const payload = JSON.parse(errorMessage.slice('MAIML_VALIDATION_ERROR:'.length));
         res.status(400).json({
           success: false,
           error: {
@@ -372,24 +323,12 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
         });
         return;
       } catch {
-        // パース失敗時は resolveFileError() にフォールスルー
+        // パース失敗時は nextWithStatus() にフォールスルー
       }
     }
 
-    // その他のエラーは resolveFileError() で統一処理（AppError 優先 + 日本語フォールバック）
-    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
-
-    res.status(statusCode).json({
-      success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
-    });
+    // その他のエラーは nextWithStatus() で統一処理
+    nextWithStatus(error, next);
   }
 }
 
@@ -402,7 +341,7 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
  * - プロジェクト、フォーマット、その他のファイルで共通利用可能
  * Requirements: 認証、マルチテナント分離、ファイル存在確認、署名付きURL生成
  */
-export async function getFileDownloadUrl(req: Request, res: Response): Promise<void> {
+export async function getFileDownloadUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
   
   try {
@@ -463,7 +402,7 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
     // 5. ファイルバッファをレスポンスとして送信
     res.status(200).send(responseBuffer);
 
-  } catch (error: any) {
+  } catch (error) {
     // 6. エラーハンドリング
     logError('Generic file download error', error, {
       action: 'file_download_by_key',
@@ -472,12 +411,7 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
       requestId,
     });
 
-    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -488,7 +422,7 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
  * ファイルキーを指定してバックエンドがストレージから直接取得し、
  * テキスト文字列としてレスポンスする（署名付きURL経由のfetchを不要にする）
  */
-export async function getFileContentAsText(req: Request, res: Response): Promise<void> {
+export async function getFileContentAsText(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
 
   try {
@@ -509,7 +443,7 @@ export async function getFileContentAsText(req: Request, res: Response): Promise
         requestId,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     logError('File content as text error', error, {
       action: 'file_content_as_text',
       organizationId: req.user?.organizationId,
@@ -517,12 +451,7 @@ export async function getFileContentAsText(req: Request, res: Response): Promise
       requestId,
     });
 
-    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -534,7 +463,7 @@ export async function getFileContentAsText(req: Request, res: Response): Promise
  * - ファイルキーを直接指定して表示用の署名付きURLを返す
  * - Content-Dispositionを付与しない（ブラウザでインライン表示可能）
  */
-export async function getFileViewUrl(req: Request, res: Response): Promise<void> {
+export async function getFileViewUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
 
   try {
@@ -555,7 +484,7 @@ export async function getFileViewUrl(req: Request, res: Response): Promise<void>
         requestId,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     logError('File view URL error', error, {
       action: 'file_view_url',
       organizationId: req.user?.organizationId,
@@ -563,12 +492,7 @@ export async function getFileViewUrl(req: Request, res: Response): Promise<void>
       requestId,
     });
 
-    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -586,7 +510,7 @@ export async function getFileViewUrl(req: Request, res: Response): Promise<void>
  * - checkProjectStatus=trueかつmaimlファイルの場合、project_status=0をチェック
  * - maimlファイル削除後、project_maiml_flg=falseに更新
  */
-export async function deleteFile(req: Request, res: Response): Promise<void> {
+export async function deleteFile(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
   
   try {
@@ -718,7 +642,7 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
       },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     // エラーハンドリング
     logError('File delete error', error, {
       action: 'file_delete',
@@ -727,12 +651,7 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
       requestId,
     });
 
-    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -743,7 +662,7 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
  * 指定されたフォルダパス配下のファイルを再帰的に削除する。
  * - folderPath: 削除対象フォルダの相対パス（organizationId なし）
  */
-export async function deleteFolder(req: Request, res: Response): Promise<void> {
+export async function deleteFolder(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
 
   try {
@@ -773,7 +692,7 @@ export async function deleteFolder(req: Request, res: Response): Promise<void> {
       },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
-  } catch (error: any) {
+  } catch (error) {
     logError('Folder delete error', error, {
       action: 'folder_delete',
       organizationId: req.user?.organizationId,
@@ -781,12 +700,7 @@ export async function deleteFolder(req: Request, res: Response): Promise<void> {
       requestId,
     });
 
-    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -796,7 +710,7 @@ export async function deleteFolder(req: Request, res: Response): Promise<void> {
  *
  * uploadId（UUID）を発行し、一時ディレクトリを準備する。
  */
-export async function initChunkUpload(req: Request, res: Response): Promise<void> {
+export async function initChunkUpload(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
 
   try {
@@ -927,13 +841,9 @@ export async function initChunkUpload(req: Request, res: Response): Promise<void
       data: { uploadId },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
-  } catch (error: any) {
+  } catch (error) {
     logError('Chunk upload init error', error, { action: 'chunk_upload_init', requestId });
-    res.status(500).json({
-      success: false,
-      error: { code: 'E4001', message: 'システムエラーが発生しました' },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -943,7 +853,7 @@ export async function initChunkUpload(req: Request, res: Response): Promise<void
  *
  * チャンクデータを受け取り、一時ディレクトリに保存する。
  */
-export async function uploadChunk(req: Request, res: Response): Promise<void> {
+export async function uploadChunk(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
 
   try {
@@ -968,18 +878,9 @@ export async function uploadChunk(req: Request, res: Response): Promise<void> {
       data: { received },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
-  } catch (error: any) {
+  } catch (error) {
     logError('Chunk upload error', error, { action: 'chunk_upload', requestId });
-
-    const isNotFound = error.message?.includes('見つかりません');
-    res.status(isNotFound ? 404 : 500).json({
-      success: false,
-      error: {
-        code: isNotFound ? 'E6001' : 'E4001',
-        message: isNotFound ? error.message : 'システムエラーが発生しました',
-      },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -990,7 +891,7 @@ export async function uploadChunk(req: Request, res: Response): Promise<void> {
  * セッションを中断し、一時ファイルを削除する。
  * ダイアログを閉じたときなど、complete を呼ばずに終了するときに使用する。
  */
-export async function abortChunkUpload(req: Request, res: Response): Promise<void> {
+export async function abortChunkUpload(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
 
   try {
@@ -1004,13 +905,9 @@ export async function abortChunkUpload(req: Request, res: Response): Promise<voi
       data: { message: 'アップロードを中断しました' },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
-  } catch (error: any) {
+  } catch (error) {
     logError('Chunk abort error', error, { action: 'chunk_abort', requestId });
-    res.status(500).json({
-      success: false,
-      error: { code: 'E4001', message: 'システムエラーが発生しました' },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -1024,7 +921,7 @@ export async function abortChunkUpload(req: Request, res: Response): Promise<voi
  *   ※ projectId を個別に渡さなくても filePath のプレフィックスで判定するため、
  *     フォーマットアップロード（projects/ 以外）は自動的にスキップされる
  */
-export async function completeChunkUpload(req: Request, res: Response): Promise<void> {
+export async function completeChunkUpload(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
 
   try {
@@ -1226,19 +1123,9 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
       },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
-  } catch (error: any) {
+  } catch (error) {
     logError('Chunk complete error', error, { action: 'chunk_complete', requestId });
-
-    const isNotFound = error.message?.includes('見つかりません');
-    const isMismatch = error.message?.includes('チャンク数が不一致');
-    res.status(isNotFound || isMismatch ? 400 : 500).json({
-      success: false,
-      error: {
-        code: isNotFound || isMismatch ? 'E1003' : 'E4001',
-        message: isNotFound || isMismatch ? error.message : 'システムエラーが発生しました',
-      },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -1248,7 +1135,7 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
  * 
  * Phase2-1: バッチ管理機能（2026-02-18）
  */
-export async function getBatchHistory(req: Request, res: Response): Promise<void> {
+export async function getBatchHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
   
   try {
@@ -1282,23 +1169,12 @@ export async function getBatchHistory(req: Request, res: Response): Promise<void
       },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error(`❌ [Batch History] エラー:`, {
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       requestId,
     });
-
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'E4002',
-        message: 'バッチ履歴の取得に失敗しました',
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -1308,7 +1184,7 @@ export async function getBatchHistory(req: Request, res: Response): Promise<void
  * 
  * Phase2-1: バッチ管理機能（2026-02-18）
  */
-export async function getBatchProgress(req: Request, res: Response): Promise<void> {
+export async function getBatchProgress(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
   
   try {
@@ -1349,23 +1225,12 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
       },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error(`❌ [Batch Progress] エラー:`, {
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       requestId,
     });
-
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'E4002',
-        message: 'バッチ進捗の取得に失敗しました',
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -1376,7 +1241,7 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
  * アップロード開始前にバッチを in_progress 状態で先行作成し、batchId を返す。
  * フロントエンドはこの batchId を使ってアップロード途中でもキャンセルを実行できる。
  */
-export async function initBatch(req: Request, res: Response): Promise<void> {
+export async function initBatch(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
 
   try {
@@ -1415,18 +1280,13 @@ export async function initBatch(req: Request, res: Response): Promise<void> {
       },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     logError('Batch init error', error, {
       action: 'batch_init',
       organizationId: req.user?.organizationId,
       requestId,
     });
-
-    res.status(500).json({
-      success: false,
-      error: { code: 'E4001', message: 'バッチの作成に失敗しました' },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -1439,7 +1299,7 @@ export async function initBatch(req: Request, res: Response): Promise<void> {
  * - 既にアップロードされたファイルを削除
  * - バッチステータスを'cancelled'に更新
  */
-export async function cancelBatch(req: Request, res: Response): Promise<void> {
+export async function cancelBatch(req: Request, res: Response, next: NextFunction): Promise<void> {
   const requestId = uuidv4();
   
   try {
@@ -1473,7 +1333,7 @@ export async function cancelBatch(req: Request, res: Response): Promise<void> {
       },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     logError('Batch cancel error', error, {
       action: 'batch_cancel',
       organizationId: req.user?.organizationId,
@@ -1481,11 +1341,6 @@ export async function cancelBatch(req: Request, res: Response): Promise<void> {
       requestId,
     });
 
-    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
+    nextWithStatus(error, next);
   }
 }
