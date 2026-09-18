@@ -20,6 +20,7 @@ import {
   Space,
   Typography,
   Select,
+  AutoComplete,
   TreeSelect,
   Divider,
   Tag,
@@ -36,7 +37,6 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   FileSearchOutlined,
-  SearchOutlined,
 } from '@ant-design/icons';
 import { fetchTemplateFiles } from '@/services/templateApi';
 import type { ListFormatsResponse } from '@/types/format';
@@ -492,6 +492,37 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     });
     return options;
   }, [termMap]);
+
+  /**
+   * プロパティ追加モーダルの AutoComplete 選択肢（qname → JSX表示）
+   * termMap から生成する。data-display に displayName を埋め込み filterOption で参照する。
+   */
+  const addPropAutoCompleteOptions = useMemo(() =>
+    Array.from(termMap.entries()).map(([qname, term]) => ({
+      value: qname,
+      'data-display': term.displayName ?? '',
+      label: (
+        <div style={{ lineHeight: 1.4 }}>
+          {term.displayName && term.displayName.trim() !== '' && (
+            <div style={{ fontWeight: 600 }}>{term.displayName}</div>
+          )}
+          <div style={{ fontSize: 11, color: '#888' }}>
+            {qname}
+            {term.type && term.type.trim() !== '' && (
+              <Tag color="blue" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px' }}>
+                {term.type}
+              </Tag>
+            )}
+            {term.unitHint && term.unitHint.trim() !== '' && (
+              <Tag color="green" style={{ marginLeft: 2, fontSize: 10, padding: '0 4px' }}>
+                {term.unitHint}
+              </Tag>
+            )}
+          </div>
+        </div>
+      ),
+    })),
+  [termMap]);
 
   /**
    * テンプレートタイプ判定
@@ -2249,20 +2280,20 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         okButtonProps={{ disabled: !newPropertyKey }}
       >
         <Space orientation="vertical" style={{ width: '100%' }}>
-          {/* 用語選択（showSearch付きSelect） */}
-          <Select
-            showSearch
+          {/* 用語選択（AutoComplete: 登録済み用語から候補表示 + 任意文字列入力可） */}
+          <AutoComplete
             style={{ width: '100%' }}
             placeholder={t('template.propKeyPlaceholder')}
-            value={newPropertyKey || undefined}
-            suffixIcon={<SearchOutlined />}
-            optionLabelProp="value"
-            filterOption={(input, option) => {
-              if (!option) return false;
-              const qname = String(option.value ?? '').toLowerCase();
-              const displayName = String(option['data-display'] ?? '').toLowerCase();
-              const q = input.toLowerCase();
-              return qname.includes(q) || displayName.includes(q);
+            value={newPropertyKey}
+            options={addPropAutoCompleteOptions}
+            showSearch={{
+              filterOption: (inputValue, option) => {
+                if (!option) return false;
+                const qname = String(option.value ?? '').toLowerCase();
+                const displayName = String(option['data-display'] ?? '').toLowerCase();
+                const q = inputValue.toLowerCase();
+                return qname.includes(q) || displayName.includes(q);
+              },
             }}
             onChange={(val: string) => {
               setNewPropertyKey(val);
@@ -2271,38 +2302,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               setNewPropertyKey('');
             }}
             allowClear
-            notFoundContent={termMap.size === 0 ? t('template.termMapLoading') : t('template.termNotFound')}
-          >
-            {Array.from(termMap.entries())
-              .map(([qname, term]) => (
-                <Option key={qname} value={qname} data-display={term.displayName ?? ''}>
-                  <div style={{ lineHeight: 1.4 }}>
-                    {term.displayName && term.displayName.trim() !== '' && (
-                      <div style={{ fontWeight: 600 }}>{term.displayName}</div>
-                    )}
-                    <div style={{ fontSize: 11, color: '#888' }}>
-                      {qname}
-                      {term.type && term.type.trim() !== '' && (
-                        <Tag
-                          color="blue"
-                          style={{ marginLeft: 6, fontSize: 10, padding: '0 4px' }}
-                        >
-                          {term.type}
-                        </Tag>
-                      )}
-                      {term.unitHint && term.unitHint.trim() !== '' && (
-                        <Tag
-                          color="green"
-                          style={{ marginLeft: 2, fontSize: 10, padding: '0 4px' }}
-                        >
-                          {term.unitHint}
-                        </Tag>
-                      )}
-                    </div>
-                  </div>
-                </Option>
-              ))}
-          </Select>
+          />
 
           {/* タグ名選択 */}
           <Select

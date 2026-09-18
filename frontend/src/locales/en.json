@@ -2910,7 +2910,7 @@
     "masterRequired": "\"{name}\" requires master registration",
     "masterRequiredDesc": "Cannot save because the attribute value is not registered in the master. Please contact your system administrator.",
     "placeholderAttrValueInput": "Enter attribute value",
-    "placeholderKeySelect": "Select key (search from term map)",
+    "placeholderKeySelect": "Enter or select key (search from terms)",
     "modalAddElement": "➕ Add Element",
     "enterElementName": "Please enter an element name",
     "invalidValue": "Invalid input value",
