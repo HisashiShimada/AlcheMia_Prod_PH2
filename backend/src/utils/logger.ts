@@ -229,7 +229,7 @@ export function logError(
   // winston.format.errors({ stack: true }) はメタデータオブジェクトに
   // Error インスタンスが含まれている場合にスタックトレースを展開する。
   // errorObj を直接渡すことでスタックトレースを確実に出力する。
-  winstonLogger.error(message, {
+  console.log(message, {
     ...context,
     errorMessage: errorObj.message,
     errorStack: errorObj.stack,
