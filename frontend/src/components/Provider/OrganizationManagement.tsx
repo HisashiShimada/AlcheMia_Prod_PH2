@@ -510,8 +510,15 @@ export default function OrganizationManagement() {
   };
 
   const handleDownload = () => {
+    if (selectedRowKeys.length === 0) {
+      messageApi.error(t('organizationManagement.messages.csvDownloadSelectRequired'));
+      return;
+    }
     try {
-      const csvData = filteredOrganizations.map((o) => ({
+      const selectedOrgs = filteredOrganizations.filter((o) =>
+        selectedRowKeys.includes(o.organizationId)
+      );
+      const csvData = selectedOrgs.map((o) => ({
         'organization_cd': o.organizationCd,
         'organization_display_name': o.organizationDisplayName,
         'organization_email': o.organizationEmail,

@@ -451,8 +451,12 @@ export default function RoleManagementMock() {
 
   const handleDownload = async () => {
     if (!selectedMasterInfo) return;
+    if (selectedRowKeys.length === 0) {
+      message.error(t('roleManagement.messages.csvDownloadSelectRequired'));
+      return;
+    }
     try {
-      await downloadCsv({ searchText, roleNameFilter: selectedRoleNameFilter });
+      await downloadCsv({ searchText, roleNameFilter: selectedRoleNameFilter, ids: selectedRowKeys.map(String) });
       message.success(t('roleManagement.messages.csvDownloadSuccess'));
     } catch (error) {
       message.error(extractErrorMessage(error, t('roleManagement.messages.csvDownloadError')));

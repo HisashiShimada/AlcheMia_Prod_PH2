@@ -272,7 +272,7 @@ export async function uploadCorporationCsv(req: Request, res: Response, next: Ne
 export async function downloadCorporationCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     // クエリパラメータを取得
-    const { search, is_active } = req.query;
+    const { search, is_active, ids } = req.query;
 
     // フィルター構築
     const filters: any = {};
@@ -289,10 +289,16 @@ export async function downloadCorporationCsv(req: Request, res: Response, next: 
     // フィルタ適用してデータ取得
     const corporations = await masterService.getCorporation(filters);
 
-    console.log('Filtered corporations count:', corporations.length);
+    // IDリストによるフィルタリング
+    const idList = ids ? String(ids).split(',').filter(Boolean) : [];
+    const filtered = idList.length > 0
+      ? corporations.filter((c: any) => idList.includes(String(c.corporationId)))
+      : corporations;
+
+    console.log('Filtered corporations count:', filtered.length);
 
     // 物理名ヘッダーでCSVデータ作成
-    const csvData = corporations.map((c: any) => ({
+    const csvData = filtered.map((c: any) => ({
       'corporation_name': c.corporationName,
       'update_at': c.updatedAt,
       'is_active': c.isActive,
