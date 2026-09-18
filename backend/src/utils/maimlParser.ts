@@ -1061,6 +1061,50 @@ function validateReferences(parsedXML : any) {
   }
   
   /**
+   * パース済みXMLオブジェクトの maiml ルート要素から xmlns 宣言を抽出し、
+   * prefix → URI のマップとして返す。
+   *
+   * fast-xml-parser は attributeNamePrefix: '@_' の設定のため、
+   * `<maiml xmlns:Alchemia="https://Alchemia.co.jp">` は
+   * `parsedXML.maiml['@_xmlns:Alchemia']` としてアクセスできる。
+   *
+   * @param parsedXML - fast-xml-parser でパース済みのXMLオブジェクト
+   * @returns prefix → URI のマップ（xmlns 宣言がない場合は空 Map）
+   */
+  function extractXmlnsDeclarations(parsedXML: any): Map<string, string> {
+    const result = new Map<string, string>();
+    const maiml = parsedXML?.maiml;
+    if (!maiml || typeof maiml !== 'object') return result;
+
+    for (const attr of Object.keys(maiml)) {
+      // @_xmlns:prefix 形式の属性を抽出（デフォルトxmlns宣言 @_xmlns は除外）
+      if (attr.startsWith('@_xmlns:')) {
+        const prefix = attr.slice('@_xmlns:'.length);
+        const uri = String(maiml[attr]);
+        if (prefix && uri) {
+          result.set(prefix, uri);
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * 指定した URI が Alchemia が払い出した URI かどうかを判定する
+   *
+   * 判定基準: URI に 'Alchemia.co.jp' が含まれる
+   * 例: 'https://ORG001.Alchemia.co.jp' → true
+   *     'https://Alchemia.co.jp'         → true（システム名前空間）
+   *     'http://example.com/ext'          → false（外部URI）
+   *
+   * @param uri - 判定対象のURI文字列
+   * @returns Alchemia が払い出したURIであれば true
+   */
+  function isAlchemiaUri(uri: string): boolean {
+    return uri.includes('Alchemia.co.jp');
+  }
+
+  /**
    * property / uncertainty タグの key 属性値を再帰的に収集する
    *
    * @param obj - パース済みXMLオブジェクト（任意の階層）
@@ -1096,11 +1140,18 @@ function validateReferences(parsedXML : any) {
    * Phase 7: property / uncertainty タグの key 属性値を用語テーブルと照合するバリデーション
    *
    * 判定フロー:
-   * 1. key に含まれる prefix がグローバルCSV（global-declarations.csv）に登録されている
+   * 1. プレーンキー（prefix なし）
+   *    → ネームスペースに依存しない用語はMaiml仕様上エラーとしない → 常にスキップ
+   * 2. key に含まれる prefix がグローバルCSV（global-declarations.csv）に登録されている
    *    → エラーなし（グローバル宣言の prefix を持つ用語として許可）
-   * 2. グローバルCSV未登録 prefix のキー、またはプレーンキー（prefix なし）
-   *    → namespace_term（DB）のアクティブ用語と照合
-   *    → 未登録の場合 → strict: errors / lenient: warnings に追加
+   * 3. MAIMLの xmlns 宣言を参照して prefix の URI を確認
+   *    a. xmlns 宣言なし（prefix が不明）
+   *       → DB 確認なしで即エラー
+   *    b. xmlns 宣言あり かつ 非Alchemia URI（外部名前空間）
+   *       → エラーなし（外部名前空間の用語は照合対象外）
+   *    c. xmlns 宣言あり かつ Alchemia URI（Alchemia.co.jp を含む）
+   *       → namespace_term（DB）のアクティブ用語と照合
+   *       → 未登録の場合 → エラー
    *
    * @param parsedXML - fast-xml-parser でパース済みのXMLオブジェクト
    * @param registeredQNames - namespace_term のアクティブ用語 qname の Set
@@ -1117,6 +1168,9 @@ function validateReferences(parsedXML : any) {
     const errors: ErrorContent[] = [];
     const warnings: ErrorContent[] = [];
 
+    // MAIMLルート要素の xmlns 宣言を prefix → URI のマップとして抽出
+    const xmlnsMap = extractXmlnsDeclarations(parsedXML);
+
     // property / uncertainty タグの key 属性値を全収集
     const collectedKeys = new Set<string>();
     collectPropertyAndUncertaintyKeys(parsedXML, collectedKeys);
@@ -1130,22 +1184,31 @@ function validateReferences(parsedXML : any) {
         // prefix:localName 形式
         const prefix = key.substring(0, colonIdx);
 
-        // ステップ1: グローバルCSVに登録されている prefix か
+        // Step 1: グローバルCSVに登録されている prefix か
         if (globalPrefixes.has(prefix)) {
           // グローバル宣言の prefix → エラーなし
           continue;
         }
 
-        // ステップ2: namespace_term（DB）に登録されているか
-        if (registeredQNames.has(key)) {
+        // Step 2: MAIMLの xmlns 宣言でこの prefix の URI を確認
+        const prefixUri = xmlnsMap.get(prefix);
+
+        if (prefixUri === undefined) {
+          // xmlns 宣言なし → DB 確認なしで即エラー
+          // （MAIMLとして宣言されていない prefix を使うこと自体が不正）
+        } else if (!isAlchemiaUri(prefixUri)) {
+          // 外部名前空間（Alchemia 以外）の prefix → スキップ
           continue;
+        } else {
+          // Alchemia URI の prefix → DB（namespace_term）と照合
+          if (registeredQNames.has(key)) {
+            continue;
+          }
         }
       } else {
         // プレーンキー形式（prefix なし）
-        // ステップ2: namespace_term（DB）に登録されているか
-        if (registeredQNames.has(key)) {
-          continue;
-        }
+        // ネームスペースに依存しない用語はMaiml仕様上エラーとしない → スキップ
+        continue;
       }
 
       // 未登録キー
