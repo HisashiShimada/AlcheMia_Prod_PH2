@@ -50,7 +50,6 @@ export class WorkerProjectController {
 
     try {
       const { userId, organizationId } = req.user!;
-      const organizationGroupCds = req.user!.organizationGroupCds ?? [];
 
       // バリデーション済みパラメータを直接使用
       const page = parseInt((req.query.page as string) || '1', 10);
@@ -63,7 +62,6 @@ export class WorkerProjectController {
       const result = await this.workerProjectService.listWorkerAccessible(
         userId,
         organizationId,
-        organizationGroupCds,
         {
           page,
           limit,

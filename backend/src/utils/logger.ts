@@ -211,17 +211,35 @@ export function logPasswordReset(
 
 /**
  * エラーログを記録（詳細情報付き）
+ *
+ * - error が Error インスタンスでない場合（AWS SDK エラー等の unknown スロー含む）も
+ *   安全に処理するため、内部で Error へ正規化する。
+ * - winston.format.errors({ stack: true }) を活かすため、
+ *   正規化した error オブジェクト本体も第2引数として渡す。
  */
 export function logError(
   message: string,
-  error: Error,
+  error: unknown,
   context?: LogContext
 ): void {
-  logger.error(message, {
+  // Error インスタンスでない場合は安全に Error へ変換する
+  const errorObj: Error =
+    error instanceof Error ? error : new Error(String(error ?? 'Unknown error'));
+
+  // winston.format.errors({ stack: true }) はメタデータオブジェクトに
+  // Error インスタンスが含まれている場合にスタックトレースを展開する。
+  // errorObj を直接渡すことでスタックトレースを確実に出力する。
+  console.log(message, {
     ...context,
-    errorMessage: error.message,
-    errorStack: error.stack,
-    errorName: error.name,
+    errorMessage: errorObj.message,
+    errorStack: errorObj.stack,
+    errorName: errorObj.name,
+    // AWS SDK 等の独自プロパティ（$metadata, code 等）も保持する
+    ...(error !== errorObj && {
+      originalErrorType: typeof error,
+      originalErrorValue: String(error),
+    }),
+    error: errorObj,
   });
 }
 

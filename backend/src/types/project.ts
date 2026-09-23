@@ -133,7 +133,11 @@ export interface ListOptions {
   includeCompleted: boolean;
   sortBy?: string;
   order?: 'asc' | 'desc';
-  /** ユーザーが直接所属する組織グループCDの配列 */
+  /**
+   * ユーザーが直接所属する組織グループCDの配列
+   * @deprecated projectService.list() 内で DB から最新値を直接取得するため使用されていない。
+   * 後方互換性のためフィールドは残しているが、呼び出し元の値は無視される。
+   */
   organizationGroupCds?: string[];
   /** ユーザーのロールCD（'ROLE002' = SystemAdmin） */
   roleCd?: string;

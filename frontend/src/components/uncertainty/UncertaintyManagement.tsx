@@ -943,6 +943,7 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
                 externalSelectedNsKey={selectedNsKey}
                 viewOnly={isViewOnlyForCompany}
                 tabActivatedAt={namespaceTabActivatedAt}
+                onAfterShare={() => setNamespaceTabActivatedAt(Date.now())}
               />
             </div>
 
@@ -1130,17 +1131,16 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
       {/* ── Prefix 共有モーダル ── */}
       <ShareScopeModal
         open={shareScopeOpen}
-        shareItems={selectedPrefixKeys.map((k) => ({ id: k, label: k }))}
+        scopeNodes={shareScopeNodes}
         onClose={() => setShareScopeOpen(false)}
-        onShare={async (selectedItemIds: string[]) => {
-          const targetScopeKey = (selectedNsKey ?? '').replace(/^personal-/, '') || '';
+        onShare={async (target: ShareTarget) => {
           setShareLoading(true);
           try {
-            const result = await sharePrefixes(selectedItemIds, targetScopeKey);
+            const result = await sharePrefixes(selectedPrefixKeys as string[], target.key);
             message.success(
               t('prefixShare.toastSuccess', {
-                count: String(result.copiedCount ?? selectedItemIds.length),
-                target: targetScopeKey,
+                count: String(result.copiedCount ?? selectedPrefixKeys.length),
+                target: target.label,
               })
             );
             setShareScopeOpen(false);

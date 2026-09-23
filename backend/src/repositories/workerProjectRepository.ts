@@ -70,8 +70,8 @@ export async function findWorkerAccessible(
     // 単一ステータス指定
     statusFilter = `AND project.project_status = ${parseInt(filters.status, 10)}`;
   } else {
-    // デフォルト: ステータス 1, 2, 3（タスク実行待ち、実行中、レビュー待ち）
-    statusFilter = 'AND project.project_status IN (1, 2, 3)';
+    // デフォルト: ステータス 1, 2, 3, 6（タスク実行待ち、実行中、レビュー待ち、レビュー差戻）
+    statusFilter = 'AND project.project_status IN (1, 2, 3, 6)';
   }
 
   // グループフィルタの構築
@@ -151,8 +151,8 @@ export async function countWorkerAccessible(
     // 単一ステータス指定
     statusFilter = `AND project.project_status = ${parseInt(status, 10)}`;
   } else {
-    // デフォルト: ステータス 1, 2, 3（タスク実行待ち、実行中、レビュー待ち）
-    statusFilter = 'AND project.project_status IN (1, 2, 3)';
+    // デフォルト: ステータス 1, 2, 3, 6（タスク実行待ち、実行中、レビュー待ち、レビュー差戻）
+    statusFilter = 'AND project.project_status IN (1, 2, 3, 6)';
   }
 
   // グループフィルタの構築

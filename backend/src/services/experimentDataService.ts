@@ -26,6 +26,8 @@ import type { Property, Content } from '../types/maiml-unified';
 import { findByKeysWithDetails, UncertaintyKeyDetail, QualitativeOptionRow } from '../repositories/uncertaintyCriteriaRepository';
 import { runJudge, UncertaintyValueInput, UncertaintyJudgeResult } from './uncertaintyJudgeService';
 import type { ToleranceValueEntry } from '../types/api';
+import { ExperimentInstructionDetail } from '../types/database';
+import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
 
 /**
  * プロジェクト編集不可エラー
@@ -334,9 +336,7 @@ export class ExperimentDataService {
         if (!propKey) continue;
 
         const actualValue = (() => {
-          const content = (prop as unknown as Record<string, unknown>)['content'] as Record<string, unknown> | undefined;
-          if (!content) return null;
-          const v = content['value'];
+          const v = (prop as unknown as Record<string, unknown>)['value'];
           return v != null ? String(v) : null;
         })();
 
@@ -506,9 +506,23 @@ export async function getTemplateData(
       }
     }
 
+    const experimentInstructionDetails = await experimentInstructionDetailRepository.findByProject(organizationId,projectId);
+    const taskInstructions = experimentInstructionDetails.filter((e) => e.method_id == methodId && e.task_no == taskNo && e.transition_id == transitionId );
+
+    // 8c. experiment_uncertainty_judge から最新の recorded_value を一括取得して judgeMap を構築
+    // judgeMap キー: `${templateId}__${propertyKey}__${uncertaintyKey}`
+    const judgeRepo = new ExperimentUncertaintyJudgeRepository();
+    const judgeRows = await judgeRepo.findByTaskNo(
+      organizationId, projectId, methodId, taskNo, transitionId
+    );
+    const judgeMap = new Map<string, number>();
+    for (const jr of judgeRows) {
+      judgeMap.set(`${jr.templateId}__${jr.propertyKey}__${jr.uncertaintyKey}`, jr.recordedValue);
+    }
+
     // 8b. placeId ごとに DB実績 or フォールバックを選択
     // （一部のみ保存済みの場合に、未保存のplaceIdがレスポンスから欠損しないようにするため）
-    const fallbackAll = buildFallbackTemplates(parser, methodId, adjacentPlaceIds, uncertaintyDetailMap);
+    const fallbackAll = buildFallbackTemplates(parser, methodId, adjacentPlaceIds,taskInstructions, uncertaintyDetailMap);
 
     // adjacentPlaceIds が空の場合（MAIML のアーク情報が取得できなかった場合）は
     // buildFallbackTemplates が全プレースを対象に返すため、そのまま使用する
@@ -535,7 +549,7 @@ export async function getTemplateData(
         // フラットフィールドとして展開する（フォールバックパスと同一のデータ構造にする）
         const ps: PropertySet | null = dbRecord.property_set;
         let enrichedProperties = (ps?.properties ?? []).map(
-          (p) => convertPropertyForFallback(p, 0, uncertaintyDetailMap)
+          (p) => convertPropertyForFallback(p, 0,experimentInstructionDetails, uncertaintyDetailMap)
         );
 
         // property_set.properties が空の場合（タスク登録時のバグ等で空保存された場合）、
@@ -583,10 +597,11 @@ export async function getTemplateData(
         const enrichedPs = ps != null
           ? { ...ps, properties: enrichedProperties }
           : { properties: enrichedProperties };
+        const templateId = ps?.templateId ?? '';
         return {
           placeId: dbRecord.place_id,
           templateType: ps?.templateType ?? '',
-          templateId: ps?.templateId ?? '',
+          templateId,
           data: enrichedPs as unknown as Record<string, unknown>,
           recordedBy: dbRecord.update_user_id ?? null,
           recordedAt: dbRecord.update_at instanceof Date
@@ -599,6 +614,22 @@ export async function getTemplateData(
         return fallback ?? null;
       }
     }).filter((item): item is TemplateDataItem => item !== null);
+
+    // 8d. judgeMap の recorded_value を templates の toleranceValues[] に後付けで付与する
+    // convertPropertyForFallback は templateId を持たないため、templates 構築後にプロパティキーで付与する
+    for (const item of templates) {
+      if (!Array.isArray(item.data.properties)) continue;
+      for (const p of item.data.properties as Array<Record<string, unknown>>) {
+        const propKey = String(p['key'] ?? '');
+        if (!Array.isArray(p['toleranceValues'])) continue;
+        p['toleranceValues'] = (p['toleranceValues'] as Array<Record<string, unknown>>).map((tv) => {
+          const ucKey = String(tv['uncertaintyKey'] ?? '');
+          const mapKey = `${item.templateId}__${propKey}__${ucKey}`;
+          const recorded = judgeMap.get(mapKey);
+          return recorded !== undefined ? { ...tv, recordedValue: recorded } : tv;
+        });
+      }
+    }
 
     return {
       projectName,
@@ -675,6 +706,7 @@ function collectUncertaintyKeys(parser: MaimlParserTyped, methodId: string): str
 function convertPropertyForFallback(
   p: Property,
   depth: number = 0,
+  experimentInstructionDetails: ExperimentInstructionDetail[],
   uncertaintyDetailMap?: Map<string, UncertaintyKeyDetail>
 ): Record<string, unknown> {
   const MAX_DEPTH = 5;
@@ -730,6 +762,7 @@ function convertPropertyForFallback(
   return {
     key: p.key || '',
     xsiType: p.xsiType || 'stringType',
+    plannedValue : experimentInstructionDetails.find((e) => e.prop_key == p.key)?.expected_value ?? undefined,
     value: p.value ?? undefined,
     units: p.units || undefined,
     description: p.description ?? null,
@@ -745,7 +778,7 @@ function convertPropertyForFallback(
     uncertainty: p.uncertainty ?? [],
     // ネスト構造を再帰的に変換（深さ制限で無限ループ防止）
     properties: depth < MAX_DEPTH
-      ? (p.properties || []).map(child => convertPropertyForFallback(child, depth + 1, uncertaintyDetailMap))
+      ? (p.properties || []).map(child => convertPropertyForFallback(child, depth + 1,experimentInstructionDetails, uncertaintyDetailMap))
       : [],
     // Content 子要素も変換（Content はリーフノードとして扱うため properties/contents は空配列）
     contents: depth < MAX_DEPTH
@@ -779,6 +812,7 @@ function buildFallbackTemplates(
   parser: MaimlParserTyped,
   methodId: string,
   adjacentPlaceIds: string[],
+  experimentInstructionDetails: ExperimentInstructionDetail[],
   uncertaintyDetailMap?: Map<string, UncertaintyKeyDetail>
 ): TemplateDataItem[] {
   const methods = parser.getMethods();
@@ -825,10 +859,12 @@ function buildFallbackTemplates(
     for (const template of templateArray) {
       if (!template.placeRefs || template.placeRefs.length === 0) continue;
 
+      const templatesInstructions = experimentInstructionDetails.filter((e) => e.template_id = template.id);
+
       // このテンプレートのプロパティ定義を構築
       // convertPropertyForFallback で子要素（properties/contents）を再帰的に変換する
       const properties = (template.properties || []).map(p =>
-        convertPropertyForFallback(p, 0, uncertaintyDetailMap)
+        convertPropertyForFallback(p, 0,templatesInstructions, uncertaintyDetailMap)
       );
 
       // テンプレートトップレベルの contents を変換してフロントへ渡す

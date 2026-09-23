@@ -1164,6 +1164,20 @@ export interface SharePrefixesBody {
 }
 
 /**
+ * POST /api/v1/namespaces/terms/share リクエストボディ
+ *
+ * @remarks namespaceController.shareTerms で使用
+ */
+export interface ShareTermsBody {
+  /** 共有元スコープキー（organization_group_cd または userId） */
+  sourceScopeKey: string;
+  /** 共有先スコープキー（organization_group_cd または userId） */
+  targetScopeKey: string;
+  /** コピー対象の用語 qname 配列（"prefix:localName" 形式） */
+  termIds: string[];
+}
+
+/**
  * PUT /api/v1/organization-groups/:groupCd/members リクエストボディ
  *
  * @remarks organizationGroupController.setOrganizationGroupMembers で使用
@@ -1202,6 +1216,12 @@ export interface ToleranceValueEntry {
   uncertaintyNote: string | null;
   /** 不確かさ基準名（uncertainty_criteria.termDisplayName。null = 未設定） */
   uncertaintyName: string | null;
+  /**
+   * 作業者が入力した定量評価記録値（experiment_uncertainty_judge.recorded_value）。
+   * getTemplateData 内で最新の判定レコードから付与される。
+   * 未保存の場合は null。
+   */
+  recordedValue?: number | null;
 }
 
 // ============================================================
@@ -1215,6 +1235,8 @@ export interface ToleranceValueEntry {
 export interface CorrectRecordItem {
   /** プレースID（template_data の place_id） */
   placeId: string;
+  /** トランジションID（experiment_instruction_detail の actual_value 更新に使用） */
+  transitionId: string;
   /** 訂正後のデータ */
   data: {
     templateId: string;

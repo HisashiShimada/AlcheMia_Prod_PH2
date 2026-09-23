@@ -5,6 +5,7 @@
 
 UPDATE project
 SET project_status = $1,
+    checkout_status = 0,
     update_at = $2,
     update_user_id = $3
 WHERE organization_id = $4 

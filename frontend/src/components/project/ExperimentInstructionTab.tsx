@@ -566,6 +566,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       methodId: string;
       taskNumber: number;
       placeId: string;
+      transitionId: string;
       templateId: string;
       templateType: string;
       properties: unknown[];
@@ -581,6 +582,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           methodId: row.methodId,
           taskNumber: row.taskNumber,
           placeId: row.placeId,
+          transitionId: row.transitionId,
           templateId: row.templateId,
           templateType: row.templateType,
           properties: row.properties.map((p: any) =>
@@ -610,6 +612,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         const firstGroup = groups[0];
         const records = groups.map((g) => ({
           placeId: g.placeId,
+          transitionId: g.transitionId,
           data: {
             templateId: g.templateId,
             templateType: g.templateType,
@@ -1113,7 +1116,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       },
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [judgeDetailOpen]);
+  ], [judgeDetailOpen, isCorrectionMode, pendingCorrections]);
 
   /**
    * visibleColumnKeys に応じてフィルタリングされたカラム配列

@@ -175,6 +175,40 @@ export async function updateActualAndUncertainty(params: {
 }
 
 /**
+ * 訂正保存時に actual_value のみを更新する。
+ * レコードが存在しない場合は何もしない（INSERT しない）。
+ */
+export async function updateActualOnly(params: {
+  organizationId: string;
+  projectId: string;
+  methodId: string;
+  taskNo: number;
+  transitionId: string;
+  templateId: string;
+  propKey: string;
+  actualValue: string | null;
+  updateUserId: string;
+}): Promise<void> {
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile(
+    'experiment_instruction_details/updateActualOnly.sql'
+  );
+
+  await pgp.none(sqlQuery, [
+    params.organizationId,  // $1
+    params.projectId,       // $2
+    params.methodId,        // $3
+    params.taskNo,          // $4
+    params.transitionId,    // $5
+    params.templateId,      // $6
+    params.propKey,         // $7
+    params.actualValue,     // $8
+    params.updateUserId,    // $9
+  ]);
+}
+
+
+/**
  * プロジェクト内の全 experiment_instruction_detail を取得する（実験指示タブ表示用）。
  * 定性評価情報（uncertainty_key / uncertainty_assigned_value）を一括取得し
  * Service 層でフィールドにマッピングするために使用する。

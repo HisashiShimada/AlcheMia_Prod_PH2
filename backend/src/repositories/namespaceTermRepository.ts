@@ -978,3 +978,90 @@ export async function copyPrefixesToScope(
   ]);
   return rows.map((r) => r.prefix);
 }
+
+/**
+ * 指定した用語を共有先スコープへコピーし、共有元から削除する（用語共有）
+ *
+ * @remarks
+ * pg-promise トランザクション内で各用語を処理する。
+ * 処理フロー（term ごと）:
+ *   1. 共有先 namespace_id に対象 prefix が存在しない場合 → prefix をコピー
+ *   2. 共有先に同名用語が既に存在する場合 → スキップ（skippedCount 増加）
+ *   3. 共有先に用語を INSERT（ON CONFLICT DO NOTHING）
+ *   4. INSERT 成功した場合のみ共有元レコードを DELETE
+ *
+ * @param organizationId  - 組織ID
+ * @param sourceNamespaceId - 共有元の namespace_id
+ * @param targetNamespaceId - 共有先の namespace_id
+ * @param targetScopeKey  - 共有先スコープキー（prefix コピーに使用）
+ * @param userId          - 操作ユーザーID
+ * @param termIdentifiers - コピー対象の用語識別子配列 { prefix, localName }
+ * @returns { copiedCount, skippedCount }
+ */
+export async function shareTermsToScope(
+  organizationId: string,
+  sourceNamespaceId: string,
+  targetNamespaceId: string,
+  targetScopeKey: string,
+  userId: string,
+  termIdentifiers: Array<{ prefix: string; localName: string }>
+): Promise<{ copiedCount: number; skippedCount: number }> {
+  const pgp = getPgp();
+
+  const copyPrefixQuery = await loadSqlFile('namespace_terms/copyPrefixesToScope.sql');
+  const insertTermQuery = await loadSqlFile('namespace_terms/shareTermsToScope.sql');
+  const deleteTermQuery = await loadSqlFile('namespace_terms/removeTermInScope.sql');
+  const findTermQuery = await loadSqlFile('namespace_terms/findTermInScope.sql');
+
+  let copiedCount = 0;
+  let skippedCount = 0;
+
+  await pgp.tx(async (t: ITask<unknown>) => {
+    // prefix ごとに共有先へコピー（存在しない prefix のみ）
+    // copyPrefixesToScope.sql は RETURNING prefix を持つため t.any を使用（t.none は不可）
+    const uniquePrefixes = [...new Set(termIdentifiers.map((id) => id.prefix))];
+    for (const prefix of uniquePrefixes) {
+      await t.any(copyPrefixQuery, [organizationId, targetScopeKey, userId, [prefix]]);
+    }
+
+    // 各用語を処理
+    for (const termId of termIdentifiers) {
+      // 共有先に同名用語が既に存在するか確認
+      const existing = await t.oneOrNone<{ qname: string }>(findTermQuery, [
+        organizationId,
+        targetNamespaceId,
+        termId.prefix,
+        termId.localName,
+      ]);
+
+      if (existing) {
+        skippedCount += 1;
+        continue;
+      }
+
+      // 共有先に INSERT（ON CONFLICT DO NOTHING）
+      const inserted = await t.oneOrNone<{ localname: string }>(insertTermQuery, [
+        organizationId,
+        targetNamespaceId,
+        termId.prefix,
+        termId.localName,
+      ]);
+
+      if (inserted) {
+        // INSERT 成功した場合のみ共有元を DELETE
+        await t.none(deleteTermQuery, [
+          organizationId,
+          sourceNamespaceId,
+          termId.prefix,
+          termId.localName,
+        ]);
+        copiedCount += 1;
+      } else {
+        // ON CONFLICT でスキップされた場合
+        skippedCount += 1;
+      }
+    }
+  });
+
+  return { copiedCount, skippedCount };
+}

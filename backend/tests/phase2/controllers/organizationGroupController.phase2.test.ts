@@ -26,6 +26,17 @@ import {
 
 jest.mock('../../../src/services/organizationGroupService');
 jest.mock('../../../src/repositories/organizationGroupRepository');
+jest.mock('../../../src/services/jwtService', () => ({
+  JwtService: jest.fn().mockImplementation(() => ({
+    generateAccessToken: jest.fn().mockResolvedValue({ success: true, data: 'mock-access-token' }),
+  })),
+}));
+jest.mock('../../../src/repositories/rolePermissionRepository', () => ({
+  RolePermissionRepository: jest.fn().mockImplementation(() => ({
+    getPermissionsByRoleId: jest.fn().mockResolvedValue([]),
+  })),
+}));
+jest.mock('uuid', () => ({ v4: jest.fn(() => 'test-uuid-mock') }));
 
 function makeMocks(overrides: {
   params?: Record<string, string>;
@@ -128,6 +139,11 @@ describe('organizationGroupController - Phase2 テスト', () => {
     test('正常系: 組織グループを新規作成し、201 を返すこと', async () => {
       const created = { organization_group_cd: 'group-C', organization_group_name: 'グループC' };
       (organizationGroupService.createOrganizationGroup as jest.Mock).mockResolvedValue(created);
+      // findByUser は最新の所属グループCD取得に使われる
+      (organizationGroupRepository.findByUser as jest.Mock).mockResolvedValue([
+        { organization_group_cd: 'group-A' },
+        { organization_group_cd: 'group-C' },
+      ]);
 
       const { req, res, next } = makeMocks({
         body: {
@@ -140,7 +156,13 @@ describe('organizationGroupController - Phase2 テスト', () => {
       await createOrganizationGroup(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith({ success: true, data: created });
+      // accessToken が含まれること（モックなので 'mock-access-token'）
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        data: created,
+        accessToken: 'mock-access-token',
+        organizationGroupCds: ['group-A', 'group-C'],
+      }));
     });
 
     test('異常系: エラー発生時に next を呼ぶこと', async () => {

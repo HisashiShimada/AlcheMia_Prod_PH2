@@ -30,6 +30,7 @@ import {
   validateGetDeclarationsByProject,
   validateImportGlobalDeclarations,
   validateToggleNamespaceActive,
+  validateShareTerms,
 } from '../middleware/namespaceValidation';
 import * as namespaceController from '../controllers/namespaceController';
 import multer from 'multer';
@@ -251,6 +252,17 @@ router.post(
   authMiddleware,
   tenantIsolation,
   namespaceController.sharePrefixes
+);
+
+/**
+ * 選択した用語を指定スコープへ共有（コピー → 共有元から削除）する
+ * POST /api/v1/namespaces/terms/share
+ */
+router.post(
+  '/terms/share',
+  validateShareTerms,
+  handleValidationErrors,
+  namespaceController.shareTerms
 );
 
 export default router;

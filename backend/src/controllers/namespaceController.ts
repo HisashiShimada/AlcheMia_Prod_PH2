@@ -29,6 +29,7 @@ import type {
   TermActiveParams,
   ToggleNamespaceActiveBody,
   SharePrefixesBody,
+  ShareTermsBody,
 } from '../types/api';
 
 /**
@@ -565,6 +566,38 @@ export async function sharePrefixes(
     );
 
     res.json({ success: true, copiedPrefixes });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * 選択した用語を指定スコープへ共有（コピー → 共有元から削除）する
+ * POST /api/v1/namespaces/terms/share
+ *
+ * @remarks
+ * リクエストボディ:
+ *   { sourceScopeKey: string; targetScopeKey: string; termIds: string[] }
+ */
+export async function shareTerms(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.user!.organizationId;
+    const userId = req.user!.userId;
+    const { sourceScopeKey, targetScopeKey, termIds } = req.body as ShareTermsBody;
+
+    const result = await namespaceService.shareTermsToScopeService(
+      organizationId,
+      sourceScopeKey,
+      targetScopeKey,
+      userId,
+      termIds
+    );
+
+    res.json({ success: true, copiedCount: result.copiedCount, skippedCount: result.skippedCount });
   } catch (error) {
     next(error);
   }

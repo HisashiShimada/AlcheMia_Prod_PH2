@@ -29,8 +29,6 @@ import {
   Row,
   Select,
   Space,
-  Spin,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -102,7 +100,6 @@ let uncertaintyOptionsCache: { value: string; label: string }[] = [];
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 type TransitionStatus = 'not_started' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
-type ConfidenceLevel = '確か' | '曖昧' | '不確か';
 
 /**
  * トランジションステータスごとに、状態プルダウンで選択可能な「次の状態」を定義する。
@@ -141,6 +138,11 @@ interface QuantitativeUncertaintyInfo {
   toleranceValue?: string | number;
   /** 説明（uncertaintyNote 相当） */
   description?: string;
+  /**
+   * 作業者が入力した定量評価記録値（experiment_uncertainty_judge.recorded_value）。
+   * getTemplateData API 経由で付与される。未保存の場合は null/undefined。
+   */
+  recordedValue?: number | null;
 }
 
 interface WorkProperty {
@@ -307,6 +309,12 @@ interface PropertyCardProps {
    * 保存後にバッジ表示するために使用する。
    */
   lastJudgeResultMap?: Record<string, '良好' | '不良'>;
+  /**
+   * 定量評価（addedValues）の初期値（省略可）。
+   * テンプレート切替後に uncertaintyValuesRef から復元した値を渡すことで
+   * PropertyCard 再マウント時も入力値を保持できる。
+   */
+  initialUncertaintyValues?: UncertaintyValueEntry[];
 }
 
 const CONFIDENCE_STYLE: Record<string, { background: string; borderColor: string; color: string }> = {
@@ -325,6 +333,7 @@ const getConfidenceStyle = (level: string) =>
 
 const PropertyCard: React.FC<PropertyCardProps> = ({
   prop, actual, readOnly, onChange, onUncertaintyValuesChange, onConfidenceChange, onQualitativeReasonChange, lastJudgeResultMap,
+  initialUncertaintyValues,
 }) => {
   const { t } = useLanguage();
   const DEFAULT_CONFIDENCE_OPTIONS: string[] = [
@@ -345,14 +354,23 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
    * 定量評価入力行。
    * quantitativeUncertainties が設定されている場合は件数分の行を初期生成し
    * uncertaintyKey をプリセットする。それ以外は空行1件。
+   * initialUncertaintyValues が渡された場合は uncertaintyKey に対応する value を復元する。
    */
   const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>(() => {
     if (prop.quantitativeUncertainties && prop.quantitativeUncertainties.length > 0) {
-      return prop.quantitativeUncertainties.map((qu) => ({
-        id: qu.uncertaintyKey,
-        uncertaintyKey: qu.uncertaintyKey,
-        value: '',
-      }));
+      return prop.quantitativeUncertainties.map((qu) => {
+        // initialUncertaintyValues から対応するエントリの value を復元（テンプレート切替後の保持）
+        const savedEntry = initialUncertaintyValues?.find(
+          (e) => e.uncertaintyKey === qu.uncertaintyKey
+        );
+        // 次に DB から復元した recordedValue を使用（getTemplateData API 経由で付与）
+        const dbValue = qu.recordedValue != null ? String(qu.recordedValue) : '';
+        return {
+          id: qu.uncertaintyKey,
+          uncertaintyKey: qu.uncertaintyKey,
+          value: savedEntry?.value ?? dbValue,
+        };
+      });
     }
     return [{ id: 'initial', uncertaintyKey: '', value: '' }];
   });
@@ -722,6 +740,16 @@ interface PropertyListProps {
    */
   onQualitativeReasonChange?: (placeId: string, propKey: string, value: string | null) => void;
   lastJudgeResultMap?: Record<string, '良好' | '不良'>;
+  /**
+   * テンプレート切替後に confidence / qualitativeReason を復元するためのコールバック。
+   * placeId（templateId）と propKey を渡すと confidenceValuesRef の現在値を返す。
+   */
+  onGetInitialConfidence?: (placeId: string, propKey: string) => { confidence: string | null; qualitativeReason: string | undefined };
+  /**
+   * テンプレート切替後に定量評価入力値（addedValues）を復元するためのコールバック。
+   * placeId（templateId）と propKey を渡すと uncertaintyValuesRef の現在値を返す。
+   */
+  onGetInitialUncertaintyValues?: (placeId: string, propKey: string) => UncertaintyValueEntry[];
 }
 
 /** Insertion のデフォルト値 */
@@ -734,14 +762,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
   taskTransition,
   isReadOnly,
   displayKey,
-  canSkip = false,
-  canGoNext = false,
   onActualChange,
-  onSave,
-  onSaveAndNext,
-  onSkip,
-  onTemplateIdxChange,
-  onCommentClick,
   uploadTargetPath,
   onInsertionAdd,
   onInsertionRemove,
@@ -756,6 +777,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onConfidenceChange,
   onQualitativeReasonChange,
   lastJudgeResultMap,
+  onGetInitialConfidence,
+  onGetInitialUncertaintyValues,
 }) => {
   const { t } = useLanguage();
 
@@ -766,22 +789,6 @@ const PropertyList: React.FC<PropertyListProps> = ({
       </Flex>
     );
   }
-
-  /** 「保存して次へ」: 次テンプレートへ進むか、トランジションを完了する */
-  const handleSaveAndNext = () => {
-    if (!displayKey) return;
-    const nextTemplateIdx = templateIdx + 1;
-    if (nextTemplateIdx < templateCount) {
-      onTemplateIdxChange(nextTemplateIdx);
-    } else {
-      onSaveAndNext(displayKey.taskNo, displayKey.transitionId);
-    }
-  };
-
-  const isLastTemplate = templateIdx === templateCount - 1;
-  const nextLabel = isLastTemplate
-    ? t('workRecord.transitionCompleteNext')
-    : t('workRecord.nextTemplate', { current: String(templateIdx + 2), total: String(templateCount) });
 
   return (
     <>
@@ -794,10 +801,19 @@ const PropertyList: React.FC<PropertyListProps> = ({
       </Flex>
 
       <Row gutter={[8, 8]}>
-        {template.properties.map((prop) => (
+        {template.properties.map((prop) => {
+          // テンプレート切替後も入力値を保持するため、Ref の現在値で prop を補完する
+          const initialConf = onGetInitialConfidence?.(template.id, prop.key);
+          const enrichedProp: WorkProperty = {
+            ...prop,
+            defaultConfidence: initialConf?.confidence ?? prop.defaultConfidence,
+            qualitativeReason: initialConf?.qualitativeReason ?? prop.qualitativeReason,
+          };
+          const initialUncValues = onGetInitialUncertaintyValues?.(template.id, prop.key) ?? [];
+          return (
           <Col span={8} key={prop.key}>
             <PropertyCard
-              prop={prop}
+              prop={enrichedProp}
               actual={(() => {
                 const v = taskTransition?.actuals[prop.key] ?? null;
                 // Insertionオブジェクトはプロパティ値として使わない
@@ -817,9 +833,11 @@ const PropertyList: React.FC<PropertyListProps> = ({
                 onQualitativeReasonChange?.(template.id, propKey, value);
               }}
               lastJudgeResultMap={lastJudgeResultMap}
+              initialUncertaintyValues={initialUncValues}
             />
           </Col>
-        ))}
+          );
+        })}
         {/* ── カスタムPropertyカード（ユーザーが追加したもの・同グリッドに混在） ── */}
         {taskTransition?.customPropertyIds?.map((pid) => {
           const actualValue = taskTransition.actuals[`property_custom_${pid}`] ?? null;
@@ -1128,7 +1146,6 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
   onCancelCorrectionMode,
   correctionLoading = false,
   onSaveCorrection,
-  onInstructionClick,
   startDisabled = false,
   endDisabled = false,
   forceEndDisabled = false,
@@ -1294,7 +1311,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
           return (
             <Alert
               type="warning" showIcon
-              message={t('workRecord.correctionModeAlert')}
+              title={t('workRecord.correctionModeAlert')}
               style={{ marginTop: 4, fontSize: 12, width: '100%' }}
               action={
                 <Space size={4}>
@@ -1323,7 +1340,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
           return (
             <Alert
               type="info" showIcon
-              message={t('workRecord.completedTransitionReadonly')}
+              title={t('workRecord.completedTransitionReadonly')}
               style={{ marginTop: 4, fontSize: 12, width: '100%' }}
               action={
                 <Space size={4}>
@@ -1340,7 +1357,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
         return (
           <Alert
             type="info" showIcon
-            message={t('workRecord.completedTransitionReadonly')}
+            title={t('workRecord.completedTransitionReadonly')}
             style={{ marginTop: 4, fontSize: 12, width: '100%' }}
             action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
           />
@@ -1651,6 +1668,16 @@ interface PlanProps {
    * true のとき訂正不可（完全閲覧専用）。
    */
   isErrorStatus: boolean;
+  /**
+   * テンプレート切替後に confidence / qualitativeReason を復元するためのコールバック。
+   * WorkRecordPanel 本体から confidenceValuesRef の現在値を返す。
+   */
+  onGetInitialConfidence?: (placeId: string, propKey: string) => { confidence: string | null; qualitativeReason: string | undefined };
+  /**
+   * テンプレート切替後に定量評価入力値（addedValues）を復元するためのコールバック。
+   * WorkRecordPanel 本体から uncertaintyValuesRef の現在値を返す。
+   */
+  onGetInitialUncertaintyValues?: (placeId: string, propKey: string) => UncertaintyValueEntry[];
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1658,11 +1685,11 @@ interface PlanProps {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, onPropertyAdd, onPropertyRemove, uploadTargetPath, onOpenViewer, viewerLoading,
+  tasks, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, onPropertyAdd, onPropertyRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
   progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onStatusChange,
-  pendingEndKey, onSetPendingEndKey,
+  onSetPendingEndKey,
   onUncertaintyValuesChange,
   onConfidenceChange,
   onQualitativeReasonChange,
@@ -1678,6 +1705,8 @@ const PlanB: React.FC<PlanProps> = ({
   displayKey,
   isReadOnly,
   isErrorStatus,
+  onGetInitialConfidence,
+  onGetInitialUncertaintyValues,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -2100,6 +2129,8 @@ const PlanB: React.FC<PlanProps> = ({
             onConfidenceChange={onConfidenceChange}
             onQualitativeReasonChange={onQualitativeReasonChange}
             lastJudgeResultMap={lastJudgeResultMap}
+            onGetInitialConfidence={onGetInitialConfidence}
+            onGetInitialUncertaintyValues={onGetInitialUncertaintyValues}
           />
         </Content>
       </Layout>
@@ -2150,6 +2181,11 @@ interface WorkRecordPanelProps {
    * ExperimentWorkerMenu 側で updateTransitionStatus API を呼び出す。
    */
   onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
+  /**
+   * 実験データ保存成功後コールバック（任意）。
+   * ExperimentWorkerMenu 側でプロジェクト一覧再取得などの後処理を行う際に使用する。
+   */
+  onSave?: () => void;
 }
 
 /** API の xsiType 文字列を WorkProperty の xsiType に変換する */
@@ -2205,6 +2241,7 @@ function convertRawProperty(
         toleranceValue: string | null;
         uncertaintyNote: string | null;
         uncertaintyName: string | null;
+        recordedValue?: number | null;
       }>
     | null
     | undefined;
@@ -2215,6 +2252,7 @@ function convertRawProperty(
           uncertaintyName: tv.uncertaintyName ?? undefined,
           toleranceValue:  tv.toleranceValue ?? undefined,
           description:     tv.uncertaintyNote ?? undefined,
+          recordedValue:   tv.recordedValue ?? null,
         }))
       : undefined;
   return {
@@ -2222,7 +2260,7 @@ function convertRawProperty(
     label: String(p.key ?? ''),
     xsiType: resolveXsiType(p.xsiType as string | undefined),
     unit: String(p.units ?? ''),
-    expected: ((p.value ?? p.plannedValue) as number | string | null | undefined) ?? null,
+    expected: ((p.plannedValue) as number | string | null | undefined) ?? null,
     uncertaintyName:        (p.uncertaintyName as string | undefined) ?? undefined,
     uncertaintyValue:       (p.toleranceValue as string | number | undefined) ?? undefined,
     uncertaintyDescription: (p.uncertaintyNote as string | undefined) ?? undefined,
@@ -2267,11 +2305,11 @@ export default function WorkRecordPanel({
   initialTransitionId,
   allWorkerInstructions,
   onConfirmInstruction,
-  organizationGroupCd,
   onStart,
   onEnd,
   onForceEnd,
   onStatusChange,
+  onSave,
 }: WorkRecordPanelProps = {}) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
@@ -2306,11 +2344,6 @@ export default function WorkRecordPanel({
    * planProps 経由で PlanB → PropertyList → PropertyCard に渡す。
    */
   const [lastJudgeResultMap, setLastJudgeResultMap] = React.useState<Record<string, '良好' | '不良'>>({});
-
-  // 作業指示モーダルの開閉状態
-  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
-  // 作業指示モーダルに渡す「現在表示中のトランジション情報」
-  const [currentTransitionForInstruction, setCurrentTransitionForInstruction] = useState<Transition | null>(null);
 
   /**
    * API から取得したトランジション定義（テンプレート・プロパティ情報）。
@@ -2403,10 +2436,10 @@ export default function WorkRecordPanel({
             for (const item of templateDataRes.data.templates) {
               if (item.recordedBy !== null) {
                 // DB実績あり: DB の値を実績として取り込む
-                for (const [key, val] of Object.entries(item.data)) {
+                for (const [key, property] of Object.entries(item.data['properties'] as Record<string, unknown>)) {
                   // フォールバック形式のメタキーは除外
                   if (key === 'templateId' || key === 'templateType' || key === 'properties') continue;
-                  actualsFromApi[key] = val as ActualValue;
+                  actualsFromApi[(property as any).key] = (property as any).value;
                 }
               }
             }
@@ -2443,14 +2476,35 @@ export default function WorkRecordPanel({
           methodId,
           templates: templatesMap.get(transitionId) ?? [],
         }));
+
+        // uncertaintyValuesRef を DB の recordedValue で初期化する
+        // ユーザーが操作しなくても handleSave 時に既存記録値が uncertaintyValues として送信されるようにする
+        // 既にユーザーが操作して値が入っている場合（uncertaintyValuesRef.current.has）は上書きしない
+        for (const [, builtTemplates] of templatesMap.entries()) {
+          for (const tpl of builtTemplates) {
+            const refKey = tpl.id;
+            if (uncertaintyValuesRef.current.has(refKey)) continue;
+            const entries: UncertaintyValueEntry[] = tpl.properties.flatMap((wp) =>
+              (wp.quantitativeUncertainties ?? [])
+                .filter((qu) => qu.recordedValue != null)
+                .map((qu) => ({
+                  propKey: wp.key,
+                  uncertaintyKey: qu.uncertaintyKey,
+                  value: String(qu.recordedValue),
+                }))
+            );
+            if (entries.length > 0) {
+              uncertaintyValuesRef.current.set(refKey, entries);
+            }
+          }
+        }
+
         setApiTransitions(builtTransitions);
 
         setTasks((prev) => {
           const next: WorkTask[] = uniqueTaskNos.map((taskNo) => {
-            const existingTask = prev.find((t) => t.taskNo === taskNo);
             const taskRows = progressRows.filter((r) => r.taskNo === taskNo);
             const transitions: TaskTransitionState[] = taskRows.map((row) => {
-              const existing = existingTask?.transitions.find((tt) => tt.transitionId === row.transitionId);
               const apiStatus: TransitionStatus = (() => {
                 switch (row.status) {
                   case 'preparing':   return 'preparing';
@@ -2467,23 +2521,21 @@ export default function WorkRecordPanel({
               // なければ API から取得した実績値を使用する
               const mapKey = `${row.taskNo}__${row.transitionId}`;
               const apiActuals = actualsMap.get(mapKey) ?? {};
-              const hasExistingActuals =
-                existing?.actuals !== undefined &&
-                Object.keys(existing.actuals).length > 0;
               return {
                 transitionId: row.transitionId,
                 // API から取得した最新ステータスを常に反映する（状態プルダウン更新のため）
                 status: apiStatus,
-                actuals: hasExistingActuals ? existing!.actuals : apiActuals,
-                customInsertionIds: existing?.customInsertionIds ?? [],
-                customContentIds: existing?.customContentIds ?? [],
-                customPropertyIds: existing?.customPropertyIds ?? [],
+                actuals: apiActuals,
+                customInsertionIds: [],
+                customContentIds: [],
+                customPropertyIds: [],
               };
             });
             return { taskNo, transitions };
           });
           return next;
         });
+        setIsCorrectionMode(false);
       } catch (err) {
         console.error('[WorkRecordPanel] buildTransitions error:', err);
       }
@@ -2748,6 +2800,7 @@ export default function WorkRecordPanel({
         }
         return {
           placeId: item.placeId,
+          transitionId,
           data: {
             templateId: item.templateId,
             templateType: item.templateType,
@@ -2791,6 +2844,7 @@ export default function WorkRecordPanel({
       // 生データなし: 成功メッセージのみ
       modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
       setIsDirty(false);
+      onSave?.();
       return;
     }
 
@@ -2912,11 +2966,12 @@ export default function WorkRecordPanel({
           })),
         }))
       );
+      onSave?.();
     } catch (err) {
       console.error('[WorkRecordPanel] handleSave error:', err);
       message.error(t('workRecord.saveContent'));
     }
-  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions, setApiTransitions]);
+  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions, setApiTransitions, onSave]);
 
   // ─── スキップ state ────────────────────────────────────────
   const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
@@ -3250,7 +3305,7 @@ export default function WorkRecordPanel({
         return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
       }
       // 全て完了済みの場合は null（「全トランジション完了」Alert を表示）
-      return null;
+      return { taskNo: progressRows[0].taskNo, transitionId: progressRows[0].transitionId };
     }
     // progressRows が空の場合: task.transitions の順序でフォールバック
     const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
@@ -3434,6 +3489,20 @@ export default function WorkRecordPanel({
     displayKey,
     isReadOnly,
     isErrorStatus,
+    // テンプレート切替後も入力値を保持するためのコールバック
+    // PropertyCard 再マウント時に confidenceValuesRef / uncertaintyValuesRef から初期値を復元する
+    onGetInitialConfidence: (placeId: string, propKey: string) => {
+      const key = `${placeId}__${propKey}`;
+      const entry = confidenceValuesRef.current.get(key);
+      return {
+        confidence: entry?.value ?? null,
+        qualitativeReason: entry?.description ?? undefined,
+      };
+    },
+    onGetInitialUncertaintyValues: (placeId: string, propKey: string): UncertaintyValueEntry[] => {
+      const key = `${placeId}__${propKey}`;
+      return uncertaintyValuesRef.current.get(key) ?? [];
+    },
   };
 
   const commentTarget = viewingKey ?? activeEntry;

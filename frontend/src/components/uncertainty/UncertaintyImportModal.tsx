@@ -49,7 +49,6 @@ export default function UncertaintyImportModal({
       message.success(
         t('uncertaintyImport.importSuccess', {
           inserted: String(result.insertedCount),
-          skipped:  String(result.skippedCount),
         })
       );
       setFileList([]);
