@@ -716,12 +716,13 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                     value: opt.value,
                     label: opt.label,
                   }))}
-                  filterOption={(inputValue, option) =>
-                    !inputValue ||
-                    String(option?.value ?? '')
-                      .toLowerCase()
-                      .includes(inputValue.toLowerCase())
-                  }
+                  showSearch={{
+                    filterOption: (inputValue, option) =>
+                      !inputValue ||
+                      String(option?.value ?? '')
+                        .toLowerCase()
+                        .includes(inputValue.toLowerCase()),
+                  }}
                 />
                 {masterAttributeValues.length > 0 && (
                   <Text type="secondary" style={{ fontSize: 12 }}>
@@ -760,64 +761,56 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 />
               </Space>
             ) : newAttributeName === 'key' ? (
-              /* key 属性 → termKeyOptions がある場合は Select プルダウン、なければ Input フォールバック */
-              termKeyOptions && termKeyOptions.length > 0 ? (
-                <Select
-                  showSearch
-                  style={{ width: '100%' }}
-                  placeholder={t('nestedPropertyEditor.placeholderKeySelect')}
-                  value={newAttributeValue || undefined}
-                  optionLabelProp="value"
-                  onChange={setNewAttributeValue}
-                  filterOption={(input, option) => {
+              /* key 属性 → AutoComplete: 登録済み用語を候補表示しつつ任意文字列も入力可 */
+              <AutoComplete
+                style={{ width: '100%' }}
+                placeholder={t('nestedPropertyEditor.placeholderKeySelect')}
+                value={newAttributeValue}
+                options={
+                  termKeyOptions
+                    ? termKeyOptions.map((opt) => ({
+                        value: opt.value,
+                        'data-display': opt.label,
+                        label: (
+                          <div style={{ lineHeight: 1.4 }}>
+                            {opt.label && opt.label.trim() !== '' && opt.label !== opt.value && (
+                              <div style={{ fontWeight: 600 }}>{opt.label}</div>
+                            )}
+                            <div style={{ fontSize: 11, color: '#888' }}>
+                              {opt.value}
+                              {opt.type && (
+                                <Tag
+                                  color="blue"
+                                  style={{ marginLeft: 6, fontSize: 10, padding: '0 4px' }}
+                                >
+                                  {opt.type}
+                                </Tag>
+                              )}
+                              {opt.unitHint && (
+                                <Tag
+                                  color="green"
+                                  style={{ marginLeft: 2, fontSize: 10, padding: '0 4px' }}
+                                >
+                                  {opt.unitHint}
+                                </Tag>
+                              )}
+                            </div>
+                          </div>
+                        ),
+                      }))
+                    : []
+                }
+                showSearch={{
+                  filterOption: (inputValue, option) => {
                     if (!option) return false;
                     const val = String(option.value ?? '').toLowerCase();
                     const displayName = String(option['data-display'] ?? '').toLowerCase();
-                    const q = input.toLowerCase();
+                    const q = inputValue.toLowerCase();
                     return val.includes(q) || displayName.includes(q);
-                  }}
-                >
-                  {termKeyOptions.map((opt) => (
-                    <Option
-                      key={opt.value}
-                      value={opt.value}
-                      data-display={opt.label}
-                    >
-                      <div style={{ lineHeight: 1.4 }}>
-                        {opt.label && opt.label.trim() !== '' && opt.label !== opt.value && (
-                          <div style={{ fontWeight: 600 }}>{opt.label}</div>
-                        )}
-                        <div style={{ fontSize: 11, color: '#888' }}>
-                          {opt.value}
-                          {opt.type && (
-                            <Tag
-                              color="blue"
-                              style={{ marginLeft: 6, fontSize: 10, padding: '0 4px' }}
-                            >
-                              {opt.type}
-                            </Tag>
-                          )}
-                          {opt.unitHint && (
-                            <Tag
-                              color="green"
-                              style={{ marginLeft: 2, fontSize: 10, padding: '0 4px' }}
-                            >
-                              {opt.unitHint}
-                            </Tag>
-                          )}
-                        </div>
-                      </div>
-                    </Option>
-                  ))}
-                </Select>
-              ) : (
-                /* termKeyOptions 未提供時のフォールバック（後方互換性） */
-                <Input
-                  placeholder={t('nestedPropertyEditor.placeholderAttrValueInput')}
-                  value={newAttributeValue}
-                  onChange={(e) => setNewAttributeValue(e.target.value)}
-                />
-              )
+                  },
+                }}
+                onChange={setNewAttributeValue}
+              />
             ) : (
               /* その他の固定属性（id / ref）または termDisplayMap が空 → テキスト入力 */
               <Input

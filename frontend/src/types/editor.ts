@@ -441,7 +441,15 @@ export interface PropertyObject {
 export interface StructuredProperties {
   basic: Record<string, PropertyObject>;
   template: Record<string, PropertyObject>;
+  /** @deprecated Placeノードのデータタブは dataGroups を使用すること。Transitionノードや空状態の後方互換用。 */
   data: Record<string, PropertyObject>;
+  /**
+   * データタブ用 Results グループ配列（N件対応）
+   * Placeノード（material/condition/result）のデータタブ表示に使用。
+   * 各要素が1件の <data><results> グループに対応する。
+   * undefined の場合は data フィールドの旧フォーマットを使用する（後方互換）。
+   */
+  dataGroups?: import('@/utils/maimlDataExtractor').DataResultsGroup[];
 }
 
 /**
