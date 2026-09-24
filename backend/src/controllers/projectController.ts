@@ -1294,17 +1294,12 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
       const completedTransitions = Number(row.completed_transitions) || 0;
       const inprogressTransitions = Number(row.inprogress_transitions) || 0;
       const notstartedTransitions = Number(row.notstarted_transitions) || 0;
-      const avgProgressRate = Number(row.avg_progress_rate) || 0;
 
       const progress: TaskProgressStats = {
         total_transitions: totalTransitions,
         completed: completedTransitions,
         in_progress: inprogressTransitions,
         not_started: notstartedTransitions,
-        progress_percentage:
-          totalTransitions > 0
-            ? Math.round(avgProgressRate * 10) / 10
-            : 0,
       };
 
       return {
@@ -1342,12 +1337,7 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
       failed: tasks.filter((t) => t.task_status === 'failed').length,
       overall_progress:
         tasks.length > 0
-          ? parseFloat(
-              (
-                tasks.reduce((sum, t) => sum + t.progress.progress_percentage, 0) /
-                tasks.length
-              ).toFixed(1)
-            )
+          ? Math.round(tasks.filter((t) => t.task_status === 'completed').length / tasks.length * 100)
           : 0,
     };
 

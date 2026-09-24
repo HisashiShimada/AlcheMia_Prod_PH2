@@ -20,7 +20,6 @@ export interface OrganizationRow {
   corporation_id: string | null; // UUID
   corporation_name: string | null; // JOIN結果
   is_entry: number; // 二段階認証判定（0: なし, 1: あり）
-  use_deemed_progress: boolean; // みなし進捗使用フラグ
   is_active: boolean;
   contract_capacity: number | null; // 契約容量
   contract_users: number | null;  // 契約ユーザー数
@@ -235,7 +234,6 @@ export async function create(
     chiefUserId?: string;
     corporationId?: string;
     isEntry?: number;
-    useDeemedProgress?: boolean;
     isActive?: boolean;
     contractCapacity?: number | null;
     contractedUsers?: number | null;
@@ -254,7 +252,6 @@ export async function create(
     data.chiefUserId || null,
     data.corporationId || null,
     data.isEntry !== undefined ? data.isEntry : 0,
-    data.useDeemedProgress !== undefined ? data.useDeemedProgress : true,
     data.isActive !== undefined ? data.isActive : true,
     data.contractCapacity ?? null,
     data.contractedUsers ?? null,
@@ -282,7 +279,6 @@ export async function update(
     chiefUserId?: string;
     corporationId?: string;
     isEntry?: number;
-    useDeemedProgress?: boolean;
     isActive?: boolean;
     contractCapacity?: number | null;
     contractedUsers?: number | null;
@@ -301,13 +297,12 @@ export async function update(
     data.chiefUserId ?? null,                 // $4
     data.corporationId ?? null,               // $5
     data.isEntry ?? null,                     // $6
-    data.useDeemedProgress ?? null,           // $7
-    data.isActive ?? null,                    // $8
-    userId,                                   // $9
-    data.contractCapacity ?? null,            // $10
-    data.contractedUsers ?? null,             // $11
-    data.contractedProjects ?? null,          // $12
-    data.defaultRetentionDays ?? null,        // $13
+    data.isActive ?? null,                    // $7
+    userId,                                   // $8
+    data.contractCapacity ?? null,            // $9
+    data.contractedUsers ?? null,             // $10
+    data.contractedProjects ?? null,          // $11
+    data.defaultRetentionDays ?? null,        // $12
   ];
 
   const updated = await pgp.oneOrNone<{ organization_id: string }>(query, values);

@@ -15,9 +15,9 @@
 -- 使用箇所: WorkerProjectRepository.findWorkerAccessible()
 -- 作成日: 2026-02-18
 -- 更新日: 2026-02-20 - experiment_user_idフィルタを削除（組織内全プロジェクト表示）
--- 更新日: 2026-03-02 - organization.use_deemed_progress を追加
 -- 更新日: 2026-08-31 - GROUP_FILTER を追加（ログインユーザーの所属グループで絞り込み）
 -- 更新日: 2026-09-09 - organization_group_cd を追加（不確かさ基準スコープ絞り込み用）
+-- 更新日: 2026-09-24 - use_deemed_progress および organization JOIN を削除
 
 SELECT DISTINCT
   project.project_id,
@@ -26,13 +26,10 @@ SELECT DISTINCT
   project.project_status,
   project.organization_group_cd,
   project.create_at,
-  project.update_at,
-  organization.use_deemed_progress
+  project.update_at
 FROM project
 INNER JOIN project_task 
   ON project.project_id = project_task.project_id
-INNER JOIN organization
-  ON project.organization_id = organization.organization_id
 WHERE 
   project.organization_id = $1
   AND project_task.organization_id = $2

@@ -684,14 +684,12 @@
       "notStarted": "Not Started Transitions",
       "started": "Started",
       "inProgress": "In Progress",
-      "completed": "Completed",
-      "progressRate": "Progress Rate"
+      "completed": "Completed"
     },
     "table": {
       "methodName": "Method Name",
       "taskName": "Task Name",
       "status": "Status",
-      "progressRate": "Progress Rate",
       "issueReport": "Issue Report",
       "experimentRecord": "Experiment Record",
       "actions": "Actions",
@@ -1155,7 +1153,6 @@
       "workCount": "Work Count",
       "taskProgress": "Completed Tasks / Total Tasks",
       "workIdCount": "Work ID Count",
-      "progressRate": "Progress Rate",
       "completedTransitions": "Completed Transitions",
       "actions": "Actions",
       "total": "Total",
@@ -1408,7 +1405,6 @@
       "chiefUserName": "Chief System Admin",
       "corporationName": "Corporation Name",
       "twoFactorAuth": "Two-Factor Auth",
-      "useDeemedProgress": "Use Deemed Progress",
       "updatedAt": "Updated At"
     },
     "yesNo": {
@@ -1434,8 +1430,7 @@
     "filters": {
       "organizationDisplayName": "Display Name",
       "corporationName": "Corporation Name",
-      "twoFactorAuth": "Two-Factor Auth",
-      "useDeemedProgress": "Use Deemed Progress"
+      "twoFactorAuth": "Two-Factor Auth"
     },
     "modal": {
       "addTitle": "Add Organization",
@@ -1467,8 +1462,6 @@
       "contractedProjectsPlaceholder": "Enter contracted projects",
       "isEntry": "Two-Factor Auth",
       "isEntryRequired": "Please select two-factor auth setting",
-      "useDeemedProgress": "Use Deemed Progress",
-      "useDeemedProgressRequired": "Please select use deemed progress setting",
       "defaultRetentionDays": "Default Retention Days",
       "defaultRetentionDaysRequired": "Please enter default retention days",
       "defaultRetentionDaysInvalid": "Default retention days must be an integer of 1 or more",

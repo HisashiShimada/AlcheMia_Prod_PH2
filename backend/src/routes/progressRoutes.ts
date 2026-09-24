@@ -170,10 +170,6 @@ router.patch(
       .isInt({ min: 1, max: 7 })
       .withMessage('statusは1〜7の整数である必要があります（1:初期状態, 2:準備状態, 3:準備完了状態, 4:動作状態, 5:休止状態, 6:終状態, 7:異常終了状態）')
       .toInt(),
-    body('progressRate')
-      .optional()
-      .isInt({ min: 0, max: 100 })
-      .withMessage('progressRateは0-100の整数である必要があります'),
     body('comment')
       .optional()
       .isLength({ max: 2000 })

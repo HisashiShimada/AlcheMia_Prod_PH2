@@ -50,7 +50,6 @@ export interface TransitionData {
   task_no: number;
   transition_id: string;
   status: TransitionStatus; // 数値型（1-7）
-  progress_rate: number; // 0-100
   updated_by: string;
   updated_at: Date;
   created_at: Date;
@@ -66,7 +65,6 @@ export interface NewTransitionData {
   task_no: number;
   transition_id: string;
   status?: TransitionStatus; // オプショナル（デフォルト: TransitionStatusEnum.INITIAL）
-  progress_rate?: number; // オプショナル（デフォルト: 0）
   updated_by: string;
 }
 
@@ -75,7 +73,6 @@ export interface NewTransitionData {
  */
 export interface TransitionDataUpdate {
   status: TransitionStatus; // 数値型（1-7）
-  progress_rate?: number;
   updated_by: string;
 }
 

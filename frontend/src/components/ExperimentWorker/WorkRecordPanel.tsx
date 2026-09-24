@@ -2161,7 +2161,6 @@ interface WorkRecordPanelProps {
   methodId?: string;
   progressRows?: ProgressRow[];
   projectStatus?: number;
-  useDeemedProgress?: boolean;
   initialTaskNo?: number;
   initialTransitionId?: string;
   /** 作業指示一覧（全件）。WorkRecordPanel 内部で現在のトランジションに応じてフィルタリングする */

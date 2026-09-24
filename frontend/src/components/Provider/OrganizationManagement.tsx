@@ -76,7 +76,6 @@ export default function OrganizationManagement() {
   const [selectedOrganizationDisplayName, setSelectedOrganizationDisplayName] = useState<string>('');
   const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('');
   const [selectedIsEntry, setSelectedIsEntry] = useState<string>('');
-  const [selectedUseDeemedProgress, setSelectedUseDeemedProgress] = useState<string>('');
   const [form] = Form.useForm();
   const [companyOptions, setCompanyOptions] = useState<OptionType[]>([]);
   const [systemAdminOptions, setSystemAdminOptions] = useState<OptionType[]>([]);
@@ -143,15 +142,14 @@ export default function OrganizationManagement() {
       const matchesOrganizationDisplayName = !selectedOrganizationDisplayName || org.organizationDisplayName === selectedOrganizationDisplayName;
       const matchesCompanyName = !selectedCompanyCode || org.corporationName === selectedCompanyCode;
       const matchesIsEntry = selectedIsEntry === '' || org.isEntry === Number(selectedIsEntry);
-      const matchesUseDeemedProgress = selectedUseDeemedProgress === '' || org.useDeemedProgress === (selectedUseDeemedProgress === 'true');
-      return matchesSearch && matchesOrganizationDisplayName && matchesCompanyName && matchesIsEntry && matchesUseDeemedProgress;
+      return matchesSearch && matchesOrganizationDisplayName && matchesCompanyName && matchesIsEntry;
     });
-  }, [organizations, searchText, selectedOrganizationDisplayName, selectedCompanyCode, selectedIsEntry, selectedUseDeemedProgress]);
+  }, [organizations, searchText, selectedOrganizationDisplayName, selectedCompanyCode, selectedIsEntry]);
 
   // フィルタ変化時に1ページ目にリセット
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchText, selectedOrganizationDisplayName, selectedCompanyCode, selectedIsEntry, selectedUseDeemedProgress]);
+  }, [searchText, selectedOrganizationDisplayName, selectedCompanyCode, selectedIsEntry]);
 
   const activeOrganizationCount = useMemo(() => {
     return filteredOrganizations.filter(org => org.isActive).length;
@@ -257,19 +255,6 @@ export default function OrganizationManagement() {
       ),
     },
     {
-      title: <div style={{ textAlign: 'center' }}>{t('organizationManagement.columns.useDeemedProgress')}</div>,
-      dataIndex: 'useDeemedProgress',
-      key: 'useDeemedProgress',
-      width: 174,
-      align: 'center',
-      sorter: (a, b) => Number(a.useDeemedProgress) - Number(b.useDeemedProgress),
-      render: (value: boolean, record) => (
-        <Text style={{ fontSize: 13, color: !record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)' }}>
-          {value ? t('organizationManagement.yesNo.yes') : t('organizationManagement.yesNo.no')}
-        </Text>
-      ),
-    },
-    {
       title: <div style={{ textAlign: 'center' }}>{t('organizationManagement.columns.updatedAt')}</div>,
       dataIndex: 'updatedAt',
       key: 'updatedAt',
@@ -348,7 +333,6 @@ export default function OrganizationManagement() {
       organizationEmail: '',
       corporationId: undefined,
       isEntry: 0,
-      useDeemedProgress: false,
       isActive: true,
       chiefUserName: '',
       chiefUserEmail: '',
@@ -467,7 +451,6 @@ export default function OrganizationManagement() {
     setSelectedOrganizationDisplayName('');
     setSelectedCompanyCode('');
     setSelectedIsEntry('');
-    setSelectedUseDeemedProgress('');
     await fetchOrganizations();
     messageApi.success(t('organizationManagement.messages.reloadSuccess'));
   };
@@ -529,7 +512,6 @@ export default function OrganizationManagement() {
         'contract_users': o.contractedUsers ?? '',
         'contract_projects': o.contractedProjects ?? '',
         'is_entry': o.isEntry,
-        'use_deemed_progress': o.useDeemedProgress,
         'update_at': o.updatedAt,
         'is_active': o.isActive,
       }));
@@ -728,19 +710,6 @@ export default function OrganizationManagement() {
               ]}
             />
           </Col>
-          <Col style={{ width: 174 }}>
-            <Select
-              placeholder={t('organizationManagement.filters.useDeemedProgress')}
-              value={selectedUseDeemedProgress || undefined}
-              onChange={(value) => setSelectedUseDeemedProgress(value ?? '')}
-              allowClear
-              style={{ width: '100%' }}
-              options={[
-                { label: t('organizationManagement.yesNo.yes'), value: 'true' },
-                { label: t('organizationManagement.yesNo.no'), value: 'false' },
-              ]}
-            />
-          </Col>
         </Row>
 
         <Table
@@ -860,18 +829,6 @@ export default function OrganizationManagement() {
                   ]}
                 />
               </Form.Item>
-              <Form.Item
-                name="useDeemedProgress"
-                label={t('organizationManagement.form.useDeemedProgress')}
-                rules={[{ required: true, message: t('organizationManagement.form.useDeemedProgressRequired') }]}
-              >
-                <Select
-                  options={[
-                    { value: true, label: t('organizationManagement.yesNo.yes') },
-                    { value: false, label: t('organizationManagement.yesNo.no') },
-                  ]}
-                />
-              </Form.Item>
               <Form.Item name="isActive" label={t('organizationManagement.form.status')} rules={[{ required: true }]}>
                 <Select
                   options={[
@@ -957,18 +914,6 @@ export default function OrganizationManagement() {
                   options={[
                     { value: 0, label: t('organizationManagement.yesNo.no') },
                     { value: 1, label: t('organizationManagement.yesNo.yes') },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item
-                name="useDeemedProgress"
-                label={t('organizationManagement.form.useDeemedProgress')}
-                rules={[{ required: true, message: t('organizationManagement.form.useDeemedProgressRequired') }]}
-              >
-                <Select
-                  options={[
-                    { value: true, label: t('organizationManagement.yesNo.yes') },
-                    { value: false, label: t('organizationManagement.yesNo.no') },
                   ]}
                 />
               </Form.Item>

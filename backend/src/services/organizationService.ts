@@ -55,7 +55,6 @@ export interface OrganizationResponse {
   chiefUserName: string;
   corporationName: string;
   isEntry: number;
-  useDeemedProgress: boolean;
   isActive: boolean;
   contractCapacity: number | null;
   contractedUsers: number | null;
@@ -80,7 +79,6 @@ function toOrganizationResponse(org: organizationRepository.OrganizationRow): Or
     chiefUserName: org.chief_user_name || '',
     corporationName: org.corporation_name || '',
     isEntry: org.is_entry,
-    useDeemedProgress: org.use_deemed_progress,
     isActive: org.is_active,
     contractCapacity: org.contract_capacity ?? null,
     contractedUsers: org.contract_users ?? null,
@@ -163,7 +161,6 @@ export async function createOrganization(
     chiefUserPassword?: string;
     corporationId?: string;
     isEntry?: number;
-    useDeemedProgress?: boolean;
     isActive?: boolean;
     contractCapacity?: number | null;
     contractedUsers?: number | null;
@@ -233,14 +230,13 @@ export async function createOrganization(
         data.chiefUserEmail || null,  // 代表者メールアドレスをchief_user_idに設定 // $5
         data.corporationId || null,                                       // $6
         data.isEntry !== undefined ? data.isEntry : 0,                   // $7
-        data.useDeemedProgress !== undefined ? data.useDeemedProgress : true, // $8
-        data.isActive !== undefined ? data.isActive : true,              // $9
-        data.contractCapacity ?? null,                                    // $10
-        data.contractedUsers ?? null,                                     // $11
-        data.contractedProjects ?? null,                                  // $12
-        defaultRetentionDays,                                             // $13
+        data.isActive !== undefined ? data.isActive : true,              // $8
+        data.contractCapacity ?? null,                                    // $9
+        data.contractedUsers ?? null,                                     // $10
+        data.contractedProjects ?? null,                                  // $11
+        defaultRetentionDays,                                             // $12
+        userId,                                                           // $13
         userId,                                                           // $14
-        userId,                                                           // $15
       ];
 
       await t.one(insertOrgQuery, orgValues);
@@ -459,7 +455,6 @@ export async function updateOrganization(
     chiefUserId?: string;
     corporationId?: string;
     isEntry?: number;
-    useDeemedProgress?: boolean;
     isActive?: boolean;
     contractCapacity?: number | null;
     contractedUsers?: number | null;
@@ -787,18 +782,6 @@ export async function uploadOrganizationsCsv(
       break;
     }
     
-    // 型チェック（use_deemed_progress）
-    const useDeemedProgressStr = row['use_deemed_progress']?.trim();
-    if (useDeemedProgressStr &&
-        !['true', 'TRUE', '1', 'false', 'FALSE', '0', ''].includes(useDeemedProgressStr)) {
-      validationErrors.push({
-        row: rowNumber,
-        field: 'use_deemed_progress',
-        message: getMessage(lang, 'organization.csv.useDeemedProgressInvalid', { row: String(rowNumber) }),
-      });
-      break;
-    }
-
     // 型チェック（is_active）
     const isActiveStr = row['is_active']?.trim();
     if (isActiveStr && 
@@ -915,10 +898,6 @@ export async function uploadOrganizationsCsv(
       const isEntryStr = row['is_entry']?.trim();
       const isEntry = isEntryStr === '1' ? 1 : 0;
       
-      // use_deemed_progressの変換
-      const useDeemedProgressStr = row['use_deemed_progress']?.trim();
-      const useDeemedProgress = useDeemedProgressStr === 'false' || useDeemedProgressStr === 'FALSE' || useDeemedProgressStr === '0' ? false : true;
-
       // is_activeの変換
       const isActiveStr = row['is_active']?.trim();
       const isActive = isActiveStr === 'true' || isActiveStr === 'TRUE' || isActiveStr === '1';
@@ -951,7 +930,6 @@ export async function uploadOrganizationsCsv(
         chiefUserEmail,
         corporationId,
         isEntry,
-        useDeemedProgress,
         isActive,
         contractCapacity,
         contractedUsers,

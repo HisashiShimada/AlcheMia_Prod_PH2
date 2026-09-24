@@ -12,7 +12,6 @@
 --   - organization_userとuser_authenticationをLEFT JOINして担当者名を取得
 --   - 全JOINでorganization_idフィルタを適用（マルチテナント分離）
 --   - AVG集約関数を使用するためGROUP BY句で全非集約カラムを指定
---   - COALESCEでprogress_rateがnullの場合0を返す
 
 SELECT 
   -- メソッド情報（project_task）
@@ -27,9 +26,6 @@ SELECT
   ptd.experiment_user_id AS assign_user_id,
   ptd.create_at AS created_at,
   ptd.update_at AS updated_at,
-  
-  -- 進捗率（transition_dataテーブルから平均値を計算）
-  COALESCE(AVG(td.progress_rate), 0) AS progress_rate,
   
   -- 担当者名（organization_user + user_authentication）
   ou.user_name AS assign_user_name

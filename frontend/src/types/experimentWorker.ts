@@ -153,7 +153,6 @@ export interface Transition {
   templates?: Template[];
   // Phase 6追加: 実験記録タブ用のプロパティ
   status?: ProgressStatus; // ステータス
-  progressRate?: number; // 進捗率（浸食率）
   inputMaterialsCount?: number; // 入力済材料数
   totalMaterialsCount?: number; // 材料の総数
   inputIngredientsCount?: number; // 入力済素材数
@@ -363,7 +362,6 @@ export interface TransitionProgress {
   taskName?: string; // タスク名（Phase 6で追加）
   methodId: string;
   methodName: string;
-  progressRate: number; // 0-100
   status: ProgressStatus;
   reportCount: number; // 進捗報告数
   issueCount: number; // 未解決課題数
@@ -396,7 +394,6 @@ export interface Task {
   assignedUserName?: string;   // 割り当てユーザー名
   createdAt?: string;          // 作成日時（ISO8601形式）
   updatedAt: string;           // 更新日時（ISO8601形式、楽観的ロック用に必須）
-  progressRate: number;        // 進捗率（0-100）
   transitionStatuses?: TransitionStatus[]; // トランジションステータス一覧
   progressReport: string;      // 進捗報告の状態（例: "実験記録報告"）
   recordNumber: string;        // 実験記録番号
@@ -408,7 +405,6 @@ export interface WorkflowStatistics {
   started: number;       // 開始数
   inProgress: number;    // 作業中数
   completed: number;     // 完了数
-  progressRate: number;  // 進捗率（%）
 }
 
 // ===== Phase: 問題報告モーダル用の型定義 =====

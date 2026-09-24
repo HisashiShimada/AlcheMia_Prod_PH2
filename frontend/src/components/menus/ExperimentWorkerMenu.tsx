@@ -234,12 +234,20 @@ export default function ExperimentWorkerMenu({
       // Step 2: トランジションを PREPARING → READY に遷移させる
       // ※ バックエンドの updateTransitionStatus が PREPARING→READY 遷移時に
       //   タスク・プロジェクトステータスを自動更新する
-      if (methodId && transitionId) {
-        await updateTransitionStatus(selectedProject, methodId, transitionId, {
-          taskNo,
-          status: TransitionStatusCode.READY,
-          progressRate: 0,
-        });
+      const preparingRow = progressRows.find((r) => r.status === 'preparing');
+      if (preparingRow) {
+        try {
+          await updateTransitionStatus(selectedProject, preparingRow.methodId, preparingRow.transitionId, {
+            taskNo: preparingRow.taskNo,
+            status: TransitionStatusCode.READY, // 準備完了状態
+          });
+          // プロジェクト一覧と進捗データを同時に最新化する
+          // （プロジェクトステータスが TASK_PENDING → TASK_IN_PROGRESS に変わるため）
+          await refreshProjectAndProgress();
+        } catch (transitionErr) {
+          // 既に READY 以降の状態の場合は遷移エラーになるため、ログのみ出して続行
+          console.warn('[handleConfirmInstruction] トランジションステータス READY 更新スキップ:', transitionErr);
+        }
       }
 
       message.success(t('workRecord.instructionConfirmed'));
@@ -292,7 +300,6 @@ export default function ExperimentWorkerMenu({
   // 選択中プロジェクトのステータス（数値）を取得
   // worker-accessible APIのレスポンスから直接参照することで、不要なAPIコールを排除
   const selectedProjectStatus = projects.find(p => p.projectId === selectedProject)?.projectStatus ?? null;
-  const selectedProjectUseDeemedProgress = projects.find(p => p.projectId === selectedProject)?.useDeemedProgress ?? true;
   /** 選択中プロジェクトの組織グループCD（不確かさ基準スコープ絞り込みに使用） */
   const selectedProjectOrganizationGroupCd = projects.find(p => p.projectId === selectedProject)?.organizationGroupCd ?? null;
 
@@ -452,8 +459,6 @@ export default function ExperimentWorkerMenu({
               transitionId: tr.transitionId,
               transitionName: tr.transitionName || tr.transitionId,
               status: toProgressRowStatus(tr.progressStatus),
-              hasRecord: tr.progressPercentage > 0,
-              progressRate: tr.progressPercentage,
               materialRecorded: tr.materialActualCount ?? 0,
               materialTotal: tr.materialCount ?? 0,
               conditionRecorded: tr.conditionActualCount ?? 0,
@@ -546,8 +551,6 @@ export default function ExperimentWorkerMenu({
             transitionId: tr.transitionId,
             transitionName: tr.transitionName || tr.transitionId,
             status: toProgressRowStatus(tr.progressStatus),
-            hasRecord: tr.progressPercentage > 0,
-            progressRate: tr.progressPercentage,
             materialRecorded: tr.materialActualCount ?? 0,
             materialTotal: tr.materialCount ?? 0,
             conditionRecorded: tr.conditionActualCount ?? 0,
@@ -583,7 +586,6 @@ export default function ExperimentWorkerMenu({
             projectId={selectedProject || undefined}
             methodId={progressRows[0]?.methodId || undefined}
             progressRows={progressRows}
-            useDeemedProgress={selectedProjectUseDeemedProgress}
             projectStatus={selectedProjectStatus ?? undefined}
             allWorkerInstructions={instructions}
             onConfirmInstruction={handleConfirmInstruction}
@@ -599,7 +601,6 @@ export default function ExperimentWorkerMenu({
                 await updateTransitionStatus(selectedProject, targetRow.methodId, targetRow.transitionId, {
                   taskNo: targetRow.taskNo,
                   status: TransitionStatusCode.IN_PROGRESS,
-                  progressRate: 0,
                 });
                 await reloadProgressRows(selectedProject);
               } catch (err) {
@@ -615,7 +616,6 @@ export default function ExperimentWorkerMenu({
                 await updateTransitionStatus(selectedProject, targetRow.methodId, targetRow.transitionId, {
                   taskNo: targetRow.taskNo,
                   status: TransitionStatusCode.COMPLETED,
-                  progressRate: 100,
                 });
                 await reloadProgressRows(selectedProject);
               } catch (err) {
@@ -642,7 +642,6 @@ export default function ExperimentWorkerMenu({
                 await updateTransitionStatus(selectedProject, targetRow.methodId, targetRow.transitionId, {
                   taskNo: targetRow.taskNo,
                   status: statusCode,
-                  progressRate: statusCode === TransitionStatusCode.COMPLETED ? 100 : undefined,
                 });
                 await reloadProgressRows(selectedProject);
               } catch (err) {

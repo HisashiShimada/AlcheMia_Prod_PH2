@@ -985,7 +985,7 @@ export const confirmInstruction = async (
  * @param projectName プロジェクト名
  * @param methodId メソッドID
  * @param transitionId トランジションID
- * @param request リクエストボディ（taskNo, status, progressRate, comment）
+ * @param request リクエストボディ（taskNo, status, comment）
  * @returns 更新されたトランジション情報
  * @throws Error APIエラー時
  *
@@ -994,7 +994,6 @@ export const confirmInstruction = async (
  * await updateTransitionStatus('sample_project', 'method1', 't1', {
  *   taskNo: 1,
  *   status: 'running',
- *   progressRate: 50,
  *   comment: '実験を開始しました',
  * });
  * ```
@@ -1031,7 +1030,6 @@ export const updateTransitionStatus = async (
     console.log('[DEBUG] updateTransitionStatus - Success', {
       transitionId: response.data.data.transitionId,
       status: response.data.data.status,
-      progressRate: response.data.data.progressRate,
       updatedAt: response.data.data.updatedAt,
     });
 
@@ -1885,7 +1883,6 @@ export const fetchTransitionStatus = async (
           transition_id: string;
           transition_name: string;
           status: number;
-          progress: number;
           last_updated: string | null;
           material_count?: number;
           material_actual_count?: number;
@@ -1913,7 +1910,6 @@ export const fetchTransitionStatus = async (
       transitionName: t.transition_name,
       progressStatus: getTransitionStatusLabel(t.status),
       latestStatus: getTransitionStatusLabel(t.status),
-      progressPercentage: t.progress ?? 0,
       materialCount: t.material_count ?? 0,
       materialActualCount: t.material_actual_count ?? 0,
       conditionCount: t.condition_count ?? 0,

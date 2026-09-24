@@ -183,7 +183,6 @@ export class WorkerProjectService implements IWorkerProjectService {
         description: project.description || '',
         projectStatus: project.project_status,
         organizationGroupCd: project.organization_group_cd ?? null,
-        useDeemedProgress: project.use_deemed_progress ?? true,
         createdAt: toJSTIsoString(new Date(project.create_at)),
         updatedAt: toJSTIsoString(new Date(project.update_at)),
       }));

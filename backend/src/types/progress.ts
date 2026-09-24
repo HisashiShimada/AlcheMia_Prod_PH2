@@ -26,9 +26,6 @@ export interface TransitionProgress {
   /** ステータス */
   status: TransitionStatus;
   
-  /** 進捗率（0-100） */
-  progress: number;
-  
   /** 最終更新日時（ISO 8601形式）またはnull */
   last_updated: string | null;
   
@@ -238,9 +235,6 @@ export interface ExperimentRecord {
   
   /** ステータス */
   status: TransitionStatus;
-  
-  /** 進捗率（0-100） */
-  progress: number;
   
   /** 更新日時 */
   update_at: Date;

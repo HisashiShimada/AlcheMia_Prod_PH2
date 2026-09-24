@@ -436,7 +436,6 @@ export async function downloadOrganizationCsv(req: Request, res: Response, next:
       'chief_user_email': o.chiefUserId,
       'corporation_name': o.corporationName,
       'is_entry': o.isEntry,
-      'use_deemed_progress': o.useDeemedProgress,
       'update_at': o.updatedAt,
       'is_active': o.isActive,
     }));

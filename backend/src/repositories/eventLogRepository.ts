@@ -93,7 +93,6 @@ export interface EventLogData {
   transition_id?: string;
   place_id?: string;
   status?: TransitionStatus; // 数値型（0-6）
-  progress_rate?: number;
   comment?: string | null;
   updated_by: string;
   timestamp: Date;
@@ -249,9 +248,6 @@ export class EventLogRepository {
       }
       if (eventData.status !== undefined) {
         logData.status = eventData.status;
-      }
-      if (eventData.progress_rate !== undefined) {
-        logData.progress_rate = eventData.progress_rate;
       }
       if (eventData.comment !== undefined) {
         logData.comment = eventData.comment;

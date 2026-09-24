@@ -38,7 +38,6 @@ SELECT
   COUNT(CASE WHEN td.status BETWEEN 1 AND 4 THEN 1 END)  AS inprogress_transitions,
   COUNT(CASE WHEN td.status = 0 OR td.status IS NULL
              THEN 1 END)                                  AS notstarted_transitions,
-  COALESCE(ROUND(AVG(td.progress_rate), 1), 0)           AS avg_progress_rate
 
 FROM project p
 -- タスク基本情報 (INNER JOIN: プロジェクトが存在し、かつ method_id が一致するもの)

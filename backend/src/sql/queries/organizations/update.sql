@@ -5,13 +5,12 @@
 -- $4: chief_user_id (null=変更なし)
 -- $5: corporation_id (null=変更なし)
 -- $6: is_entry (null=変更なし)
--- $7: use_deemed_progress (null=変更なし)
--- $8: is_active (null=変更なし)
--- $9: update_user_id
--- $10: contract_capacity (null=変更なし)
--- $11: contract_users (null=変更なし)
--- $12: contract_projects (null=変更なし)
--- $13: default_retention_days (null=変更なし)
+-- $7: is_active (null=変更なし)
+-- $8: update_user_id
+-- $9: contract_capacity (null=変更なし)
+-- $10: contract_users (null=変更なし)
+-- $11: contract_projects (null=変更なし)
+-- $12: default_retention_days (null=変更なし)
 UPDATE organization
 SET
   organization_display_name = COALESCE($2, organization_display_name),
@@ -19,13 +18,12 @@ SET
   chief_user_id             = COALESCE($4, chief_user_id),
   corporation_id            = COALESCE($5, corporation_id),
   is_entry                  = COALESCE($6, is_entry),
-  use_deemed_progress       = COALESCE($7, use_deemed_progress),
-  is_active                 = COALESCE($8, is_active),
-  contract_capacity         = COALESCE($10, contract_capacity),
-  contract_users            = COALESCE($11, contract_users),
-  contract_projects         = COALESCE($12, contract_projects),
-  default_retention_days    = COALESCE($13, default_retention_days),
-  update_user_id            = $9,
+  is_active                 = COALESCE($7, is_active),
+  contract_capacity         = COALESCE($9, contract_capacity),
+  contract_users            = COALESCE($10, contract_users),
+  contract_projects         = COALESCE($11, contract_projects),
+  default_retention_days    = COALESCE($12, default_retention_days),
+  update_user_id            = $8,
   update_at                 = NOW()
 WHERE organization_id = $1
 RETURNING

@@ -118,7 +118,6 @@ export interface TransitionProgress {
   transitionId: string;
   transitionName?: string;
   progressStatus: string;
-  progressPercentage?: number;
   assignedWorker?: string;
   startDate?: string;
   endDate?: string;
@@ -153,7 +152,6 @@ export interface WorkDetail {
   methodName?: string;     // このタスクが属するメソッド名
   workStatus: TaskStatus;
   assignedWorkerId?: string;
-  progressPercentage: number;
   stats: ProgressStats;
   transitionProgress: TransitionProgress[];
 }
@@ -251,8 +249,6 @@ export interface ProgressRow {
   transitionName?: string;
   /** ステータス文字列（バックエンドの数値→文字列変換済み） */
   status: 'not_started' | 'preparing' | 'ready' | 'in_progress' | 'on_hold' | 'completed' | 'issue';
-  /** 記録済みプロパティが1件以上ある場合 true */
-  hasRecord: boolean;
   /** Material 入力進捗 */
   materialRecorded?: number;
   materialTotal?: number;
@@ -284,12 +280,6 @@ export interface ProgressRow {
    * ProgressOverviewTab の訂正ボタン表示制御に使用
    */
   taskStatus?: number;
-  /**
-   * バックエンドから取得したトランジション進捗率（0-100）。
-   * progressService.normalizeProgress により、completed 時は必ず 100 が返る。
-   * progressRowToTransition でのフロー図表示時に MCR 件数計算より優先して使用する。
-   */
-  progressRate?: number;
 }
 
 /** ProgressOverviewTab コンポーネントの Props */
@@ -322,7 +312,6 @@ export interface TransitionStatusItem {
   transitionName: string;
   progressStatus: string;
   latestStatus: string;
-  progressPercentage: number;
   /** MAIMLから取得した Material 定義数 */
   materialCount?: number;
   /** DBから取得した Material 実績数 */

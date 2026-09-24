@@ -7,7 +7,6 @@ INSERT INTO organization (
   chief_user_id,
   corporation_id,
   is_entry,
-  use_deemed_progress,
   is_active,
   contract_capacity,
   contract_users,
@@ -18,7 +17,7 @@ INSERT INTO organization (
   create_at,
   update_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()
 )
 RETURNING
   organization_id,

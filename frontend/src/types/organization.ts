@@ -47,7 +47,6 @@ export interface OrganizationData {
   chiefUserName: string;
   corporationName: string;
   isEntry: number;
-  useDeemedProgress: boolean;
   isActive: boolean;
   contractCapacity: number | null;
   contractedUsers: number | null;

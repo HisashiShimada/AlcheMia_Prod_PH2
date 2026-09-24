@@ -249,7 +249,6 @@ export async function findTaskDetail(
     (t) => ({
       transitionId: t.transition_id as string,
       status:       t.status !== null ? Number(t.status) : null,
-      progressRate: t.progress_rate !== null ? Number(t.progress_rate) : null,
       updatedAt:    t.update_at ? (t.update_at as Date).toISOString() : null,
     })
   );
@@ -259,14 +258,12 @@ export async function findTaskDetail(
   const completedCount     = Number(row.completed_transitions) ?? 0;
   const inProgressCount    = Number(row.inprogress_transitions) ?? 0;
   const notStartedCount    = Number(row.notstarted_transitions) ?? 0;
-  const avgProgressRate    = Number(row.avg_progress_rate)   ?? 0;
 
   const stats: TaskDetailStats = {
     totalTransitions,
     completed:          completedCount,
     inProgress:         inProgressCount,
     notStarted:         notStartedCount,
-    progressPercentage: avgProgressRate,
   };
 
   // ── 4. レスポンス組み立て ──────────────────────────────────────────
