@@ -621,19 +621,19 @@ export async function bulkInsertCriteria(
  *
  * @param organizationId - 組織ID
  * @param keys           - 検索する uncertainty_key の配列
- * @returns `{ key: string; uncertainty_name: string }[]`
+ * @returns `{ key: string; uncertainty_name: string | null }[]`
  */
 export async function findByKeys(
   organizationId: string,
   keys: string[]
-): Promise<Array<{ key: string; uncertainty_name: string }>> {
+): Promise<Array<{ key: string; uncertainty_name: string | null }>> {
   if (keys.length === 0) return [];
 
   const pgp = getPgp();
 
   // 外部SQLファイルからクエリを読み込み実行する
   const sqlQuery = await loadSqlFile('uncertainty_criteria/findByKeys.sql');
-  const rows = await pgp.manyOrNone<{ key: string; uncertainty_name: string }>(
+  const rows = await pgp.manyOrNone<{ key: string; uncertainty_name: string | null }>(
     sqlQuery,
     [organizationId, keys]
   );
