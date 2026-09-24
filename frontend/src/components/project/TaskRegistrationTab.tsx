@@ -377,20 +377,29 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       const unsentInstructions = instructions.filter(inst => inst.instruction_status === InstructionStatus.UNSENT);
       const hasUnsent = unsentInstructions.length > 0;
 
-      // 指示がない場合、チェック済みメソッドに experiment_plan が存在するかを確認
+      // 指示がない場合、チェック済み全メソッドに experiment_plan が存在するかを確認
       let hasExperimentPlan = false;
       if (!hasUnsent) {
         const checkedMethodIdsForValidation = taskDetails
           .filter(task => checkedTaskIds.has(task.id) && !task.workerLinkedFlg)
           .map(task => task.methodId);
 
+        // 全メソッドについてチェック（1つでも未登録があれば false）
+        let allMethodsHavePlan = checkedMethodIdsForValidation.length > 0;
         for (const methodId of checkedMethodIdsForValidation) {
           const planResult = await getExperimentPlans(projectId, methodId);
-          if (planResult && planResult.plans.length > 0) {
-            hasExperimentPlan = true;
-            break;
+          // planned_values が存在し、かつ空でないことを確認（初期INSERT済みの {} は未登録扱い）
+          const hasValidPlanForMethod =
+            planResult != null &&
+            planResult.plans.some(
+              plan => plan.plannedValues != null && Object.keys(plan.plannedValues).length > 0
+            );
+          if (!hasValidPlanForMethod) {
+            allMethodsHavePlan = false;
+            break; // 1つでも未登録があれば早期脱出
           }
         }
+        hasExperimentPlan = allMethodsHavePlan;
       }
 
       if (!hasUnsent && !hasExperimentPlan) {

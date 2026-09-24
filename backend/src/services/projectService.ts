@@ -676,21 +676,33 @@ export class ProjectService {
         };
       }
 
-      // バリデーション5: 実験計画存在チェック（planned_values が登録されているか確認）
+      // バリデーション5: 実験計画存在チェック（全メソッドに planned_values が登録されているか確認）
+      // project_task から登録済みメソッドID一覧を取得
+      const registeredTasksForValidation = await projectTaskRepository.findByProject(organizationId, projectId);
+      const registeredMethodIds = [...new Set(registeredTasksForValidation.map(t => t.method_id))];
+
       const experimentPlansForValidation = await experimentPlanRepository.findByProject(
         organizationId,
         projectId
       );
-      const hasValidPlan = experimentPlansForValidation.some(
-        (p) => p.planned_values != null
-      );
-      if (!hasValidPlan) {
+
+      // メソッドIDごとに有効な計画（planned_values != null）が存在するかをマップ化
+      const planMapByMethod = new Map<string, boolean>();
+      for (const p of experimentPlansForValidation) {
+        if (p.planned_values != null) {
+          planMapByMethod.set(p.method_id, true);
+        }
+      }
+
+      // 登録済み全メソッドに実験計画が存在するかチェック
+      const missingPlanMethodId = registeredMethodIds.find(methodId => !planMapByMethod.has(methodId));
+      if (missingPlanMethodId !== undefined) {
         await client.query('ROLLBACK');
         return {
           success: false,
           error: {
             code: 'CHECKOUT_NO_EXPERIMENT_PLAN',
-            message: '実験計画が登録されていません。実験計画ダイアログで計画を保存してからチェックアウトしてください',
+            message: '実験計画が登録されていません。全メソッドの実験計画ダイアログで計画を保存してからチェックアウトしてください',
             details: {
               projectId,
               projectName: project.project_name,
