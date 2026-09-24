@@ -12,6 +12,7 @@ import {
 } from '@/services/organizationGroupApiService';
 import type { OrgUser, GroupAddDialogProps } from '@/types/group';
 import type { User } from '@/types/auth';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -122,10 +123,7 @@ const GroupAddDialog: React.FC<GroupAddDialogProps> = ({ open, onClose, onCreate
       onCreated(createdCd, createdName, chiefUserId, chiefUserName, isActive, parentGroupCd ?? null);
       handleReset();
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { error?: { message?: string } } } })
-        ?.response?.data?.error?.message;
-      if (detail) { message.error(t('groupAddDialog.createFailed', { detail })); }
-      else        { message.error(t('groupAddDialog.createError')); }
+      message.error(extractErrorMessage(err, t('groupAddDialog.createError')));
     } finally {
       setLoading(false);
     }
@@ -150,7 +148,7 @@ const GroupAddDialog: React.FC<GroupAddDialogProps> = ({ open, onClose, onCreate
           {t('groupAddDialog.createBtn')}
         </Button>,
       ]}
-      width={480}
+      width={560}
       maskClosable={false}
     >
       <Space orientation="vertical" style={{ width: '100%' }} size={16}>

@@ -8,6 +8,8 @@ import { Typography, Tabs, Table, Button, Space, Tag, theme, Checkbox, Empty, To
 import { CloseOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { PropertyObject, StructuredProperties, SelectedProperties, TableDataType } from '@/types/editor';
+import type { DataResultsGroup } from '@/utils/maimlDataExtractor';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -47,6 +49,7 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
   onClose,
 }) => {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   
   // アクティブなタブの状態
   const [activeTab, setActiveTab] = useState('basic');
@@ -110,9 +113,9 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
   const formatKey = (key: string): string => {
     const keyMap: Record<string, string> = {
       id: 'ID',
-      name: '名前',
-      type: 'タイプ',
-      description: '説明',
+      name: t('viewer.propertyKeyMap.name'),
+      type: t('viewer.propertyKeyMap.type'),
+      description: t('viewer.propertyKeyMap.description'),
       uuid: 'UUID',
       template_uuid: 'Template UUID',
       template_description: 'Template Description',
@@ -162,15 +165,15 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
     // undefined: プロパティ自体が未設定
     if (value === undefined) {
       return (
-        <Tooltip title="値が設定されていません">
-          <Text type="secondary" italic style={{ color: '#bfbfbf' }}>未設定</Text>
+        <Tooltip title={t('viewer.propertyViewer.valueNotSet')}>
+          <Text type="secondary" italic style={{ color: '#bfbfbf' }}>{t('viewer.propertyViewer.valueNotSetLabel')}</Text>
         </Tooltip>
       );
     }
     // null: 明示的に null が設定されている
     if (value === null) {
       return (
-        <Tooltip title="null が設定されています">
+        <Tooltip title={t('viewer.propertyViewer.nullSet')}>
           <Text type="secondary" italic style={{ color: '#bfbfbf' }}>null</Text>
         </Tooltip>
       );
@@ -178,9 +181,9 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
     // 空文字: 値は存在するが中身が空
     if (value === '') {
       return (
-        <Tooltip title="空の文字列が設定されています">
+        <Tooltip title={t('viewer.propertyViewer.emptyStringSet')}>
           <Text type="secondary" italic style={{ color: '#bfbfbf' }}>
-            {`""`} <Text type="secondary" style={{ fontSize: 10 }}>(空文字)</Text>
+            {`""`} <Text type="secondary" style={{ fontSize: 10 }}>({t('viewer.propertyViewer.emptyStringLabel')})</Text>
           </Text>
         </Tooltip>
       );
@@ -208,7 +211,153 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
     return <Text>{String(value)}</Text>;
   };
 
-  // テーブルのカラム定義を生成
+  // -----------------------------------------------------------------------
+  // データタブ: Results N件グループ表示用
+  // -----------------------------------------------------------------------
+
+  /** データタブ テーブル行データ型 */
+  interface DataTabRow {
+    key: string;
+    propKey: string;
+    xsiType?: string;
+    value?: string;
+    description?: string;
+  }
+
+  /** データタブ カラム定義（テンプレートタブと同等の4列） */
+  const dataTabColumns: ColumnsType<DataTabRow> = [
+    {
+      title: t('viewer.propertyViewer.colKey'),
+      dataIndex: 'propKey',
+      key: 'propKey',
+      width: '22%',
+      render: (text: string) => <Text strong style={{ fontSize: 12 }}>{text}</Text>,
+    },
+    {
+      title: 'xsi:type',
+      dataIndex: 'xsiType',
+      key: 'xsiType',
+      width: '22%',
+      render: (text?: string) => text
+        ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
+        : (
+          <Tooltip title={t('viewer.propertyViewer.xsiTypeNotSet')}>
+            <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
+          </Tooltip>
+        ),
+    },
+    {
+      title: t('viewer.propertyViewer.colValue'),
+      dataIndex: 'value',
+      key: 'value',
+      width: '28%',
+      render: (text?: string) => renderValue(text),
+    },
+    {
+      title: t('viewer.propertyViewer.colDescriptionUnit'),
+      dataIndex: 'description',
+      key: 'description',
+      width: '28%',
+      render: (text?: string) => text && text.trim()
+        ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
+        : (
+          <Tooltip title={t('viewer.propertyViewer.descriptionNotSet')}>
+            <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
+          </Tooltip>
+        ),
+    },
+  ];
+
+  /**
+   * DataResultsGroup[] をタブ内コンテンツとしてレンダリングする
+   * 各グループにカウントヘッダーを付与し、テンプレートタブと同等の4列テーブルで表示する
+   */
+  const renderDataGroups = (groups: DataResultsGroup[]) => {
+    if (groups.length === 0) {
+      return (
+        <Tooltip title={t('viewer.propertyViewer.dataNotSet')}>
+          <Text type="secondary" style={{ cursor: 'default' }}>{t('viewer.propertyViewer.noPropertiesToDisplay')}</Text>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <div>
+        {groups.map((group, index) => {
+          const headerLabel = group.resultsName
+            ? `Results #${index + 1}  ${group.resultsName}`
+            : `Results #${index + 1}`;
+
+          const rows: DataTabRow[] = group.properties.map((p, i) => ({
+            key: `${index}_${i}`,
+            propKey: p.key,
+            xsiType: p.xsiType,
+            value: p.value,
+            description: [p.description, p.units ? t('viewer.propertyViewer.unitLabel').replace('{units}', p.units) : undefined]
+              .filter(Boolean)
+              .join(' / ') || undefined,
+          }));
+
+          return (
+            <div key={group.resultsId} style={{ marginBottom: 24 }}>
+              {/* グループヘッダー */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginBottom: 6,
+                  paddingBottom: 6,
+                  borderBottom: '1px solid #d9d9d9',
+                }}
+              >
+                <Tag color="geekblue" style={{ fontWeight: 600, fontSize: 12, margin: 0 }}>
+                  {headerLabel}
+                </Tag>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  id: {group.resultsId}
+                </Text>
+              </div>
+              {/* Results メタ情報 */}
+              {(group.resultsDescription || group.resultsUuid) && (
+                <div style={{ marginBottom: 6, paddingLeft: 4 }}>
+                  {group.resultsDescription && (
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {group.resultsDescription}
+                    </Text>
+                  )}
+                  {group.resultsUuid && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 10, color: '#bfbfbf' }}>
+                        uuid: {group.resultsUuid}
+                      </Text>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* プロパティテーブル */}
+              {rows.length > 0 ? (
+                <Table<DataTabRow>
+                  columns={dataTabColumns}
+                  dataSource={rows}
+                  pagination={false}
+                  size="small"
+                  showHeader={true}
+                  scroll={{ x: true }}
+                />
+              ) : (
+                <Text type="secondary" style={{ fontSize: 12, paddingLeft: 8 }}>
+                  {t('viewer.propertyViewer.noProperties')}
+                </Text>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+
   const getColumns = (structure: 'basic' | 'template' | 'data'): ColumnsType<TableDataType> => {
     const selected = selectedProperties[structure] || [];
     
@@ -228,14 +377,14 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
         ),
       },
       {
-        title: 'プロパティ',
+        title: t('viewer.propertyViewer.colProperty'),
         dataIndex: 'propKey',
         key: 'propKey',
         width: '35%',
         render: (text: string) => <Text strong>{text}</Text>,
       },
       {
-        title: '値',
+        title: t('viewer.propertyViewer.colValue'),
         dataIndex: 'value',
         key: 'value',
         render: renderValue,
@@ -253,11 +402,11 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
     
     if (tableData.length === 0) {
       const tooltipTitle = structure === 'data'
-        ? 'このノードにはデータが設定されていません'
-        : 'プロパティがありません';
+        ? t('viewer.propertyViewer.dataNotSet')
+        : t('viewer.propertyViewer.noProperties');
       return (
         <Tooltip title={tooltipTitle}>
-          <span><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="プロパティがありません" /></span>
+          <span><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('viewer.propertyViewer.noProperties')} /></span>
         </Tooltip>
       );
     }
@@ -292,7 +441,7 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
       key: 'basic',
       label: (
         <Space>
-          基本情報
+          {t('viewer.propertyViewer.tabBasic')}
           {getSelectedCount('basic') > 0 && (
             <Tag color="blue">{getSelectedCount('basic')}</Tag>
           )}
@@ -304,7 +453,7 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
       key: 'template',
       label: (
         <Space>
-          テンプレート
+          {t('viewer.propertyViewer.tabTemplate')}
           {getSelectedCount('template') > 0 && (
             <Tag color="blue">{getSelectedCount('template')}</Tag>
           )}
@@ -316,8 +465,8 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
         const tableData = convertToTemplateTableData(structuredProperties.template || {});
         if (tableData.length === 0) {
           return (
-            <Tooltip title="このノードにはテンプレートが設定されていません">
-              <span><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="プロパティがありません" /></span>
+            <Tooltip title={t('viewer.propertyViewer.templateNotSet')}>
+              <span><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('viewer.propertyViewer.noProperties')} /></span>
             </Tooltip>
           );
         }
@@ -337,7 +486,7 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
             ),
           },
           {
-            title: 'キー',
+            title: t('viewer.propertyViewer.colKey'),
             dataIndex: 'propKey',
             key: 'propKey',
             width: '28%',
@@ -351,20 +500,20 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
             render: (text: string) => text
               ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
               : (
-                <Tooltip title="xsi:type が設定されていません">
+                <Tooltip title={t('viewer.propertyViewer.xsiTypeNotSet')}>
                   <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
                 </Tooltip>
               ),
           },
           {
-            title: '値',
+            title: t('viewer.propertyViewer.colValue'),
             dataIndex: 'value',
             key: 'value',
             width: '25%',
             render: renderValue,
           },
           {
-            title: '説明/単位',
+            title: t('viewer.propertyViewer.colDescriptionUnit'),
             dataIndex: 'description',
             key: 'description',
             width: '27%',
@@ -373,7 +522,7 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
               return text && text.trim()
                 ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
                 : (
-                  <Tooltip title="説明・単位が設定されていません">
+                  <Tooltip title={t('viewer.propertyViewer.descriptionNotSet')}>
                     <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
                   </Tooltip>
                 );
@@ -403,13 +552,13 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
       key: 'data',
       label: (
         <Space>
-          データ
-          {getSelectedCount('data') > 0 && (
-            <Tag color="blue">{getSelectedCount('data')}</Tag>
+          {t('viewer.propertyViewer.tabData')}
+          {(structuredProperties.dataGroups ?? []).length > 0 && (
+            <Tag color="blue">{t('viewer.propertyViewer.itemCount').replace('{count}', String((structuredProperties.dataGroups ?? []).length))}</Tag>
           )}
         </Space>
       ),
-      children: renderPropertyTable('data', dataProps),
+      children: renderDataGroups(structuredProperties.dataGroups ?? []),
     },
   ];
   
@@ -417,7 +566,7 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
   if (!properties || !properties.id) {
     return (
       <div style={{ padding: 16 }}>
-        <Text type="secondary">プロパティ情報がありません</Text>
+        <Text type="secondary">{t('viewer.propertyViewer.noPropertyInfo')}</Text>
       </div>
     );
   }
@@ -442,7 +591,7 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
       >
         <Space>
           <Title level={5} style={{ margin: 0, color: 'white' }}>
-            {properties.name || 'ノード'} プロパティ
+            {t('viewer.propertyViewer.headerTitle').replace('{name}', properties.name || t('viewer.propertyViewer.nodeDefault'))}
           </Title>
           {properties.type && (
             <Tag color="white" style={{ color: headerColor }}>

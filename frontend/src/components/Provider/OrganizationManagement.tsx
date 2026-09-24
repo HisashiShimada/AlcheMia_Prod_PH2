@@ -900,7 +900,7 @@ export default function OrganizationManagement() {
                 label={t('organizationManagement.form.organizationCd')}
                 rules={[{ required: true, message: t('organizationManagement.form.organizationCdRequired') }]}
               >
-                <Input />
+                <Input placeholder={t('organizationManagement.form.organizationCdPlaceholder')} />
               </Form.Item>
               <Form.Item
                 name="organizationDisplayName"

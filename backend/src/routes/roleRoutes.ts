@@ -87,7 +87,11 @@ router.post(
       .notEmpty()
       .withMessage('ロールCDは必須です')
       .isString()
-      .withMessage('ロールCDは文字列である必要があります'),
+      .withMessage('ロールCDは文字列である必要があります')
+      .matches(/^[A-Za-z0-9\-_]+$/)
+      .withMessage('ロールCDは半角英数・ハイフン・アンダースコアのみ使用できます')
+      .isLength({ max: 30 })
+      .withMessage('ロールCDは30文字以内である必要があります'),
     body('roleName')
       .notEmpty()
       .withMessage('ロール名は必須です')

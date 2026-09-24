@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Modal, Drawer, Tabs, Table, Checkbox, Tag, Typography, Space, Empty, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { PropertyObject, StructuredProperties, SelectedProperties } from '@/types/editor';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -40,6 +41,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
   getContainer,  // 新規: コンテナ要素取得関数
 }) => {
   const [activeTab, setActiveTab] = useState<string>('basic');
+  const { t } = useLanguage();
 
   // 実際の表示モードを決定（後方互換性を考慮）
   const actualDisplayMode: 'modal' | 'drawer' | 'embedded' = 
@@ -58,23 +60,23 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
       } else if (obj.elements && obj.elements.value !== undefined) {
         value = obj.elements.value;
       } else if (obj.children && Array.isArray(obj.children) && obj.children.length > 0) {
-        return { text: `${obj.children.length}個の子要素`, kind: 'children' };
+        return { text: `${obj.children.length}${t('viewer.propertyViewer.noProperties')}`, kind: 'children' };
       } else {
         // value が存在しない = undefined 扱い
-        return { text: '未設定', kind: 'undefined' };
+        return { text: t('viewer.propertyViewer.valueNotSetLabel'), kind: 'undefined' };
       }
     } else {
       value = propertyObj;
     }
 
     if (value === undefined) {
-      return { text: '未設定', kind: 'undefined' };
+      return { text: t('viewer.propertyViewer.valueNotSetLabel'), kind: 'undefined' };
     }
     if (value === null) {
       return { text: 'null', kind: 'null' };
     }
     if (value === '') {
-      return { text: '"" (空文字)', kind: 'empty' };
+      return { text: `"" (${t('viewer.propertyViewer.emptyStringLabel')})`, kind: 'empty' };
     }
 
     return { text: String(value), kind: 'normal' };
@@ -91,22 +93,22 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
     return propKey;
   };
 
-  // 構造名のマッピング
-  const structureLabels: Record<keyof StructuredProperties, string> = {
-    basic: '基本情報',
-    template: 'テンプレート',
-    data: 'データ'
+  // 構造名のマッピング（選択可能な3区分のみ。dataGroups はプロパティ選択対象外）
+  const structureLabels: Record<'basic' | 'template' | 'data', string> = {
+    basic: t('viewer.structuredPropertySelector.structureBasic'),
+    template: t('viewer.structuredPropertySelector.structureTemplate'),
+    data: t('viewer.structuredPropertySelector.structureData'),
   };
 
   // 選択済みチップの表示
   const renderSelectedChips = () => {
     const allSelected: Array<{
-      structure: keyof StructuredProperties;
+      structure: 'basic' | 'template' | 'data';
       property: string;
       label: string;
     }> = [];
 
-    (Object.keys(structureLabels) as Array<keyof StructuredProperties>).forEach(structure => {
+    (Object.keys(structureLabels) as Array<'basic' | 'template' | 'data'>).forEach(structure => {
       if (selectedProperties[structure]) {
         selectedProperties[structure].forEach(prop => {
           allSelected.push({
@@ -122,7 +124,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
       return (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="プロパティが選択されていません"
+          description={t('viewer.structuredPropertySelector.noPropertiesSelected')}
           style={{ margin: '16px 0' }}
         />
       );
@@ -145,7 +147,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
   };
 
   // プロパティリストの表示（Table形式）
-  const renderPropertyList = (structure: keyof StructuredProperties) => {
+  const renderPropertyList = (structure: 'basic' | 'template' | 'data') => {
     const properties = structuredProperties[structure] || {};
     const selected = selectedProperties[structure] || [];
 
@@ -153,14 +155,14 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
 
     if (propertyEntries.length === 0) {
       const tooltipTitle = structure === 'template'
-        ? 'このノードにはテンプレートが設定されていません'
+        ? t('viewer.structuredPropertySelector.templateNotSet')
         : structure === 'data'
-        ? 'このノードにはデータが設定されていません'
+        ? t('viewer.structuredPropertySelector.dataNotSet')
         : undefined;
       const emptyEl = (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={`${structureLabels[structure]}プロパティがありません`}
+          description={t('viewer.structuredPropertySelector.structurePropertiesEmpty').replace('{structure}', structureLabels[structure])}
           style={{ padding: '32px 0' }}
         />
       );
@@ -198,20 +200,20 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
         ),
       },
       {
-        title: 'プロパティ名',
+        title: t('viewer.structuredPropertySelector.colPropertyName'),
         dataIndex: 'label',
         key: 'label',
         width: '40%',
         render: (label: string) => <Text strong>{label}</Text>,
       },
       {
-        title: '値',
+        title: t('viewer.structuredPropertySelector.colValue'),
         dataIndex: 'value',
         key: 'value',
         render: (formatted: { text: string; kind: string }) => {
           if (formatted.kind === 'undefined') {
             return (
-              <Tooltip title="値が設定されていません">
+              <Tooltip title={t('viewer.propertyViewer.valueNotSet')}>
                 <Text type="secondary" italic style={{ fontSize: '12px', color: '#bfbfbf' }}>
                   {formatted.text}
                 </Text>
@@ -220,7 +222,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
           }
           if (formatted.kind === 'null') {
             return (
-              <Tooltip title="null が設定されています">
+              <Tooltip title={t('viewer.propertyViewer.nullSet')}>
                 <Text type="secondary" italic style={{ fontSize: '12px', color: '#bfbfbf' }}>
                   {formatted.text}
                 </Text>
@@ -229,7 +231,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
           }
           if (formatted.kind === 'empty') {
             return (
-              <Tooltip title="空の文字列が設定されています">
+              <Tooltip title={t('viewer.propertyViewer.emptyStringSet')}>
                 <Text type="secondary" italic style={{ fontSize: '12px', color: '#bfbfbf' }}>
                   {formatted.text}
                 </Text>
@@ -261,7 +263,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
   };
 
   // タブのバッジカウント
-  const getTabLabel = (structure: keyof StructuredProperties) => {
+  const getTabLabel = (structure: 'basic' | 'template' | 'data') => {
     const count = selectedProperties[structure]?.length || 0;
     return (
       <Space>
@@ -276,7 +278,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
     <>
       {/* 選択済みチップ */}
       <div style={{ borderBottom: '1px solid #f0f0f0', marginBottom: 16 }}>
-        <Text strong style={{ padding: '8px 16px', display: 'block' }}>選択中のプロパティ</Text>
+        <Text strong style={{ padding: '8px 16px', display: 'block' }}>{t('viewer.structuredPropertySelector.selectedPropertiesTitle')}</Text>
         {renderSelectedChips()}
       </div>
 
@@ -324,7 +326,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
             flexShrink: 0
           }}>
             <Text strong style={{ fontSize: 16 }}>
-              {`プロパティ: ${nodeName || nodeId || '未選択'}`}
+              {t('viewer.structuredPropertySelector.embeddedHeader').replace('{name}', nodeName || nodeId || t('viewer.structuredPropertySelector.unselected'))}
             </Text>
           </div>
           
@@ -339,7 +341,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
       // Drawerモード（解決策B）
       return (
         <Drawer
-          title={`プロパティ選択: ${nodeName || nodeId || '未選択'}`}
+          title={t('viewer.structuredPropertySelector.drawerTitle').replace('{name}', nodeName || nodeId || t('viewer.structuredPropertySelector.unselected'))}
           placement="right"
           open={open}
           onClose={onClose}
@@ -359,7 +361,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
       // Modalモード（解決策A）
       return (
         <Modal
-          title={`プロパティ選択: ${nodeName || nodeId || '未選択'}`}
+          title={t('viewer.structuredPropertySelector.modalTitle').replace('{name}', nodeName || nodeId || t('viewer.structuredPropertySelector.unselected'))}
           open={open}
           onCancel={onClose}
           onOk={onClose}
