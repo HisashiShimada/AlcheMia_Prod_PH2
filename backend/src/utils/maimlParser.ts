@@ -1072,6 +1072,7 @@ function validateReferences(parsedXML : any) {
    * @returns prefix → URI のマップ（xmlns 宣言がない場合は空 Map）
    */
   function extractXmlnsDeclarations(parsedXML: any): Map<string, string> {
+    console.log(parsedXML);
     const result = new Map<string, string>();
     const maiml = parsedXML?.maiml;
     if (!maiml || typeof maiml !== 'object') return result;
@@ -1083,6 +1084,7 @@ function validateReferences(parsedXML : any) {
         const uri = String(maiml[attr]);
         if (prefix && uri) {
           result.set(prefix, uri);
+          console.log(prefix, uri);
         }
       }
     }
@@ -1143,6 +1145,7 @@ function validateReferences(parsedXML : any) {
         const uri = String(obj[attr]);
         if (prefix && uri) {
           currentXmlns.set(prefix, uri);
+          console.log(prefix, uri);
         }
       }
     }
@@ -1221,10 +1224,12 @@ function validateReferences(parsedXML : any) {
       if (colonIdx !== -1) {
         // prefix:localName 形式
         const prefix = key.substring(0, colonIdx);
+        console.log(prefix);
 
         // Step 1: グローバルCSVに登録されている prefix か
         if (globalPrefixes.has(prefix)) {
           // グローバル宣言の prefix → エラーなし
+          console.log('is Global');
           continue;
         }
 
@@ -1235,18 +1240,22 @@ function validateReferences(parsedXML : any) {
         if (prefixUri === undefined) {
           // xmlns 宣言なし → DB 確認なしで即エラー
           // （MAIMLとして宣言されていない prefix を使うこと自体が不正）
+          console.log('is Prefix Uri Not found');
         } else if (!isAlchemiaUri(prefixUri)) {
           // 外部名前空間（Alchemia 以外）の prefix → スキップ
+          console.log('is Not Alchemia Uri');
           continue;
         } else {
           // Alchemia URI の prefix → DB（namespace_term）と照合
           if (registeredQNames.has(key)) {
+            console.log('term is registered');
             continue;
           }
         }
       } else {
         // プレーンキー形式（prefix なし）
         // ネームスペースに依存しない用語はMaiml仕様上エラーとしない → スキップ
+        console.log('is place key');
         continue;
       }
 

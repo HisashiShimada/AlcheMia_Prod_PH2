@@ -29,7 +29,7 @@ export interface WorkerAccessibleProjectRow {
  * WorkerProjectフィルター
  */
 export interface WorkerProjectFilters {
-  status?: '1' | '2' | '3'; // プロジェクトステータス（文字列）
+  status?: '1' | '2' | '3' | '6'; // プロジェクトステータス（文字列）
   sortBy: 'create_at' | 'project_name' | 'update_at';
   order: 'asc' | 'desc';
   limit: number;
@@ -128,7 +128,7 @@ export async function findWorkerAccessible(
 export async function countWorkerAccessible(
   organizationId: string,
   userId: string,
-  status?: '1' | '2' | '3',
+  status?: '1' | '2' | '3' | '6',
   visibleGroupCds?: string[]
 ): Promise<number> {
   const pgp = getPgp();
