@@ -200,6 +200,8 @@ router.post(
       .withMessage('organizationCd is required')
       .isString()
       .withMessage('organizationCd must be a string')
+      .matches(/^[A-Za-z0-9\-_]+$/)
+      .withMessage('organizationCd must contain only alphanumeric characters, hyphens, or underscores')
       .isLength({ max: 50 })
       .withMessage('organizationCd must be 50 characters or less'),
     body('organizationDisplayName')

@@ -186,6 +186,8 @@ interface WorkProperty {
   description?: string;
   /** template_data.property_set の uncertainty[].description（実験作業者が入力した定性評価理由） */
   qualitativeReason?: string;
+  /** 定性評価の uncertaintyKey（バックエンドの uncertainty[].key うち定性評価に該当するもの） */
+  qualitativeUncertaintyKey?: string;
 }
 
 /** Insertion スロット（テンプレートに紐づくファイル添付欄） */
@@ -296,8 +298,9 @@ interface PropertyCardProps {
   /**
    * 定性評価（confidence）が変化したときに親へ通知するコールバック（省略可）。
    * value: 選択された評価値（null の場合は選択解除）
+   * uncertaintyKey: 定性評価に紐づく uncertainty キー（省略可）
    */
-  onConfidenceChange?: (propKey: string, value: string | null) => void;
+  onConfidenceChange?: (propKey: string, value: string | null, uncertaintyKey?: string | null) => void;
   /**
    * 定性評価理由が変化したときに親へ通知するコールバック（省略可）。
    * value: 入力された理由テキスト（空文字の場合は null）
@@ -555,7 +558,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   onClick={() => {
                     const newVal = confidence === level ? null : level;
                     setConfidence(newVal);
-                    onConfidenceChange?.(prop.key, newVal);
+                    onConfidenceChange?.(prop.key, newVal, prop.qualitativeUncertaintyKey ?? null);
                   }}
                   style={{
                     ...style,
@@ -730,11 +733,7 @@ interface PropertyListProps {
    * propKey: プロパティキー
    * value: 選択された評価値（null の場合は選択解除）
    */
-  onConfidenceChange?: (placeId: string, propKey: string, value: string | null) => void;
-  /**
-   * 直近の保存で得られた不確かさ判定結果マップ。
-   * uncertaintyKey をキーとした判定結果（'良好' | '不良'）。
-   */
+  onConfidenceChange?: (placeId: string, propKey: string, value: string | null, uncertaintyKey?: string | null) => void;
   /**
    * 定性評価理由変化コールバック
    */
@@ -826,8 +825,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
               onUncertaintyValuesChange={(entries) => {
                 onUncertaintyValuesChange?.(template.id, entries);
               }}
-              onConfidenceChange={(propKey, value) => {
-                onConfidenceChange?.(template.id, propKey, value);
+              onConfidenceChange={(propKey, value, uncertaintyKey) => {
+                onConfidenceChange?.(template.id, propKey, value, uncertaintyKey);
               }}
               onQualitativeReasonChange={(propKey, value) => {
                 onQualitativeReasonChange?.(template.id, propKey, value);
@@ -1373,8 +1372,12 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
 
 interface InstructionCollapseProps {
   instructions: Instruction[];
-  /** 指示確認ボタン押下コールバック */
-  onConfirmInstruction?: () => void;
+  /** 指示確認ボタン押下コールバック（methodId / taskNo / transitionId を渡す） */
+  onConfirmInstruction?: (methodId: string, taskNo: number, transitionId: string) => void;
+  /**
+   * 現在表示中のトランジション情報。ボタン押下時に渡す。
+   */
+  displayKey?: { taskNo: number; transitionId: string; methodId?: string } | null;
   /**
    * 初期表示時に展開しておくかどうか。
    * true = 展開（準備状態など指示確認が必要なタイミング）
@@ -1387,7 +1390,7 @@ interface InstructionCollapseProps {
   confirmInstructionDisabled?: boolean;
 }
 
-const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions, onConfirmInstruction, defaultOpen = false, confirmInstructionDisabled = false }) => {
+const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions, onConfirmInstruction, displayKey, defaultOpen = false, confirmInstructionDisabled = false }) => {
 
   const { t } = useLanguage();
   const [activeKeys, setActiveKeys] = useState<string[]>(defaultOpen ? ['instructions'] : []);
@@ -1442,7 +1445,12 @@ const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions,
                       type="primary"
                       disabled={confirmInstructionDisabled}
                       style={confirmInstructionDisabled ? undefined : { background: '#52c41a', borderColor: '#52c41a' }}
-                      onClick={(e) => { e.stopPropagation(); onConfirmInstruction?.(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (displayKey) {
+                          onConfirmInstruction?.(displayKey.methodId ?? '', displayKey.taskNo, displayKey.transitionId);
+                        }
+                      }}
                     >
                       {t('workRecord.confirmInstruction')}
                     </Button>
@@ -1587,8 +1595,8 @@ interface PlanProps {
   onCreatorRefChange: (value: string | null) => void;
   /** Instrument 選択変更コールバック */
   onInstrumentRefChange: (value: string | null) => void;
-  /** プロジェクト指示「確認」ボタン押下コールバック */
-  onConfirmInstruction?: () => void;
+  /** プロジェクト指示「確認」ボタン押下コールバック（methodId / taskNo / transitionId を渡す） */
+  onConfirmInstruction?: (methodId: string, taskNo: number, transitionId: string) => void;
   /**
    * 「開始」ボタン押下コールバック（準備完了→動作状態）
    * displayKey の taskNo / transitionId を引数として受け取る。
@@ -1622,10 +1630,10 @@ interface PlanProps {
    */
   onUncertaintyValuesChange?: (placeId: string, entries: UncertaintyValueEntry[]) => void;
   /**
-   * 定性評価（confidence）変化コールバック（placeId, propKey, value を受け取る）。
+   * 定性評価（confidence）変化コールバック（placeId, propKey, value, uncertaintyKey を受け取る）。
    * handleSave 時に qualitativeValues として saveBatchExperimentData に渡すために使用する。
    */
-  onConfidenceChange?: (placeId: string, propKey: string, value: string | null) => void;
+  onConfidenceChange?: (placeId: string, propKey: string, value: string | null, uncertaintyKey?: string | null) => void;
   /**
    * 定性評価理由変化コールバック（placeId, propKey, value を受け取る）。
    * handleSave 時に confidenceValues の description フィールドを更新するために使用する。
@@ -1805,6 +1813,7 @@ const PlanB: React.FC<PlanProps> = ({
       <InstructionCollapse
         instructions={instructions}
         onConfirmInstruction={onConfirmInstruction}
+        displayKey={displayKey ? { ...displayKey, methodId: displayTransition?.methodId ?? '' } : null}
         defaultOpen={(() => {
           // 現在のアクティブトランジションのステータスが preparing / ready（準備状態）の場合は開いておく
           if (!activeEntry || !progressRows) return false;
@@ -2157,8 +2166,8 @@ interface WorkRecordPanelProps {
   initialTransitionId?: string;
   /** 作業指示一覧（全件）。WorkRecordPanel 内部で現在のトランジションに応じてフィルタリングする */
   allWorkerInstructions?: Instruction[];
-  /** プロジェクト指示「確認」ボタン押下コールバック */
-  onConfirmInstruction?: () => void;
+  /** プロジェクト指示「確認」ボタン押下コールバック（methodId / taskNo / transitionId を渡す） */
+  onConfirmInstruction?: (methodId: string, taskNo: number, transitionId: string) => void;
   /**
    * プロジェクトが属する組織グループCD（任意）。
    * 不確かさ基準新規作成ダイアログのKey属性設定プルダウンのスコープ絞り込みに使用する。
@@ -2270,6 +2279,7 @@ function convertRawProperty(
     confidenceOptionsWithColor,
     description:        (p.qualitativeNote as string | null | undefined) ?? undefined,
     qualitativeReason:  (p.qualitativeReason as string | null | undefined) ?? undefined,
+    qualitativeUncertaintyKey: (p.qualitativeKey as string | null | undefined) ?? undefined,
   };
 }
 
@@ -2336,7 +2346,7 @@ export default function WorkRecordPanel({
    * PropertyCard の confidence ボタン選択時に onConfidenceChange コールバック経由で更新され、
    * handleSave / handleSaveAndNext 時に saveBatchExperimentData へ渡す qualitativeValues を構築する。
    */
-  const confidenceValuesRef = React.useRef<Map<string, { templateId: string; propKey: string; value: string; description?: string | null }>>(new Map());
+  const confidenceValuesRef = React.useRef<Map<string, { templateId: string; propKey: string; value: string; uncertaintyKey?: string | null; description?: string | null }>>(new Map());
 
   /**
    * 直近の保存で得られた不確かさ判定結果マップ。
@@ -2927,7 +2937,14 @@ export default function WorkRecordPanel({
       );
 
       // qualitativeValues: confidenceValuesRef から構築（value 空文字の理由のみエントリは除外）
-      const qualitativeValues = Array.from(confidenceValuesRef.current.values()).filter((qv) => qv.value !== '');
+      const qualitativeValues = Array.from(confidenceValuesRef.current.values())
+        .filter((qv) => qv.value !== '')
+        .map((qv) => ({
+          templateId:    qv.templateId,
+          propKey:       qv.propKey,
+          value:         qv.value,
+          uncertaintyKey: qv.uncertaintyKey ?? null,
+        }));
 
       const res = await saveBatchExperimentData(projectId, methodId, taskNo, {
         records,
@@ -3457,7 +3474,7 @@ export default function WorkRecordPanel({
         uncertaintyValuesRef.current.set(placeId, entries);
       }
     },
-    onConfidenceChange: (templateId: string, propKey: string, value: string | null) => {
+    onConfidenceChange: (templateId: string, propKey: string, value: string | null, uncertaintyKey?: string | null) => {
       // PropertyCard の confidence 選択が変化するたびに Ref を更新する
       // キーは `${templateId}__${propKey}`
       const key = `${templateId}__${propKey}`;
@@ -3465,7 +3482,13 @@ export default function WorkRecordPanel({
         confidenceValuesRef.current.delete(key);
       } else {
         const existing = confidenceValuesRef.current.get(key);
-        confidenceValuesRef.current.set(key, { templateId, propKey, value, description: existing?.description ?? null });
+        confidenceValuesRef.current.set(key, {
+          templateId,
+          propKey,
+          value,
+          uncertaintyKey: uncertaintyKey ?? existing?.uncertaintyKey ?? null,
+          description: existing?.description ?? null,
+        });
       }
     },
     onQualitativeReasonChange: (templateId: string, propKey: string, value: string | null) => {

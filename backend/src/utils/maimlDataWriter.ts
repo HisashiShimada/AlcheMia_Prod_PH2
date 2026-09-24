@@ -12,6 +12,7 @@
 import { randomUUID } from 'crypto';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
 import { resolveUuid } from './maimlUuidExtractor';
+import type { ExperimentPlan } from '../types/database';
 
 
 // ============================================================
@@ -1154,4 +1155,155 @@ export function injectNamespaceDeclarations(
   }
 
   return maimlContent.replace(originalTag, newTag);
+}
+
+// ============================================================
+// buildPlannedValuesResultsXML
+// ============================================================
+
+/**
+ * experiment_plan.planned_values から MAIML の <data><results> XML を生成する
+ *
+ * planned_values の各 fieldKey を解析し、prop_key（{prefix}:{localName}）を
+ * {prefix}:SupervisorDirective{localName} 形式に変換して <property> タグとして出力する。
+ *
+ * @remarks
+ * fieldKey 形式: "{templateId}_{prop_key}" または "{prop_key}" 単独
+ * prop_key 変換規則: "{prefix}:{localName}" → "{prefix}:SupervisorDirective{localName}"
+ * カテゴリ判定: templateId のプレフィックス（materialTemplate/conditionTemplate/resultTemplate）から判定
+ *
+ * @param experimentPlans - experiment_plan テーブルのレコード一覧
+ * @param dataId          - <data> タグの id 属性（デフォルト: 'dataID'）
+ * @param existingUuids   - 既存 MAIML から抽出した UUID マップ（UUID 再利用用）
+ * @returns `<data id="...">...</data>` の XML 文字列。対象データが空の場合は空文字列を返す
+ */
+export function buildPlannedValuesResultsXML(
+  experimentPlans: ExperimentPlan[],
+  dataId: string = 'dataID',
+  existingUuids?: Map<string, string>,
+  validSupervisorKeySet?: Set<string>
+): string {
+  type PropEntry = { propKey: string; value: string };
+
+  // method_id × task_no の出現順を保持
+  const groupOrder: string[] = [];
+  const groupMap = new Map<
+    string,
+    Map<string, { category: string; entries: PropEntry[] }>
+  >();
+
+  // templateId のプレフィックスからカテゴリを判定する
+  function detectCategory(templateId: string): string {
+    const lower = templateId.toLowerCase();
+    if (lower.startsWith('materialtemplate')) return 'material';
+    if (lower.startsWith('conditiontemplate')) return 'condition';
+    if (lower.startsWith('resulttemplate')) return 'result';
+    return 'result';
+  }
+
+  // prop_key を SupervisorDirective 付きに変換する
+  function toSupervisorKey(propKey: string): string {
+    const colonIdx = propKey.indexOf(':');
+    if (colonIdx <= 0) return `SupervisorDirective${propKey}`;
+    const prefix = propKey.slice(0, colonIdx);
+    const localName = propKey.slice(colonIdx + 1);
+    return `${prefix}:SupervisorDirective${localName}`;
+  }
+
+  const RESERVED_KEYS = new Set(['__uncertainty__', '__task__', '__meta__']);
+
+  for (const plan of experimentPlans) {
+    if (!plan.planned_values) continue;
+    const plannedValues = plan.planned_values as Record<string, unknown>;
+    const groupKey = `${plan.method_id}\x00${plan.task_no}`;
+
+    if (!groupMap.has(groupKey)) {
+      groupOrder.push(groupKey);
+      groupMap.set(groupKey, new Map());
+    }
+    const templateMap = groupMap.get(groupKey)!;
+
+    for (const [transitionId, fieldMap] of Object.entries(plannedValues)) {
+      if (transitionId === '__meta__') continue;
+      if (!fieldMap || typeof fieldMap !== 'object') continue;
+
+      for (const [fieldKey, rawValue] of Object.entries(fieldMap as Record<string, unknown>)) {
+        if (RESERVED_KEYS.has(fieldKey)) continue;
+        if (fieldKey.startsWith('mgr-instruction:') || fieldKey.startsWith('Alchemia:SupervisorDirective')) continue;
+        if (rawValue === null || rawValue === undefined) continue;
+        if (typeof rawValue !== 'string' && typeof rawValue !== 'number') continue;
+
+        const value = String(rawValue);
+
+        // "{templateId}_{propKey}" 形式でテンプレートIDプレフィックスを検出
+        const templatePrefixMatch = fieldKey.match(/^((?:material|condition|result)Template_[^_]+)_(.+)$/i);
+        if (!templatePrefixMatch) continue; // templateId が特定できない場合はスキップ
+
+        const templateId = templatePrefixMatch[1];
+        const propKey = templatePrefixMatch[2];
+
+        if (!templateMap.has(templateId)) {
+          templateMap.set(templateId, { category: detectCategory(templateId), entries: [] });
+        }
+        templateMap.get(templateId)!.entries.push({ propKey, value });
+      }
+    }
+  }
+
+  // 対象データがない場合は空文字列を返す（<data> の置換をスキップさせる）
+  if (groupOrder.length === 0) return '';
+
+  // XML 生成
+  let dataXml = `<data id="${escapeXml(dataId)}">\n`;
+  dataXml += `    <uuid>${resolveUuid('data', existingUuids, randomUUID)}</uuid>\n`;
+
+  for (const groupKey of groupOrder) {
+    const templateMap = groupMap.get(groupKey)!;
+    if (templateMap.size === 0) continue;
+
+    const separatorIdx = groupKey.indexOf('\x00');
+    const methodId = groupKey.slice(0, separatorIdx);
+    const taskNoStr = groupKey.slice(separatorIdx + 1);
+    const resultsId = `results_${escapeXml(methodId)}_${taskNoStr}`;
+
+    dataXml += `    <results id="${resultsId}">\n`;
+    dataXml += `      <uuid>${resolveUuid(`results:${resultsId}`, existingUuids, randomUUID)}</uuid>\n`;
+
+    // material → condition → result の順に出力
+    const categoryOrder = ['material', 'condition', 'result'];
+    const byCategory = new Map<string, Array<{ templateId: string; entries: PropEntry[] }>>();
+    for (const cat of categoryOrder) byCategory.set(cat, []);
+    for (const [templateId, info] of templateMap.entries()) {
+      const bucket = byCategory.get(info.category);
+      if (bucket) bucket.push({ templateId, entries: info.entries });
+    }
+
+    for (const category of categoryOrder) {
+      const items = byCategory.get(category) ?? [];
+      for (const { templateId, entries } of items) {
+        if (entries.length === 0) continue;
+        const instanceId = `data-${escapeXml(templateId)}`;
+        dataXml += `      <${category} id="${instanceId}" ref="${escapeXml(templateId)}">\n`;
+        dataXml += `        <uuid>${resolveUuid(`${category}:${instanceId}`, existingUuids, randomUUID)}</uuid>\n`;
+        for (const { propKey, value } of entries) {
+          const outputKey = toSupervisorKey(propKey);
+          // prefix 付き用語（コロンあり）は validSupervisorKeySet でチェック
+          const colonIdx = propKey.indexOf(':');
+          if (colonIdx > 0 && validSupervisorKeySet && !validSupervisorKeySet.has(outputKey)) {
+            // namespace_term に変換後キーが存在しない → スキップ
+            continue;
+          }
+          dataXml += `        <property key="${escapeXml(outputKey)}" xsi:type="stringType">\n`;
+          dataXml += `          <value>${escapeXml(value)}</value>\n`;
+          dataXml += `        </property>\n`;
+        }
+        dataXml += `      </${category}>\n`;
+      }
+    }
+
+    dataXml += `    </results>\n`;
+  }
+
+  dataXml += `  </data>\n`;
+  return dataXml;
 }

@@ -1061,19 +1061,90 @@ function validateReferences(parsedXML : any) {
   }
   
   /**
-   * property / uncertainty タグの key 属性値を再帰的に収集する
+   * パース済みXMLオブジェクトの maiml ルート要素から xmlns 宣言を抽出し、
+   * prefix → URI のマップとして返す。
    *
-   * @param obj - パース済みXMLオブジェクト（任意の階層）
-   * @param keys - 収集した key 値を格納する Set（重複排除のため Set を使用）
+   * fast-xml-parser は attributeNamePrefix: '@_' の設定のため、
+   * `<maiml xmlns:Alchemia="https://Alchemia.co.jp">` は
+   * `parsedXML.maiml['@_xmlns:Alchemia']` としてアクセスできる。
+   *
+   * @param parsedXML - fast-xml-parser でパース済みのXMLオブジェクト
+   * @returns prefix → URI のマップ（xmlns 宣言がない場合は空 Map）
    */
-  function collectPropertyAndUncertaintyKeys(obj: any, keys: Set<string>): void {
+  function extractXmlnsDeclarations(parsedXML: any): Map<string, string> {
+    const result = new Map<string, string>();
+    const maiml = parsedXML?.maiml;
+    if (!maiml || typeof maiml !== 'object') return result;
+
+    for (const attr of Object.keys(maiml)) {
+      // @_xmlns:prefix 形式の属性を抽出（デフォルトxmlns宣言 @_xmlns は除外）
+      if (attr.startsWith('@_xmlns:')) {
+        const prefix = attr.slice('@_xmlns:'.length);
+        const uri = String(maiml[attr]);
+        if (prefix && uri) {
+          result.set(prefix, uri);
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * 指定した URI が Alchemia が払い出した URI かどうかを判定する
+   *
+   * 判定基準: URI に 'Alchemia.co.jp' が含まれる
+   * 例: 'https://ORG001.Alchemia.co.jp' → true
+   *     'https://Alchemia.co.jp'         → true（システム名前空間）
+   *     'http://example.com/ext'          → false（外部URI）
+   *
+   * @param uri - 判定対象のURI文字列
+   * @returns Alchemia が払い出したURIであれば true
+   */
+  function isAlchemiaUri(uri: string): boolean {
+    return uri.includes('Alchemia.co.jp');
+  }
+
+  /**
+   * property / uncertainty タグの key 属性値を、そのスコープで有効な xmlns マップと共に再帰収集する。
+   *
+   * XML 名前空間仕様に準拠し、各ノードで宣言された xmlns:prefix は
+   * そのノードおよびすべての子孫ノードに適用される。
+   * 親から引き継いだ inheritedXmlns をコピーして上書きすることで
+   * スコープのイミュータブルな引き継ぎを実現する。
+   *
+   * @param obj            - パース済みXMLオブジェクト（任意の階層）
+   * @param entries        - 収集結果を追加する配列 { key, xmlnsMap }
+   * @param inheritedXmlns - 親スコープから引き継いだ prefix → URI マップ
+   */
+  function collectPropertyAndUncertaintyKeys(
+    obj: any,
+    entries: Array<{ key: string; xmlnsMap: Map<string, string> }>,
+    inheritedXmlns: Map<string, string>
+  ): void {
     if (typeof obj !== 'object' || obj === null) return;
 
     if (Array.isArray(obj)) {
       for (const item of obj) {
-        collectPropertyAndUncertaintyKeys(item, keys);
+        collectPropertyAndUncertaintyKeys(item, entries, inheritedXmlns);
       }
       return;
+    }
+
+    // このノードで宣言された xmlns を親スコープに追加（コピーして上書き・イミュータブル）
+    // xmlns 宣言がないノードではコピーを作らずそのまま引き継ぐ（パフォーマンス最適化）
+    let currentXmlns = inheritedXmlns;
+    for (const attr of Object.keys(obj)) {
+      if (attr.startsWith('@_xmlns:')) {
+        // 初めて宣言が見つかったときだけ Map をコピーする
+        if (currentXmlns === inheritedXmlns) {
+          currentXmlns = new Map(inheritedXmlns);
+        }
+        const prefix = attr.slice('@_xmlns:'.length);
+        const uri = String(obj[attr]);
+        if (prefix && uri) {
+          currentXmlns.set(prefix, uri);
+        }
+      }
     }
 
     for (const tagName of Object.keys(obj)) {
@@ -1081,13 +1152,15 @@ function validateReferences(parsedXML : any) {
         const elements = Array.isArray(obj[tagName]) ? obj[tagName] : [obj[tagName]];
         for (const el of elements) {
           if (el && typeof el === 'object' && el['@_key']) {
-            keys.add(String(el['@_key']));
+            // キーとそのスコープの xmlns マップをセットで記録する
+            entries.push({ key: String(el['@_key']), xmlnsMap: currentXmlns });
           }
           // ネスト内も再帰的に走査
-          collectPropertyAndUncertaintyKeys(el, keys);
+          collectPropertyAndUncertaintyKeys(el, entries, currentXmlns);
         }
-      } else {
-        collectPropertyAndUncertaintyKeys(obj[tagName], keys);
+      } else if (!tagName.startsWith('@_')) {
+        // 属性キー（@_xxx）は値が文字列などのプリミティブなため再帰しない
+        collectPropertyAndUncertaintyKeys(obj[tagName], entries, currentXmlns);
       }
     }
   }
@@ -1096,11 +1169,19 @@ function validateReferences(parsedXML : any) {
    * Phase 7: property / uncertainty タグの key 属性値を用語テーブルと照合するバリデーション
    *
    * 判定フロー:
-   * 1. key に含まれる prefix がグローバルCSV（global-declarations.csv）に登録されている
+   * 1. プレーンキー（prefix なし）
+   *    → ネームスペースに依存しない用語はMaiml仕様上エラーとしない → 常にスキップ
+   * 2. key に含まれる prefix がグローバルCSV（global-declarations.csv）に登録されている
    *    → エラーなし（グローバル宣言の prefix を持つ用語として許可）
-   * 2. グローバルCSV未登録 prefix のキー、またはプレーンキー（prefix なし）
-   *    → namespace_term（DB）のアクティブ用語と照合
-   *    → 未登録の場合 → strict: errors / lenient: warnings に追加
+   * 3. そのキーのスコープ（maiml ルートの xmlns ＋ 祖先タグの xmlns を引き継いだマップ）で
+   *    prefix の URI を確認
+   *    a. xmlns 宣言なし（prefix が不明）
+   *       → DB 確認なしで即エラー
+   *    b. xmlns 宣言あり かつ 非Alchemia URI（外部名前空間）
+   *       → エラーなし（外部名前空間の用語は照合対象外）
+   *    c. xmlns 宣言あり かつ Alchemia URI（Alchemia.co.jp を含む）
+   *       → namespace_term（DB）のアクティブ用語と照合
+   *       → 未登録の場合 → エラー
    *
    * @param parsedXML - fast-xml-parser でパース済みのXMLオブジェクト
    * @param registeredQNames - namespace_term のアクティブ用語 qname の Set
@@ -1117,35 +1198,56 @@ function validateReferences(parsedXML : any) {
     const errors: ErrorContent[] = [];
     const warnings: ErrorContent[] = [];
 
-    // property / uncertainty タグの key 属性値を全収集
-    const collectedKeys = new Set<string>();
-    collectPropertyAndUncertaintyKeys(parsedXML, collectedKeys);
+    // MAIMLルート要素の xmlns 宣言を初期スコープとして抽出
+    const rootXmlnsMap = extractXmlnsDeclarations(parsedXML);
 
-    console.log(`🔍 [validatePropertyTermKeys] 収集された key 数: ${collectedKeys.size}`);
+    // property / uncertainty タグの key 属性値をスコープ付きで収集
+    // entries: { key: string; xmlnsMap: Map<string, string> }[]
+    // xmlnsMap はそのキーが収集された時点で有効な xmlns 宣言のマップ
+    const keyEntries: Array<{ key: string; xmlnsMap: Map<string, string> }> = [];
+    collectPropertyAndUncertaintyKeys(parsedXML, keyEntries, rootXmlnsMap);
 
-    for (const key of collectedKeys) {
+    console.log(`🔍 [validatePropertyTermKeys] 収集された key 数: ${keyEntries.length}`);
+
+    // 同一キーのエラーは1件のみ報告する（異なるスコープで同一キーが現れるケース対策）
+    const reportedErrorKeys = new Set<string>();
+
+    for (const { key, xmlnsMap } of keyEntries) {
+      // 既にエラー報告済みのキーはスキップ
+      if (reportedErrorKeys.has(key)) continue;
+
       // prefix:localName 形式かプレーンキーかを判定
       const colonIdx = key.indexOf(':');
       if (colonIdx !== -1) {
         // prefix:localName 形式
         const prefix = key.substring(0, colonIdx);
 
-        // ステップ1: グローバルCSVに登録されている prefix か
+        // Step 1: グローバルCSVに登録されている prefix か
         if (globalPrefixes.has(prefix)) {
           // グローバル宣言の prefix → エラーなし
           continue;
         }
 
-        // ステップ2: namespace_term（DB）に登録されているか
-        if (registeredQNames.has(key)) {
+        // Step 2: そのキーのスコープ xmlns マップで prefix の URI を確認
+        // スコープ = maiml ルートの xmlns ＋ 祖先タグの xmlns を順に引き継いだマップ
+        const prefixUri = xmlnsMap.get(prefix);
+
+        if (prefixUri === undefined) {
+          // xmlns 宣言なし → DB 確認なしで即エラー
+          // （MAIMLとして宣言されていない prefix を使うこと自体が不正）
+        } else if (!isAlchemiaUri(prefixUri)) {
+          // 外部名前空間（Alchemia 以外）の prefix → スキップ
           continue;
+        } else {
+          // Alchemia URI の prefix → DB（namespace_term）と照合
+          if (registeredQNames.has(key)) {
+            continue;
+          }
         }
       } else {
         // プレーンキー形式（prefix なし）
-        // ステップ2: namespace_term（DB）に登録されているか
-        if (registeredQNames.has(key)) {
-          continue;
-        }
+        // ネームスペースに依存しない用語はMaiml仕様上エラーとしない → スキップ
+        continue;
       }
 
       // 未登録キー
@@ -1161,6 +1263,7 @@ function validateReferences(parsedXML : any) {
         canBeIgnoredOnUpload: mode === 'lenient',
       };
 
+      reportedErrorKeys.add(key);
       errors.push(errorEntry);
     }
 

@@ -16,6 +16,7 @@ export interface DataPropertyObject {
   description?: string;
 }
 
+/** @deprecated DataInfo は1件のみ対応。新規実装では DataResultsGroup[] を使用すること */
 export interface DataInfo {
   results_id?: string;
   results_uuid?: string;
@@ -24,6 +25,29 @@ export interface DataInfo {
   uuid?: string;
   description?: string;
   [key: string]: string | DataPropertyObject | undefined;
+}
+
+/**
+ * 1件の Results グループ（fetchAllDataInfoFromMaiml の戻り値要素）
+ *
+ * MAIMLの <data><results> 1件分に対応する、
+ * results自体のメタ情報 + マッチした要素のプロパティ配列を保持する。
+ */
+export interface DataResultsGroup {
+  /** results タグの id 属性 */
+  resultsId: string;
+  /** results タグの uuid 属性 */
+  resultsUuid?: string;
+  /** results タグの name 要素 */
+  resultsName?: string;
+  /** results タグの description 要素 */
+  resultsDescription?: string;
+  /** マッチした要素（material/condition/result）の uuid */
+  elementUuid?: string;
+  /** マッチした要素の description */
+  elementDescription?: string;
+  /** プロパティ一覧 */
+  properties: DataPropertyObject[];
 }
 
 /**
@@ -44,36 +68,41 @@ function propertyToDataPropertyObject(prop: Property): DataPropertyObject {
 
 /**
  * MaimlParserTyped を使って、指定の templateId に対応する
- * <data><results><material|condition|result ref="templateId"> の情報を取得する
+ * <data><results> を全件走査し、マッチする Results グループを配列で返す。
+ *
+ * 1つの templateId に対して複数の Results が存在するケースに対応している。
+ * 各 Results の中から templateType に応じた要素（material/condition/result）を探し、
+ * ref 属性が templateId に一致するものをグループとして収集する。
  *
  * @param maimlData MAIML XML 文字列
  * @param templateId 対象テンプレートID（data.results.*.ref 属性でマッチ）
  * @param templateType 'material' | 'condition' | 'result'
- * @returns DataInfo または null（見つからない場合）
+ * @returns DataResultsGroup の配列（0件の場合は空配列）
  */
-export function fetchDataInfoFromMaiml(
+export function fetchAllDataInfoFromMaiml(
   maimlData: string,
   templateId: string,
-  templateType: 'material' | 'condition' | 'result'
-): DataInfo | null {
-  if (!maimlData || !templateId) return null;
+  templateType: string
+): DataResultsGroup[] {
+  if (!maimlData || !templateId) return [];
 
   let parser: MaimlParserTyped;
   try {
     parser = new MaimlParserTyped(maimlData);
   } catch (e) {
     console.error('[maimlDataExtractor] MaimlParserTyped 初期化エラー:', e);
-    return null;
+    return [];
   }
 
   const root = parser.getTypedMaiml();
   if (!root.data) {
     console.log(`[maimlDataExtractor] <data>セクションが存在しません: templateId=${templateId}`);
-    return null;
+    return [];
   }
 
   const dataSection = root.data;
   const resultsList = dataSection.results ?? [];
+  const groups: DataResultsGroup[] = [];
 
   for (const results of resultsList) {
     // templateType に応じて対応する配列を選択
@@ -92,29 +121,63 @@ export function fetchDataInfoFromMaiml(
 
     console.log(`✅ [maimlDataExtractor] 発見: results id=${results.id}, templateId=${templateId}, type=${templateType}`);
 
-    const dataInfo: DataInfo = {};
+    const group: DataResultsGroup = {
+      resultsId: results.id,
+      properties: [],
+    };
 
-    // Results 基本情報
-    if (results.id) dataInfo.results_id = results.id;
-    if (results.uuid) dataInfo.results_uuid = results.uuid;
-    if (results.name) dataInfo.results_name = results.name;
-    if (results.description) dataInfo.results_description = results.description;
-
-    // 要素自体の基本情報
-    if (found.uuid) dataInfo.uuid = found.uuid;
-    if (found.description) dataInfo.description = found.description;
+    if (results.uuid) group.resultsUuid = results.uuid;
+    if (results.name) group.resultsName = results.name;
+    if (results.description) group.resultsDescription = results.description;
+    if (found.uuid) group.elementUuid = found.uuid;
+    if (found.description) group.elementDescription = found.description;
 
     // property 要素を DataPropertyObject に変換
     const props = found.properties ?? [];
-    props.forEach((prop) => {
-      if (!prop.key) return;
-      dataInfo[`property_${prop.key}`] = propertyToDataPropertyObject(prop);
-    });
+    group.properties = props
+      .filter((prop) => !!prop.key)
+      .map((prop) => propertyToDataPropertyObject(prop));
 
-    console.log(`✅ [maimlDataExtractor] DataInfo構築完了: ${Object.keys(dataInfo).length}件`);
-    return dataInfo;
+    groups.push(group);
   }
 
-  console.log(`⚠️ [maimlDataExtractor] 該当Data要素なし: templateId=${templateId}, type=${templateType}`);
-  return null;
+  console.log(`✅ [maimlDataExtractor] fetchAllDataInfoFromMaiml 完了: ${groups.length}件の Results グループ (templateId=${templateId})`);
+  return groups;
 }
+
+/**
+ * @deprecated fetchAllDataInfoFromMaiml を使用すること。
+ *
+ * 後方互換のため残存。内部で fetchAllDataInfoFromMaiml を呼び出し、
+ * 最初にマッチした Results グループを DataInfo 形式に変換して返す。
+ *
+ * @param maimlData MAIML XML 文字列
+ * @param templateId 対象テンプレートID
+ * @param templateType 'material' | 'condition' | 'result'
+ * @returns DataInfo または null（見つからない場合）
+ */
+export function fetchDataInfoFromMaiml(
+  maimlData: string,
+  templateId: string,
+  templateType: 'material' | 'condition' | 'result'
+): DataInfo | null {
+  const groups = fetchAllDataInfoFromMaiml(maimlData, templateId, templateType);
+  if (groups.length === 0) return null;
+
+  const first = groups[0];
+  const dataInfo: DataInfo = {};
+
+  if (first.resultsId) dataInfo.results_id = first.resultsId;
+  if (first.resultsUuid) dataInfo.results_uuid = first.resultsUuid;
+  if (first.resultsName) dataInfo.results_name = first.resultsName;
+  if (first.resultsDescription) dataInfo.results_description = first.resultsDescription;
+  if (first.elementUuid) dataInfo.uuid = first.elementUuid;
+  if (first.elementDescription) dataInfo.description = first.elementDescription;
+
+  first.properties.forEach((prop) => {
+    dataInfo[`property_${prop.key}`] = prop;
+  });
+
+  return dataInfo;
+}
+
