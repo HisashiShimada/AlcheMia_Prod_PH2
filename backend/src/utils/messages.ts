@@ -244,7 +244,7 @@ const ja: Messages = {
     validation: {
       pageInt: 'pageは1以上の整数である必要があります',
       limitInt: 'limitは1〜100の整数である必要があります',
-      statusIn: 'statusは1, 2, 3のいずれかである必要があります',
+      statusIn: 'statusは1, 2, 3, 6のいずれかである必要があります',
       tasksArray: 'tasksは1件以上の配列である必要があります',
       methodIdRequired: 'methodIdは必須です',
     },
@@ -366,7 +366,7 @@ const en: Messages = {
     validation: {
       pageInt: 'page must be an integer greater than or equal to 1',
       limitInt: 'limit must be an integer between 1 and 100',
-      statusIn: 'status must be one of 1, 2, or 3',
+      statusIn: 'status must be one of 1, 2, 3, or 6',
       tasksArray: 'tasks must be an array with at least one item',
       methodIdRequired: 'methodId is required',
     },

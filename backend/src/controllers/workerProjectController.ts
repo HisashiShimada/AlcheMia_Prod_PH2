@@ -54,7 +54,7 @@ export class WorkerProjectController {
       // バリデーション済みパラメータを直接使用
       const page = parseInt((req.query.page as string) || '1', 10);
       const limit = parseInt((req.query.limit as string) || '20', 10);
-      const status = req.query.status as '1' | '2' | '3' | undefined;
+      const status = req.query.status as '1' | '2' | '3' | '6' | undefined;
       const sortBy = (req.query.sort_by as string) || 'create_at';
       const order = (req.query.order as string) || 'desc';
 

@@ -535,7 +535,7 @@ export const saveTaskRegistration = async (
 export const getWorkerAccessibleProjects = async (
   page: number = 1,
   limit: number = 100,
-  status?: '1' | '2' | '3',
+  status?: '1' | '2' | '3' | '6',
   sortBy: 'create_at' | 'project_name' | 'update_at' = 'project_name',
   order: 'asc' | 'desc' = 'asc'
 ): Promise<ServiceApiResponse<WorkerProjectListResponse>> => {

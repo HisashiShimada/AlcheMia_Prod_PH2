@@ -29,7 +29,7 @@ export interface WorkerAccessibleProjectRow {
  * WorkerProjectフィルター
  */
 export interface WorkerProjectFilters {
-  status?: '1' | '2' | '3'; // プロジェクトステータス（文字列）
+  status?: '1' | '2' | '3' | '6'; // プロジェクトステータス（文字列）
   sortBy: 'create_at' | 'project_name' | 'update_at';
   order: 'asc' | 'desc';
   limit: number;
@@ -70,8 +70,8 @@ export async function findWorkerAccessible(
     // 単一ステータス指定
     statusFilter = `AND project.project_status = ${parseInt(filters.status, 10)}`;
   } else {
-    // デフォルト: ステータス 1, 2, 3（タスク実行待ち、実行中、レビュー待ち）
-    statusFilter = 'AND project.project_status IN (1, 2, 3)';
+    // デフォルト: ステータス 1, 2, 3, 6（タスク実行待ち、実行中、レビュー待ち、レビュー差戻）
+    statusFilter = 'AND project.project_status IN (1, 2, 3, 6)';
   }
 
   // グループフィルタの構築
@@ -128,7 +128,7 @@ export async function findWorkerAccessible(
 export async function countWorkerAccessible(
   organizationId: string,
   userId: string,
-  status?: '1' | '2' | '3',
+  status?: '1' | '2' | '3' | '6',
   visibleGroupCds?: string[]
 ): Promise<number> {
   const pgp = getPgp();
@@ -151,8 +151,8 @@ export async function countWorkerAccessible(
     // 単一ステータス指定
     statusFilter = `AND project.project_status = ${parseInt(status, 10)}`;
   } else {
-    // デフォルト: ステータス 1, 2, 3（タスク実行待ち、実行中、レビュー待ち）
-    statusFilter = 'AND project.project_status IN (1, 2, 3)';
+    // デフォルト: ステータス 1, 2, 3, 6（タスク実行待ち、実行中、レビュー待ち、レビュー差戻）
+    statusFilter = 'AND project.project_status IN (1, 2, 3, 6)';
   }
 
   // グループフィルタの構築
