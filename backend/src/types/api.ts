@@ -1259,4 +1259,21 @@ export interface CorrectRecordResult {
   corrected: number;
 }
 
+// ============================================================
+// MaimlWriterService 用フィルター型
+// ============================================================
+
+/**
+ * writeDataAndEventLog の書き込み対象を絞り込むフィルター型
+ *
+ * - 指定した場合: 指定 methodId + taskNo の template_data のみを <data> タグに書き込む
+ * - 省略した場合: プロジェクト全件を書き込む（既存挙動を維持）
+ */
+export interface MaimlWriteTargetFilter {
+  /** 書き込み対象のメソッドID */
+  methodId: string;
+  /** 書き込み対象のタスク番号 */
+  taskNo: number;
+}
+
 

@@ -39,6 +39,7 @@ import { findDeclarationsByProjectScope, findProjectGroupCd, findAllByOrganizati
 import { readGlobalDeclarations } from './globalNamespaceFileService';
 import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
 import { OrganizationUserRepository } from '../repositories/organizationUserRepository';
+import type { MaimlWriteTargetFilter } from '../types/api';
 
 /**
  * プロジェクトスコープの名前空間（DB）とグローバル名前空間（ファイルサーバ）をマージして返す
@@ -88,7 +89,8 @@ export class MaimlWriterService {
   async writeDataAndEventLog(
     organizationId: string,
     projectId: string,
-    projectName: string
+    projectName: string,
+    targetFilter?: MaimlWriteTargetFilter
   ): Promise<void> {
     const storageService = getStorageService();
     const pool = getPool();
@@ -131,16 +133,33 @@ export class MaimlWriterService {
     );
     const templateDataRows: TemplateDataRow[] = templateDataResult.rows;
 
+    // --- 3-a. targetFilter が指定された場合は対象タスクのみに絞り込む ---
+    // タスク単位承認時など、特定 methodId + taskNo のデータのみを <data> タグに書き込む場合に使用する。
+    // 未指定の場合はプロジェクト全件を対象とする（既存挙動を維持）。
+    const filteredTemplateDataRows = targetFilter
+      ? templateDataRows.filter(
+          (row) => row.method_id === targetFilter.methodId
+                && row.task_no   === targetFilter.taskNo
+        )
+      : templateDataRows;
+
     // --- 3-b. experiment_uncertainty_judge から判定結果を全件取得・集約して
-    //          templateDataRows の property_set.properties[].uncertainties に注入 ---
+    //          filteredTemplateDataRows の property_set.properties[].uncertainties に注入 ---
     // 各プロパティの定量評価結果（良好/不良）を MAIML <uncertainty> の <value> として書き込む。
     // 集約ルール: (placeId, propertyKey) ごとに全件「良好」なら「良好」、1件でも「不良」なら「不良」。
     try {
-      const methodIds = [...new Set(templateDataRows.map((r) => r.method_id))];
+      // targetFilter 指定時は対象 methodId のみ処理する
+      const methodIds = targetFilter
+        ? [targetFilter.methodId]
+        : [...new Set(filteredTemplateDataRows.map((r) => r.method_id))];
       const judgeRepo = new ExperimentUncertaintyJudgeRepository();
 
       for (const methodId of methodIds) {
-        const judgeRows = await judgeRepo.findAllByProject(organizationId, projectId, methodId);
+        const allJudgeRows = await judgeRepo.findAllByProject(organizationId, projectId, methodId);
+        // targetFilter 指定時は taskNo でも絞り込む
+        const judgeRows = targetFilter
+          ? allJudgeRows.filter((jr) => jr.taskNo === targetFilter.taskNo)
+          : allJudgeRows;
         if (judgeRows.length === 0) continue;
 
         // (templateId, propertyKey) ごとに集約
@@ -152,8 +171,8 @@ export class MaimlWriterService {
           judgeMap.set(mapKey, jr.judgeResult === '不良' ? '不良' : '良好');
         }
 
-        // templateDataRows の property_set.properties に判定結果を注入
-        for (const row of templateDataRows) {
+        // filteredTemplateDataRows の property_set.properties に判定結果を注入
+        for (const row of filteredTemplateDataRows) {
           if (row.method_id !== methodId) continue;
           const ps = row.property_set as Record<string, unknown> | null;
           if (!ps || !Array.isArray(ps['properties'])) continue;
@@ -217,7 +236,7 @@ export class MaimlWriterService {
     const existingUuids = extractUuidsFromMaiml(maimlContent);
 
     // --- 7. XML を生成（data: 既存UUID再利用 / eventLog: 変化があった要素のみ新規UUID払い出し）---
-    const dataXml = buildDataXML(templateDataRows, dataId, existingUuids);
+    const dataXml = buildDataXML(filteredTemplateDataRows, dataId, existingUuids);
     const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
 
     // --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
@@ -322,7 +341,8 @@ export class MaimlWriterService {
     console.log(
       `[MaimlWriterService] MAIMLファイルを更新しました: ` +
         `organizationId=${organizationId}, projectId=${projectId}, ` +
-        `templateData=${templateDataRows.length}件, eventLog=${logJsonArray.length}件`
+        `templateData=${filteredTemplateDataRows.length}件, eventLog=${logJsonArray.length}件` +
+        (targetFilter ? ` (filter: methodId=${targetFilter.methodId}, taskNo=${targetFilter.taskNo})` : '')
     );
   }
 
