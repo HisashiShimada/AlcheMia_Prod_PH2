@@ -307,10 +307,16 @@ const DiffCell: React.FC<{ expected: number | string | null; actual: number | st
   expected,
   actual,
 }) => {
-  if (typeof expected !== 'number' || typeof actual !== 'number') {
+  // expected / actual は DB の CHARACTER VARYING カラムから文字列で返る場合があるため
+  // parseFloat で数値変換し、変換失敗（NaN）の場合のみ差分非表示にする
+  const numExpected = typeof expected === 'number' ? expected
+    : expected != null ? parseFloat(String(expected)) : NaN;
+  const numActual = typeof actual === 'number' ? actual
+    : actual != null ? parseFloat(String(actual)) : NaN;
+  if (isNaN(numExpected) || isNaN(numActual)) {
     return <Text type="secondary">—</Text>;
   }
-  const diff = actual - expected;
+  const diff = numActual - numExpected;
   const s = parseFloat(diff.toFixed(4)).toString();
   if (diff === 0) return <Text type="secondary">±0</Text>;
   if (diff > 0)   return <Text style={{ color: '#cf1322' }}>+{s}</Text>;

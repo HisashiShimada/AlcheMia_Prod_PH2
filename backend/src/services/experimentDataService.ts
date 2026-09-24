@@ -342,8 +342,11 @@ export class ExperimentDataService {
         })();
 
         const mapKey = `${templateId}__${propKey}`;
+        // qualMap のキーはフロントから placeId（WorkTemplate.id）で送信されるため、
+        // ps.templateId（MAIMLのtemplate.id）でマッチしない場合は place_id でフォールバック
+        const mapKeyByPlace = `${row.place_id}__${propKey}`;
         const quant = quantMap.get(mapKey);
-        const qual = qualMap.get(mapKey);
+        const qual = qualMap.get(mapKey) ?? qualMap.get(mapKeyByPlace);
 
         await experimentInstructionDetailRepository.updateActualAndUncertainty({
           organizationId,
@@ -720,6 +723,8 @@ function convertPropertyForFallback(
   let qualitativeOptions: QualitativeOptionRow[] = [];
   let qualitativeEval: string | null = null;
   let qualitativeNote: string | null = null;
+  /** 定性評価の uncertainty キー（フロントから qualitativeValues.uncertaintyKey として送信するために必要） */
+  let qualitativeKey: string | null = null;
   /**
    * 定量評価の全件リスト（複数の定量 uncertainty に対応）。
    * フロントエンドの WorkRecordPanel.convertRawProperty が
@@ -754,6 +759,7 @@ function convertPropertyForFallback(
         toleranceValues.push(toleranceEntry);
       } else if (isQualitative && qualitativeOptions.length === 0) {
         // 定性: 最初の1件
+        qualitativeKey     = key;
         qualitativeOptions = detail?.qualitativeOptions ?? [];
         qualitativeEval    = unc.value     != null ? String(unc.value) : null;
         qualitativeNote    = unc.description ?? null;
@@ -775,6 +781,7 @@ function convertPropertyForFallback(
     qualitativeOptions,
     qualitativeEval,
     qualitativeNote,
+    qualitativeKey,
     // uncertainty[] 配列をそのまま保持する（フロントエンドの保存ロジックが
     // 定性評価選択値・理由を uncertainty[].value / description に書き込むために参照する）
     uncertainty: p.uncertainty ?? [],

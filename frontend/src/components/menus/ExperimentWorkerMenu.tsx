@@ -208,52 +208,44 @@ export default function ExperimentWorkerMenu({
     refetchInstructions,
   } = useInstructions();
 
-  // プロジェクト指示確認ハンドラー: 未確認のプロジェクト指示を全て API で確認し、一覧を再取得する
-  const handleConfirmInstruction = async () => {
+  // プロジェクト指示確認ハンドラー: 未確認のプロジェクト指示を全て API で確認し、
+  // 対象トランジションを PREPARING → READY に遷移させる
+  const handleConfirmInstruction = async (methodId: string, taskNo: number, transitionId: string) => {
     if (!selectedProject) return;
 
-    // methodId・transitionId なし かつ 未確認（isAcknowledged=false）の指示のみ対象
-    const unacknowledged = instructions.filter(
-      (i) => !i.methodId && !i.transitionId && !i.isAcknowledged
-    );
-
-    if (unacknowledged.length === 0) {
-      message.success(t('workRecord.instructionConfirmed'));
-      return;
-    }
-
     try {
-      await Promise.all(
-        unacknowledged.map((inst) =>
-          confirmInstruction(selectedProject, inst.instructionId)
-        )
+      // Step 1: 未確認指示を一括確認（0件でもスキップせず Step 2 へ進む）
+      const unacknowledged = instructions.filter(
+        (i) => !i.methodId && !i.transitionId && !i.isAcknowledged
       );
-      message.success(t('workRecord.instructionConfirmed'));
-      // 指示一覧を再取得して is_acknowledged 状態を最新化
-      if (refetchInstructions) {
-        refetchInstructions();
-      }
 
-      // 「準備状態 (PREPARING=2)」のトランジションを「準備完了状態 (READY=3)」に遷移させ
-      // maiml_event_log にイベントを記録する
-      // ※ バックエンドの updateTransitionStatus が PREPARING→READY 遷移時に
-      //   タスク・プロジェクトステータスを自動更新する
-      const preparingRow = progressRows.find((r) => r.status === 'preparing');
-      if (preparingRow) {
-        try {
-          await updateTransitionStatus(selectedProject, preparingRow.methodId, preparingRow.transitionId, {
-            taskNo: preparingRow.taskNo,
-            status: TransitionStatusCode.READY, // 準備完了状態
-            progressRate: 0,
-          });
-          // プロジェクト一覧と進捗データを同時に最新化する
-          // （プロジェクトステータスが TASK_PENDING → TASK_IN_PROGRESS に変わるため）
-          await refreshProjectAndProgress();
-        } catch (transitionErr) {
-          // 既に READY 以降の状態の場合は遷移エラーになるため、ログのみ出して続行
-          console.warn('[handleConfirmInstruction] トランジションステータス READY 更新スキップ:', transitionErr);
+      if (unacknowledged.length > 0) {
+        await Promise.all(
+          unacknowledged.map((inst) =>
+            confirmInstruction(selectedProject, inst.instructionId)
+          )
+        );
+        // 指示一覧を再取得して is_acknowledged 状態を最新化
+        if (refetchInstructions) {
+          refetchInstructions();
         }
       }
+
+      // Step 2: トランジションを PREPARING → READY に遷移させる
+      // ※ バックエンドの updateTransitionStatus が PREPARING→READY 遷移時に
+      //   タスク・プロジェクトステータスを自動更新する
+      if (methodId && transitionId) {
+        await updateTransitionStatus(selectedProject, methodId, transitionId, {
+          taskNo,
+          status: TransitionStatusCode.READY,
+          progressRate: 0,
+        });
+      }
+
+      message.success(t('workRecord.instructionConfirmed'));
+
+      // プロジェクト一覧と進捗データを同時に最新化する
+      await refreshProjectAndProgress();
     } catch (err) {
       console.error('[handleConfirmInstruction] 指示確認エラー:', err);
       message.error(extractErrorMessage(err));
