@@ -5196,37 +5196,46 @@
     "previewFailed": "Preview failed",
     "saveFailed": "Save failed",
     "loading": "Loading...",
-    "scoreMappingTitle": "Score Mapping Settings",
+    "scoreMappingTitle": "Qualitative Evaluation Standard Value",
+    "scoreMappingTooltip": "Sets the reference values used to convert the three-level qualitative evaluations (Good, Caution, Poor) into numeric scores. The configured values serve as the basis for calculating level scores (mean or minimum) and also affect representative status determination.",
     "aggregationRuleTitle": "Aggregation Rule Settings",
     "scoreGood": "Good",
+    "scoreGoodTooltip": "The reference value for the numeric score corresponding to the qualitative evaluation \"Good\" (default: 100).",
     "scoreCaution": "Caution",
+    "scoreCautionTooltip": "The reference value for the numeric score corresponding to the qualitative evaluation \"Caution\" (default: 50).",
     "scoreBad": "Poor",
+    "scoreBadTooltip": "The reference value for the numeric score corresponding to the qualitative evaluation \"Poor\" (default: 0).",
     "targetRollup": {
       "label": "Target Rollup",
       "worstCase": "Worst Case",
       "majority": "Majority",
-      "average": "Average"
+      "average": "Average",
+      "tooltip": "Specifies the rollup (aggregation) method for qualitative evaluation results.\nWorst Case: Adopts the worst evaluation among child elements.\nMajority: Adopts the most frequent evaluation (the worse one in case of a tie).\nAverage: Calculates the evaluation from the average numeric score."
     },
     "levelStatusRule": {
       "label": "Level Representative Status",
       "worstCase": "Adopt Worst Value",
-      "majority": "Majority"
+      "majority": "Majority",
+      "tooltip": "Specifies how to determine the representative status for each level.\nAdopt Worst Value: Adopts the worst status among child elements.\nMajority: Adopts the most frequent status (the worse one in case of a tie)."
     },
     "levelScoreRule": {
       "label": "Level Score",
       "mean": "Mean",
-      "min": "Minimum"
+      "min": "Minimum",
+      "tooltip": "Specifies how to calculate the score for each level.\nMean: Uses the average of child element scores.\nMinimum: Uses the minimum of child element scores."
     },
     "missingHandling": {
       "label": "Handling of Unevaluated",
       "separateCount": "Separate Count",
       "excludeDenominator": "Exclude from Denominator",
-      "treatAsGood": "Treat as Good"
+      "treatAsGood": "Treat as Good",
+      "tooltip": "Specifies how unevaluated items are included in score aggregation.\nSeparate Count: Counts unevaluated items as an independent category.\nExclude from Denominator: Excludes unevaluated items from the score calculation denominator.\nTreat as Good: Includes unevaluated items as \"Good\" in the aggregation."
     },
     "transitionHierarchy": {
       "label": "Transition Hierarchy",
       "merge": "Merge",
-      "split": "Split View"
+      "split": "Split View",
+      "tooltip": "Specifies whether transition evaluations are displayed separately by task (per-repetition evaluation) and by method (overall evaluation across all repetitions), or merged into a single level.\nMerge: Combines task-based and method-based evaluations into a single \"Transition\" level.\nSplit View: Aggregates and displays task-based and method-based evaluations as separate independent levels."
     },
     "buttons": {
       "preview": "Preview",

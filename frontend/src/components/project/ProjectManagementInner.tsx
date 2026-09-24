@@ -11,8 +11,8 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { usePublishStatusPoller } from '@/hooks/usePublishStatusPoller';
-import { ProjectStatus } from '@/constants/codeMaster';
-import { getProjectFiles, getPublishStatus, forceTerminateProject } from '@/services/projectApiService';
+import { ProjectStatus, TaskStatus } from '@/constants/codeMaster';
+import { getProjectFiles, getPublishStatus, forceTerminateProject, getProjectTasks } from '@/services/projectApiService';
 
 import { useProjectList } from '@/hooks/project/useProjectList';
 import { useProjectSelection } from '@/hooks/project/useProjectSelection';
@@ -135,6 +135,20 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
       .then((s) => setPublishStatus(s))
       .catch(() => setPublishStatus(null))
       .finally(() => setPublishStatusLoading(false));
+  }, [selectedProject]);
+
+  // 全タスク完了状態チェック: selectedProject が変わるたびに project_task_detail の全タスクステータスを確認
+  useEffect(() => {
+    if (!selectedProject) { setAllTasksCompleted(false); return; }
+    getProjectTasks(selectedProject.id)
+      .then((result) => {
+        const tasks = result.tasks;
+        const allCompleted =
+          tasks.length > 0 &&
+          tasks.every((task) => task.workStatus === TaskStatus.COMPLETED);
+        setAllTasksCompleted(allCompleted);
+      })
+      .catch(() => setAllTasksCompleted(false));
   }, [selectedProject]);
 
   const handleProjectReload = useCallback(async () => {

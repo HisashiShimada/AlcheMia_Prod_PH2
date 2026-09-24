@@ -34,14 +34,10 @@ export interface Project {
 }
 
 /**
- * タスクステータス
+ * タスクステータス（数値コード）
+ * 0=実行待ち, 1=実行中, 2=レビュー待ち, 3=完了, 4=強制終了（異常終了）
  */
-export type TaskStatus = 
-  | 'pending'           // 0: 実行待ち
-  | 'in_progress'       // 1: 実行中
-  | 'review_waiting'    // 2: レビュー待ち
-  | 'completed'         // 3: 完了
-  | 'forced_terminated'; // 4: 強制終了（異常終了）
+export type TaskStatus = 0 | 1 | 2 | 3 | 4;
 
 /**
  * タスク
@@ -79,17 +75,6 @@ export interface ProjectListResponse {
   projects: Project[];
   pagination: Pagination;
 }
-
-/**
- * タスクステータスマッピング（DB数値 → 文字列）
- */
-export const TASK_STATUS_MAP: Record<number, TaskStatus> = {
-  0: 'pending',
-  1: 'in_progress',
-  2: 'review_waiting',
-  3: 'completed',
-  4: 'forced_terminated'
-};
 
 /**
  * タスク統計情報

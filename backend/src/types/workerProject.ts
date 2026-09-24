@@ -57,10 +57,11 @@ export interface WorkerAccessibleProject {
  * 
  * @property {number} page - ページ番号 (1以上の整数)
  * @property {number} limit - 1ページあたりの件数 (1-100の範囲)
- * @property {'1' | '2' | '3'} [status] - ステータスフィルタ (オプション)
+ * @property {'1' | '2' | '3' | '6'} [status] - ステータスフィルタ (オプション)
  *   - '1': タスク実行待ち (project_status = 1)
  *   - '2': タスク実行中 (project_status = 2)
  *   - '3': タスク結果レビュー待ち (project_status = 3)
+ *   - '6': レビュー差戻 (project_status = 6)
  * @property {'create_at' | 'project_name' | 'update_at'} sortBy - ソート項目
  * @property {'asc' | 'desc'} order - ソート順序
  * 
@@ -78,7 +79,7 @@ export interface WorkerAccessibleProject {
 export interface ListWorkerProjectsParams {
   page: number;
   limit: number;
-  status?: '1' | '2' | '3';
+  status?: '1' | '2' | '3' | '6';
   sortBy: 'create_at' | 'project_name' | 'update_at';
   order: 'asc' | 'desc';
 }
@@ -205,7 +206,7 @@ export interface WorkerProjectService {
    * @postcondition
    * - 返却されるプロジェクトは指定されたorganizationIdに属する
    * - 自分に割り当てられたタスクを持つプロジェクトのみ
-   * - ステータスが1（タスク実行待ち）, 2（タスク実行中）, 3（タスク結果レビュー待ち）のプロジェクトのみ
+   * - ステータスが1（タスク実行待ち）, 2（タスク実行中）, 3（タスク結果レビュー待ち）, 6（レビュー差戻）のプロジェクトのみ
    * 
    * @invariant
    * - すべてのクエリにorganization_idフィルタが含まれる

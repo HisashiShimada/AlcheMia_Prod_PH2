@@ -60,6 +60,19 @@ describe('WorkerProjectController', () => {
         );
       });
 
+      test('calls service with status=6 (review rejected)', async () => {
+        mockReq.query = { page: '1', limit: '20', status: '6', sort_by: 'create_at', order: 'desc' };
+        mockService.listWorkerAccessible = jest.fn().mockResolvedValue(defaultMockResult);
+
+        await controller.listWorkerAccessible(mockReq as Request, mockRes as Response, mockNext);
+
+        expect(mockService.listWorkerAccessible).toHaveBeenCalledWith(
+          'user-123',
+          'org-456',
+          { page: 1, limit: 20, status: '6', sortBy: 'create_at', order: 'desc' }
+        );
+      });
+
       test('uses default values when query params are absent', async () => {
         mockReq.query = {};
         mockService.listWorkerAccessible = jest.fn().mockResolvedValue(defaultMockResult);

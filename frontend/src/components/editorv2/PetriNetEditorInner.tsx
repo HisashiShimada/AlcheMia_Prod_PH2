@@ -87,6 +87,8 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useEditorActions } from '../../hooks/useEditorActions';
 import type { TemplatesByCategory } from '@/types/editor';
 import * as maimlService from '../../services/maimlApiService';
+import { injectNamespacesToMaiml } from '../../utils/namespaceInjector';
+import { getOrganizationNamespaces } from '../../services/namespaceApiService';
 import { AnalysisResult, ErrorContent } from '@/types/maimlValidation';
 import type { StorageFile } from '@/types/storage';
 import { parse } from 'path';
@@ -581,9 +583,22 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       // Base64エンコード（バリデーションAPI用）
       console.log('🔍 [handleOpenSaveConfirmDialog] Base64エンコード開始');
-      const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
+
+      // 名前空間宣言を注入してからバリデーション送信（新規作成時にxmlns宣言が含まれていない問題の修正）
+      let maimlXmlForValidation = maimlXml;
+      try {
+        const namespaces = await getOrganizationNamespaces(organizationGroupCd);
+        if (namespaces.length > 0) {
+          maimlXmlForValidation = injectNamespacesToMaiml(maimlXml, namespaces);
+          console.log(`🔧 [handleOpenSaveConfirmDialog] 名前空間 ${namespaces.length} 件を注入しました`);
+        }
+      } catch (nsError) {
+        console.warn('⚠️ [handleOpenSaveConfirmDialog] 名前空間注入をスキップします:', nsError);
+      }
+
+      const base64Data = btoa(unescape(encodeURIComponent(maimlXmlForValidation)));
       console.log('✅ [handleOpenSaveConfirmDialog] Base64エンコード完了:', {
-        originalLength: maimlXml.length,
+        originalLength: maimlXmlForValidation.length,
         base64Length: base64Data.length
       });
       
@@ -2820,8 +2835,18 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       }
       
       // Base64エンコード
-      const bytes = new TextEncoder().encode(maimlXml);
-      const base64Data = btoa(String.fromCharCode(...bytes));
+      // 名前空間宣言を注入してからバリデーション送信（新規作成時にxmlns宣言が含まれていない問題の修正）
+      let maimlXmlForValidation = maimlXml;
+      try {
+        const namespaces = await getOrganizationNamespaces(organizationGroupCd);
+        if (namespaces.length > 0) {
+          maimlXmlForValidation = injectNamespacesToMaiml(maimlXml, namespaces);
+          console.log(`🔧 [handleOpenValidationPanel] 名前空間 ${namespaces.length} 件を注入しました`);
+        }
+      } catch (nsError) {
+        console.warn('⚠️ [handleOpenValidationPanel] 名前空間注入をスキップします:', nsError);
+      }
+      const base64Data = btoa(unescape(encodeURIComponent(maimlXmlForValidation)));
       
       console.log('🔍 [handleOpenValidationPanel] バリデーションAPI呼び出し');
       const response = await maimlService.validateMaiml(base64Data, { fileKey: props.sourceS3Key ?? '' });
