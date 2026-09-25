@@ -686,10 +686,13 @@ export class ProjectService {
         projectId
       );
 
-      // メソッドIDごとに有効な計画（planned_values != null）が存在するかをマップ化
+      // メソッドIDごとに有効な計画（planned_values が非nullかつ非空）が存在するかをマップ化
+      // 注意: initInsert.sql がタスク登録時に '{}'::jsonb で初期挿入するため、
+      //       planned_values != null だけでは未保存レコードを弾けない。
+      //       Object.keys().length > 0 で空オブジェクト {} を未登録扱いとする。
       const planMapByMethod = new Map<string, boolean>();
       for (const p of experimentPlansForValidation) {
-        if (p.planned_values != null) {
+        if (p.planned_values != null && Object.keys(p.planned_values).length > 0) {
           planMapByMethod.set(p.method_id, true);
         }
       }

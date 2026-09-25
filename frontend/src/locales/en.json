@@ -1326,7 +1326,7 @@
       "invalidOrder": "Order must be between 1 and {max}",
       "checkedOut": "Project is checked out. Cannot save.",
       "maimlNotRegistered": "MAIML file is not registered. Cannot save.",
-      "requireInstruction": "Please set at least one project instruction or task instruction",
+      "requireInstruction": "Please register experiment plan instructions for all methods",
       "selectMethods": "Please select methods to save",
       "selectAllMethodsFirst": "All methods must be selected for initial save",
       "cannotChangeOrder": "Cannot change order of checked-out methods",

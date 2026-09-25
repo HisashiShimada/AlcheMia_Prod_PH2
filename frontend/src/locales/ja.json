@@ -1326,7 +1326,7 @@
       "invalidOrder": "順序は1〜{max}の範囲で入力してください",
       "checkedOut": "プロジェクトがチェックアウトされています。保存できません。",
       "maimlNotRegistered": "MAIMLファイルが登録されていません。保存できません。",
-      "requireInstruction": "プロジェクト指示またはタスク指示を最低1つ設定してください",
+      "requireInstruction": "全てのメソッドに実験計画指示を登録してください",
       "selectMethods": "保存するメソッドを選択してください",
       "selectAllMethodsFirst": "初回保存時は全てのメソッドを選択する必要があります",
       "cannotChangeOrder": "チェックアウト済みのメソッドは順序変更できません",

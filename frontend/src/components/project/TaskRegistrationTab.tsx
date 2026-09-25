@@ -373,37 +373,30 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
    */
   const handleSave = useCallback(async () => {
     try {
-      // バリデーション: 新規追加 + DBから取得したinstruction_status=0の指示
-      const unsentInstructions = instructions.filter(inst => inst.instruction_status === InstructionStatus.UNSENT);
-      const hasUnsent = unsentInstructions.length > 0;
+      // 実験計画指示はチェック済み全メソッドで必須
+      // 実験指示（instruction）は任意のため、その有無で分岐しない
+      const checkedMethodIdsForValidation = taskDetails
+        .filter(task => checkedTaskIds.has(task.id) && !task.workerLinkedFlg)
+        .map(task => task.methodId);
 
-      // 指示がない場合、チェック済み全メソッドに experiment_plan が存在するかを確認
-      let hasExperimentPlan = false;
-      if (!hasUnsent) {
-        const checkedMethodIdsForValidation = taskDetails
-          .filter(task => checkedTaskIds.has(task.id) && !task.workerLinkedFlg)
-          .map(task => task.methodId);
-
-        // 全メソッドについてチェック（1つでも未登録があれば false）
-        let allMethodsHavePlan = checkedMethodIdsForValidation.length > 0;
-        for (const methodId of checkedMethodIdsForValidation) {
-          const planResult = await getExperimentPlans(projectId, methodId);
-          // planned_values が存在し、かつ空でないことを確認（初期INSERT済みの {} は未登録扱い）
-          const hasValidPlanForMethod =
-            planResult != null &&
-            planResult.plans.some(
-              plan => plan.plannedValues != null && Object.keys(plan.plannedValues).length > 0
-            );
-          if (!hasValidPlanForMethod) {
-            allMethodsHavePlan = false;
-            break; // 1つでも未登録があれば早期脱出
-          }
+      // 全メソッドについてチェック（1つでも未登録があれば false）
+      let allMethodsHavePlan = checkedMethodIdsForValidation.length > 0;
+      for (const methodId of checkedMethodIdsForValidation) {
+        const planResult = await getExperimentPlans(projectId, methodId);
+        // planned_values が存在し、かつ空でないことを確認（初期INSERT済みの {} は未登録扱い）
+        const hasValidPlanForMethod =
+          planResult != null &&
+          planResult.plans.some(
+            plan => plan.plannedValues != null && Object.keys(plan.plannedValues).length > 0
+          );
+        if (!hasValidPlanForMethod) {
+          allMethodsHavePlan = false;
+          break; // 1つでも未登録があれば早期脱出
         }
-        hasExperimentPlan = allMethodsHavePlan;
       }
 
-      if (!hasUnsent && !hasExperimentPlan) {
-        // 指示も実験計画もない場合はエラーを表示して保存を中断する
+      if (!allMethodsHavePlan) {
+        // 実験計画が未登録のメソッドがある場合はエラーを表示して保存を中断する
         message.error(t('taskRegistration.messages.requireInstruction'));
         return;
       }
