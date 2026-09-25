@@ -50,7 +50,7 @@ function getHttpStatusFromErrorCode(errorCode: string): number {
 /**
  * 進捗データ取得API
  * 
- * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions
  * 
  * Requirements:
  * - Requirement 1: 進捗データ取得機能
@@ -209,7 +209,7 @@ export async function getNgTasks(
 /**
  * トランジションステータス更新API
  * 
- * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ * PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status
  * 
  * @description プロジェクト名、メソッドID、トランジションIDでトランジションを特定してステータスを更新
  * @note 旧エンドポイント（PUT /api/v1/experiments/...）から移動
@@ -346,7 +346,7 @@ export async function saveTransitionComment(
 /**
  * タスク一覧取得（実験作業者用）ハンドラー
  * 
- * GET /api/v1/progress/projects/:projectName/worker-tasks
+ * GET /api/v1/progress/projects/:projectId/worker-tasks
  * 
  * @description プロジェクト内の全タスクをメソッド単位でグループ化して取得
  * API: api_progress_monitoring.md - API #4
@@ -444,7 +444,7 @@ export async function getWorkerTasks(
 /**
  * WorkProgressDetailDialog 用 作業詳細一括取得API
  *
- * GET /api/v1/progress/projects/:projectName/work-details
+ * GET /api/v1/progress/projects/:projectId/work-details
  *
  * @description
  *   プロジェクト名をキーに、WorkProgressDetailDialog が必要とする
@@ -516,7 +516,7 @@ export async function getWorkDetails(
 /**
  * タスクステータス更新API
  * 
- * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
+ * PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status
  * 
  * @description プロジェクト名、メソッドID、タスク連番でタスクを特定してステータスを更新
  * @requirements API #5: タスクステータス更新API（新エンドポイント）

@@ -114,24 +114,6 @@ describe('AuthContainer 統合テスト', () => {
         },
         passwordChangeRequired: false,
         redirectUrl: '/experiment-admin',
-          user: {
-            id: '550e8400-e29b-41d4-a716-446655440000',
-            username: 'user001',
-            email: 'user001@example.com',
-            roleName: '実験管理者',
-            roleCd: 'experiment_admin',
-            organizationId: 'org_maiml_lab_001',
-            organizationName: 'MAIML研究室',
-            displayName: '山田 太郎',
-            departmentCd: 'dept_001',
-            initialScreenFunctionCd: '040000',
-          },
-          session: {
-            token: 'maiml_session-abc123_1735185000',
-            expiresAt: '2025-12-27T10:30:00.000Z',
-          },
-          passwordChangeRequired: false,
-          redirectUrl: '/experiment-admin',
       };
       mockedAuthService.verifyPin.mockResolvedValueOnce(verifyResponse);
 

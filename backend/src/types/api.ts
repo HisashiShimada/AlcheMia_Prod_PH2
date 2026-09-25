@@ -51,7 +51,7 @@ export interface ListProjectsParams {
 
 /**
  * プロジェクトタスク一覧取得パラメータ
- * GET /api/v1/projects/:projectName/tasks
+ * GET /api/v1/projects/:projectId/tasks
  */
 export interface GetProjectTasksParams {
   /** タスクステータスフィルタ（デフォルト: all） */
@@ -60,7 +60,7 @@ export interface GetProjectTasksParams {
 
 /**
  * プロジェクトファイル一覧取得パラメータ
- * GET /api/v1/projects/:projectName/files
+ * GET /api/v1/projects/:projectId/files
  */
 export interface GetProjectFilesParams {
   // 現在はパラメータなし（将来の拡張用に定義）
@@ -68,7 +68,7 @@ export interface GetProjectFilesParams {
 
 /**
  * プロジェクトチェックアウトパラメータ
- * POST /api/v1/projects/:projectName/checkout
+ * POST /api/v1/projects/:projectId/checkout
  */
 export interface CheckoutParams {
   // リクエストボディなし（パスパラメータのみ）
@@ -102,7 +102,7 @@ export interface TaskRegistrationStatusResponse {
  * 指示保存リクエスト
  * 
  * @remarks
- * POST /api/v1/projects/:projectName/instructions
+ * POST /api/v1/projects/:projectId/instructions
  */
 export interface SaveInstructionRequest {
   /** メソッドID（全体指示の場合はnull/未指定） */
@@ -136,7 +136,7 @@ export interface SaveInstructionResponse {
  * 指示更新リクエスト
  * 
  * @remarks
- * PUT /api/v1/projects/:projectName/instructions/:instructionId
+ * PUT /api/v1/projects/:projectId/instructions/:instructionId
  */
 export interface UpdateInstructionRequest {
   /** メソッドID */
@@ -195,7 +195,7 @@ export interface TaskInput {
  * 指示送信リクエスト
  * 
  * @remarks
- * POST /api/v1/projects/:projectName/instructions/send
+ * POST /api/v1/projects/:projectId/instructions/send
  * タスク作成は別途タスク登録タブで実施されるため、このAPIではパラメータ不要
  */
 export interface SendInstructionsRequest {
@@ -375,7 +375,7 @@ export interface WorkDetailItem {
 
 /**
  * WorkProgressDetailDialog 用 API レスポンスデータ
- * GET /api/v1/progress/projects/:projectName/work-details のレスポンス data 部分
+ * GET /api/v1/progress/projects/:projectId/work-details のレスポンス data 部分
  */
 export interface WorkProgressDetailResponse {
   /** プロジェクト情報 */
@@ -608,7 +608,7 @@ export interface MethodTasksResponse {
 
 /**
  * MaiML 公開リクエスト
- * POST /api/v1/projects/:projectName/publish
+ * POST /api/v1/projects/:projectId/publish
  *
  * @remarks
  * maiml_publish_registry に登録する4つのフラグを受け取る

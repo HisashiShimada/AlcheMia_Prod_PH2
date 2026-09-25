@@ -17,6 +17,7 @@ import { loadSqlFile } from '../sql/loader';
 import { getStorageService } from './storageService';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { getUseDeemedProgress } from '../repositories/organizationRepository';
+import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { TransitionStatusEnum } from '../types/transitionData';
 import type { TransitionStatus } from '../types/transitionData';
 import { toJSTIsoString } from '../utils/dateUtils';
@@ -67,7 +68,7 @@ export class ExperimentDataService {
    * 実験データを一括保存
    * 
    * @param organizationId 組織ID
-   * @param projectName プロジェクト名
+   * @param projectId プロジェクトID
    * @param methodId メソッドID
    * @param taskNo タスク番号
    * @param records 保存するレコード配列
@@ -79,7 +80,7 @@ export class ExperimentDataService {
    */
   async saveBatchData(
     organizationId: string,
-    projectName: string,
+    projectId: string,
     methodId: string,
     taskNo: number,
     records: TemplateDataRecord[],
@@ -101,21 +102,21 @@ export class ExperimentDataService {
       // トランザクション開始
       await client.query('BEGIN');
 
-      // 1. プロジェクト名からプロジェクトIDとステータスを取得（外部SQLファイル使用）
-      const projectQuery = await loadSqlFile('projects/findByNameWithStatus.sql');
-      const projectResult = await client.query(
-        projectQuery,
-        [organizationId, projectName]
+      // 1. プロジェクトIDからステータス・プロジェクト名を取得して編集可否チェック（外部SQLファイル使用）
+      const statusQuery = await loadSqlFile('projects/findByIdWithStatus.sql');
+      const statusResult = await client.query(
+        statusQuery,
+        [organizationId, projectId]
       );
 
-      if (projectResult.rows.length === 0) {
+      if (statusResult.rows.length === 0) {
         const error: any = new Error('Project not found or does not belong to your organization');
         error.name = 'ProjectNotFoundError';
         throw error;
       }
 
-      const projectId = projectResult.rows[0].project_id;
-      const projectStatus = projectResult.rows[0].project_status;
+      const projectStatus = statusResult.rows[0].project_status;
+      const projectName: string = statusResult.rows[0].project_name;
 
       // 編集可能なステータスかチェック
       // 1: TASK_PENDING（タスク実行待ち）、2: TASK_IN_PROGRESS（タスク実行中）、6: REVIEW_REJECTED（レビュー差戻・訂正モード）
@@ -399,7 +400,7 @@ export interface GetTemplateDataResult {
  * transitionId に隣接するプレースのレコードのみ返す。
  *
  * @param organizationId 組織ID
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID
  * @param methodId メソッドID
  * @param taskNo タスク番号
  * @param transitionId トランジションID
@@ -407,7 +408,7 @@ export interface GetTemplateDataResult {
  */
 export async function getTemplateData(
   organizationId: string,
-  projectName: string,
+  projectId: string,
   methodId: string,
   taskNo: number,
   transitionId: string
@@ -416,16 +417,16 @@ export async function getTemplateData(
   const client = await pool.connect();
 
   try {
-    // 1. project_id を解決
-    const projectIdQuery = await loadSqlFile('projects/findIdByName.sql');
-    const projectResult = await client.query(projectIdQuery, [organizationId, projectName]);
+    // 1. project_name を project_id から取得（レスポンスおよびパス解決フォールバック用）
+    const nameQuery = await loadSqlFile('projects/findNameById.sql');
+    const nameResult = await client.query(nameQuery, [organizationId, projectId]);
 
-    if (projectResult.rows.length === 0) {
-      const error: any = new Error(`Project not found: ${projectName}`);
+    if (nameResult.rows.length === 0) {
+      const error: any = new Error(`Project not found: ${projectId}`);
       error.name = 'ProjectNotFoundError';
       throw error;
     }
-    const projectId: string = projectResult.rows[0].project_id;
+    const projectName: string = nameResult.rows[0].project_name;
 
     // 2. template_data テーブルから対象タスクの全レコードを取得
     const repository = new TemplateDataRepository();
@@ -438,8 +439,9 @@ export async function getTemplateData(
     );
 
     // 3. S3/Swift から MaiML ファイルをダウンロード
+    // project_uuid → file_metadata → file_key の順で解決し、未設定の場合は project_name でフォールバック
     const storageService = getStorageService();
-    const maimlPath = `projects/${projectName}/${projectName}.maiml`;
+    const maimlPath = await resolveMaimlFilePath(organizationId, projectId, projectName);
     let maimlBuffer: Buffer;
     try {
       maimlBuffer = await storageService.downloadFile(organizationId, maimlPath);
@@ -970,10 +972,11 @@ async function updateDeemedProgress(
   }
 
   // 2. MAIMLをダウンロード＆パース
+  // project_uuid → file_metadata → file_key の順で解決し、未設定の場合は project_name でフォールバック
   let parser: MaimlParserTyped;
   try {
     const storageService = getStorageService();
-    const maimlPath = `projects/${projectName}/${projectName}.maiml`;
+    const maimlPath = await resolveMaimlFilePath(organizationId, projectId, projectName);
     const maimlBuffer = await storageService.downloadFile(organizationId, maimlPath);
     parser = new MaimlParserTyped(maimlBuffer.toString('utf-8'));
   } catch (err) {
@@ -1234,7 +1237,7 @@ async function updateDeemedProgress(
  */
 export async function saveBatchData(
   organizationId: string,
-  projectName: string,
+  projectId: string,
   methodId: string,
   taskNo: number,
   records: TemplateDataRecord[],

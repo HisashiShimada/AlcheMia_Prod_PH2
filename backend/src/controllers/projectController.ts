@@ -133,7 +133,7 @@ export async function create(req: Request, res: Response): Promise<void> {
 
 /**
  * プロジェクト名変更エンドポイント
- * PATCH /api/v1/projects/:projectName/rename
+ * PATCH /api/v1/projects/:projectId/rename
  *
  * @description
  * プロジェクト名を変更する。
@@ -207,7 +207,7 @@ export async function renameProjectHandler(req: Request, res: Response): Promise
 
 /**
  * プロジェクト削除エンドポイント
- * DELETE /api/v1/projects/:projectName
+ * DELETE /api/v1/projects/:projectId
  * 
  * Task: プロジェクト管理画面削除機能実装 - Phase 3-2
  * @description プロジェクトを削除する（DB + ストレージ）
@@ -300,7 +300,7 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
 
 /**
  * タスク詳細取得エンドポイント
- * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/details
  *
  * @description
  *   projectName / methodId / taskNo パラメータからタスクを特定し、
@@ -396,7 +396,7 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
 
 /**
  * レビュー待ちタスクを一括完了に更新
- * POST /api/v1/projects/:projectName/tasks/complete-review
+ * POST /api/v1/projects/:projectId/tasks/complete-review
  */
 export async function completeReviewTasks(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
@@ -443,7 +443,7 @@ export async function completeReviewTasks(req: Request, res: Response): Promise<
 
 /**
  * プロジェクトタスク一覧取得エンドポイント
- * GET /api/v1/projects/:projectName/tasks
+ * GET /api/v1/projects/:projectId/tasks
  * 
  * Task 3.2: Controller層実装
  */
@@ -526,7 +526,7 @@ export async function getProjectTasks(req: Request, res: Response): Promise<void
 
 /**
  * プロジェクトMAIML取得エンドポイント
- * GET /api/v1/projects/:projectName/maiml
+ * GET /api/v1/projects/:projectId/maiml
  * 
  * @description プロジェクトの最新MAIMLファイルをXML形式で取得する（プロジェクト管理画面で使用）
  * @note フロントエンドProjectMaimlContext用エンドポイント
@@ -616,7 +616,7 @@ export async function getProjectMaiml(req: Request, res: Response): Promise<void
 
 /**
  * プロジェクトチェックアウトエンドポイント
- * POST /api/v1/projects/:projectName/checkout
+ * POST /api/v1/projects/:projectId/checkout
  * 
  * Task 2.1: チェックアウトハンドラの実装（projectName受け取りに変更）
  * Requirements: FR-1.1, FR-1.2, NFR-2
@@ -951,7 +951,7 @@ export async function list(req: Request, res: Response): Promise<void> {
 
 /**
  * 承認依頼エンドポイント
- * PATCH /api/v1/projects/:projectName/approval-request
+ * PATCH /api/v1/projects/:projectId/approval-request
  * 
  * @description 実験作業者が実験作業完了後に実験管理者へ承認依頼を送信
  * @note バリデーションはルート定義のミドルウェアで処理済み
@@ -1036,7 +1036,7 @@ export async function requestApproval(req: Request, res: Response): Promise<void
 
 /**
  * 作業指示一覧取得エンドポイント
- * GET /api/v1/projects/:projectName/worker-instructions
+ * GET /api/v1/projects/:projectId/worker-instructions
  * 
  * @description プロジェクトに関連する作業指示一覧を取得する
  * @note バリデーションはミドルウェアで処理済み（バックエンド規約準拠）
@@ -1135,7 +1135,7 @@ export async function getWorkerInstructions(req: Request, res: Response): Promis
 
 /**
  * プロジェクトチェックイン
- * POST /api/v1/projects/:projectName/checkin
+ * POST /api/v1/projects/:projectId/checkin
  */
 export async function checkin(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
@@ -1385,7 +1385,7 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
 
 /**
  * MaiML 公開エンドポイント
- * POST /api/v1/projects/:projectName/publish
+ * POST /api/v1/projects/:projectId/publish
  *
  * @description
  * プロジェクト詳細画面の「公開」ボタン押下時に呼び出す。
@@ -1482,7 +1482,7 @@ export async function publish(req: Request, res: Response): Promise<void> {
 
 /**
  * MaiML 非公開エンドポイント
- * POST /api/v1/projects/:projectName/unpublish
+ * POST /api/v1/projects/:projectId/unpublish
  *
  * @description
  * プロジェクト詳細画面の「非公開」ボタン押下時に呼び出す。
@@ -1554,7 +1554,7 @@ export async function unpublish(req: Request, res: Response): Promise<void> {
 
 /**
  * MaiML 公開ステータス取得エンドポイント
- * GET /api/v1/projects/:projectName/publish-status
+ * GET /api/v1/projects/:projectId/publish-status
  *
  * @description プロジェクトの公開状態を確認する
  * @roles experiment_admin（読取専用）
