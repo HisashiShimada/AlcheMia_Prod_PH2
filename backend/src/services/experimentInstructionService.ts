@@ -883,10 +883,12 @@ export async function recordNg(
 
     await client.query('COMMIT');
 
-    // MAIML XML への書き込み（non-fatal）
+    // MAIML XML への書き込み（data + eventLog 両方、non-fatal: 失敗してもレスポンスはブロックしない）
+    // NG対象のメソッドID・タスク番号のデータのみを <data> タグに書き込む（未承認タスクのデータは書き込まない）
     try {
       const maimlWriterService = new MaimlWriterService();
-      await maimlWriterService.writeEventLogOnly(organizationId, projectId, projectName);
+      const targetFilter: MaimlWriteTargetFilter = { methodId, taskNo };
+      await maimlWriterService.writeDataAndEventLog(organizationId, projectId, projectName, targetFilter);
     } catch (writeError) {
       logger.warn('[experimentInstructionService] recordNg: MAIML write failed (non-fatal)', {
         error: String(writeError),

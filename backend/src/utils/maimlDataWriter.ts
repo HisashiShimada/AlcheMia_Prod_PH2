@@ -897,6 +897,83 @@ function buildPropertiesXML(
 }
 
 // ============================================================
+// extractResultsBlocksFromDataXml
+// ============================================================
+
+/**
+ * buildDataXML() の戻り値（<data>...</data>）から
+ * <results>...</results> ブロックをすべて抽出して返す
+ *
+ * approveTask 時に template_data から生成した <results> を
+ * 既存の <data> タグ内に追記するために使用する。
+ *
+ * @param dataXml - buildDataXML() の戻り値（<data>...</data> 全体）
+ * @returns <results>...</results> XML 文字列（複数の場合は改行+インデントで連結）。
+ *          <results> が存在しない場合は null を返す。
+ */
+export function extractResultsBlocksFromDataXml(dataXml: string): string | null {
+  const matches = [...dataXml.matchAll(/<results[\s\S]*?<\/results>/g)];
+  if (matches.length === 0) return null;
+  return matches.map((m) => m[0]).join('\n    ');
+}
+
+// ============================================================
+// appendResultsToData
+// ============================================================
+
+/**
+ * MAIML XML の <data> タグ内の </data> 直前に新しい <results> XML を追記する
+ *
+ * 既存の <data> 内容（planned_values の実験計画指示など）はそのまま保持し、
+ * 承認タスクの template_data から生成した <results> ブロックを末尾に追加する。
+ *
+ * 重複追記防止:
+ *   newResultsXml 内の各 <results id="..."> について、同一 id が既に
+ *   maimlContent 内に存在する場合はそのブロックをスキップする。
+ *
+ * @param maimlContent  - 元の MAIML XML 全文字列
+ * @param newResultsXml - 追記する <results>...</results> XML 文字列
+ *                        （extractResultsBlocksFromDataXml() の戻り値）
+ * @returns 更新後の MAIML XML 全文字列（<data> タグが存在しない場合はそのまま返す）
+ */
+export function appendResultsToData(
+  maimlContent: string,
+  newResultsXml: string
+): string {
+  if (!/<\/data>/i.test(maimlContent)) {
+    return maimlContent;
+  }
+
+  // newResultsXml から個別の <results> ブロックを分割して重複チェック
+  const resultBlocks = [...newResultsXml.matchAll(/<results[\s\S]*?<\/results>/g)].map(
+    (m) => m[0]
+  );
+
+  let toAppend = '';
+  for (const block of resultBlocks) {
+    // <results id="xxx"> の id 属性を抽出
+    const idMatch = block.match(/<results[^>]*\sid="([^"]+)"/);
+    const resultsId = idMatch ? idMatch[1] : null;
+
+    // 同一 id が既存 maimlContent に存在する場合はスキップ（重複防止）
+    if (resultsId) {
+      const escapedId = resultsId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existsPattern = new RegExp(`<results[^>]*\\sid="${escapedId}"`);
+      if (existsPattern.test(maimlContent)) {
+        continue;
+      }
+    }
+    toAppend += `    ${block.trimEnd()}\n`;
+  }
+
+  if (!toAppend) {
+    return maimlContent;
+  }
+
+  return maimlContent.replace(/<\/data>/i, `${toAppend}  </data>`);
+}
+
+// ============================================================
 // replaceDataAndEventLogInMaiml
 // ============================================================
 

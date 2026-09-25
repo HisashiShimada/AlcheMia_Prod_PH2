@@ -32,6 +32,8 @@ import {
   appendOwnerToDocument,
   extractOwnerIdsFromEventLogs,
   buildPlannedValuesResultsXML,
+  extractResultsBlocksFromDataXml,
+  appendResultsToData,
 } from '../utils/maimlDataWriter';
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
@@ -239,8 +241,28 @@ export class MaimlWriterService {
     const dataXml = buildDataXML(filteredTemplateDataRows, dataId, existingUuids);
     const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
 
-    // --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
-    let updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
+    // --- 8. 既存 MAIML の <data> / <eventLog> タグを更新 ---
+    // targetFilter あり（approveTask 時）:
+    //   <data> 全体は置き換えず、template_data から生成した <results> を </data> 直前に追記。
+    //   チェックアウト時に書き込んだ planned_values（実験計画指示）の <results> を保持する。
+    //   <eventLog> は従来通りプロジェクト全件で全置換する。
+    // targetFilter なし（全件書き出し時）:
+    //   従来通り <data> / <eventLog> を両方丸ごと置き換える。
+    let updatedMaiml: string;
+    if (targetFilter) {
+      const newResultsXml = extractResultsBlocksFromDataXml(dataXml);
+      updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
+      if (newResultsXml) {
+        updatedMaiml = appendResultsToData(updatedMaiml, newResultsXml);
+      } else {
+        console.warn(
+          `[MaimlWriterService] targetFilter 指定時に <results> が生成されませんでした。` +
+            `<data> セクションは変更しません (filter: methodId=${targetFilter.methodId}, taskNo=${targetFilter.taskNo})`
+        );
+      }
+    } else {
+      updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
+    }
 
     // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
     // プロジェクトスコープ（グループ＋祖先）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
