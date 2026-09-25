@@ -1430,33 +1430,31 @@ const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions,
                   {t('workRecord.noInstructions')}
                 </Text>
               ) : (
-                <>
-                  <ul style={{ margin: 0, paddingLeft: 18, marginBottom: 8, maxHeight: 240, overflowY: 'auto' }}>
-                    {instructions.map((inst) => (
-                      <li key={inst.instructionId} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>
-                        <Text strong style={{ fontSize: 13 }}>{resolveLabel(inst.instructionKey)}：</Text>
-                        {inst.content}
-                      </li>
-                    ))}
-                  </ul>
-                  <Flex justify="flex-end">
-                    <Button
-                      size="small"
-                      type="primary"
-                      disabled={confirmInstructionDisabled}
-                      style={confirmInstructionDisabled ? undefined : { background: '#52c41a', borderColor: '#52c41a' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (displayKey) {
-                          onConfirmInstruction?.(displayKey.methodId ?? '', displayKey.taskNo, displayKey.transitionId);
-                        }
-                      }}
-                    >
-                      {t('workRecord.confirmInstruction')}
-                    </Button>
-                  </Flex>
-                </>
+                <ul style={{ margin: 0, paddingLeft: 18, marginBottom: 8, maxHeight: 240, overflowY: 'auto' }}>
+                  {instructions.map((inst) => (
+                    <li key={inst.instructionId} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>
+                      <Text strong style={{ fontSize: 13 }}>{resolveLabel(inst.instructionKey)}：</Text>
+                      {inst.content}
+                    </li>
+                  ))}
+                </ul>
               )}
+              <Flex justify="flex-end" style={{ marginTop: 4 }}>
+                <Button
+                  size="small"
+                  type="primary"
+                  disabled={confirmInstructionDisabled}
+                  style={confirmInstructionDisabled ? undefined : { background: '#52c41a', borderColor: '#52c41a' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (displayKey) {
+                      onConfirmInstruction?.(displayKey.methodId ?? '', displayKey.taskNo, displayKey.transitionId);
+                    }
+                  }}
+                >
+                  {t('workRecord.confirmInstruction')}
+                </Button>
+              </Flex>
             </>
           ),
         },
