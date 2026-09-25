@@ -74,7 +74,8 @@ export function escapeXml(text: unknown): string {
 export function buildDataXML(
   rows: TemplateDataRow[],
   dataId: string = 'dataID',
-  existingUuids?: Map<string, string>
+  existingUuids?: Map<string, string>,
+  resultsIdSuffix: string = '_actual'
 ): string {
   // property_set が null のレコードは除外
   const validRows = rows.filter(
@@ -114,8 +115,9 @@ export function buildDataXML(
     // グループ内の最初のレコードから method_id / task_no を取得
     const { method_id, task_no } = groupRows[0];
 
-    // results タグの id: "results_{method_id}_{task_no}"
-    const resultsId = `results_${escapeXml(method_id)}_${task_no}`;
+    // results タグの id: "results_{method_id}_{task_no}{suffix}"
+    // suffix を付与することで planned_values 由来の <results> と区別できる
+    const resultsId = `results_${escapeXml(method_id)}_${task_no}${resultsIdSuffix}`;
 
     dataXml += `    <results id="${resultsId}">\n`;
     dataXml += `      <uuid>${resolveUuid(`results:${resultsId}`, existingUuids, randomUUID)}</uuid>\n`;

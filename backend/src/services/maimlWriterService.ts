@@ -238,6 +238,9 @@ export class MaimlWriterService {
     const existingUuids = extractUuidsFromMaiml(maimlContent);
 
     // --- 7. XML を生成（data: 既存UUID再利用 / eventLog: 変化があった要素のみ新規UUID払い出し）---
+    // buildDataXML は実績用として常に resultsIdSuffix='_actual' を付与する（デフォルト値）。
+    // 計画用（buildPlannedValuesResultsXML）は results_{methodId}_{taskNo} を使用するため、
+    // 実績用との ID 衝突を防ぐために両者で採番体系を分離している。
     const dataXml = buildDataXML(filteredTemplateDataRows, dataId, existingUuids);
     const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
 

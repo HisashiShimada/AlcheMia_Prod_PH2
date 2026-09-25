@@ -296,9 +296,10 @@ function buildTransitionEntry(
   );
   const ownerRef = buildOwnerRefObject(`ownerRef_${idPrefix}`, e.evaluated_user_id);
 
-  // resultsRef: data 層の results ID（buildDataXML の命名規則: results_{method_id}_{task_no}）
+  // resultsRef: data 層の results ID（buildDataXML の命名規則: results_{method_id}_{task_no}_actual）
+  // buildDataXML は実績用として常に '_actual' サフィックスを付与するため、参照先も同様にする。
   const resultsId = e.method_id
-    ? `results_${e.method_id}_${e.task_no ?? 'null'}`
+    ? `results_${e.method_id}_${e.task_no ?? 'null'}_actual`
     : null;
 
   const eventObj: Record<string, unknown> = {
