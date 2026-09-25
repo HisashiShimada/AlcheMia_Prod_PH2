@@ -1500,18 +1500,9 @@ export class ProjectService {
         status
       );
 
-      // タスクステータスマップ（数値 → 文字列）
-      const TASK_STATUS_MAP: { [key: number]: string } = {
-        0: 'pending',
-        1: 'in_progress',
-        2: 'review_waiting',
-        3: 'completed',
-        4: 'forced_terminated',
-      };
-
       // タスクデータをフロントエンドの型に合わせて変換
       const tasks = tasksResult.map((row: any) => {
-        const taskStatus = TASK_STATUS_MAP[row.task_status] || 'pending';
+        const taskStatusNum: number = row.task_status ?? 0;
         const taskId = `${row.method_id}_${row.task_no}`;
 
         return {
@@ -1521,7 +1512,7 @@ export class ProjectService {
           workerName: row.experiment_user_name || '',
           transitionId: `${row.method_id}_${row.task_no}`,
           transitionName: `Task ${row.task_no}`,
-          workStatus: taskStatus as any,
+          workStatus: taskStatusNum,
           assignedAt: row.experiment_start_at
             ? toJSTIsoString(new Date(row.experiment_start_at))
             : toJSTIsoString(new Date()),
@@ -1529,7 +1520,7 @@ export class ProjectService {
             ? toJSTIsoString(new Date(row.experiment_start_at))
             : null,
           completedAt: row.experiment_end_at ? toJSTIsoString(new Date(row.experiment_end_at)) : null,
-          progress: taskStatus === 'completed' ? 100 : taskStatus === 'in_progress' ? 50 : 0,
+          progress: taskStatusNum === TaskStatusEnum.COMPLETED ? 100 : taskStatusNum === TaskStatusEnum.IN_PROGRESS ? 50 : 0,
 
           // TaskResultsTable用の追加プロパティ
           workId: taskId,
@@ -1537,7 +1528,7 @@ export class ProjectService {
           methodName: row.method_id,
           assignedWorker: row.experiment_user_name || '',
           progressPercentage:
-            taskStatus === 'completed' ? 100 : taskStatus === 'in_progress' ? 50 : 0,
+            taskStatusNum === TaskStatusEnum.COMPLETED ? 100 : taskStatusNum === TaskStatusEnum.IN_PROGRESS ? 50 : 0,
           workCompletedAt: row.experiment_end_at
             ? toJSTIsoString(new Date(row.experiment_end_at))
             : null,
@@ -1548,7 +1539,7 @@ export class ProjectService {
           projectId: row.project_id,
           methodId: row.method_id,
           taskNo: row.task_no,
-          taskStatus: taskStatus,
+          taskStatus: taskStatusNum,
           experimentUserId: row.experiment_user_id,
           reviewUserId: row.review_user_id,
           reviewUserName: row.review_user_name || null,

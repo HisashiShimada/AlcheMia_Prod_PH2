@@ -9,9 +9,9 @@
 import React, { useState, useCallback } from 'react';
 import {
   Card, Form, Select, InputNumber, Button, Space, Typography,
-  Divider, Alert, Spin, Flex,
+  Divider, Alert, Spin, Flex, Tooltip,
 } from 'antd';
-import { SaveOutlined, EyeOutlined } from '@ant-design/icons';
+import { SaveOutlined, EyeOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useAggregationRule } from '@/hooks/useAggregationRule';
 import { useLanguage } from '@/contexts/LanguageContext';
 import EvaluationSummaryBar from '@/components/project/subcomponents/EvaluationSummaryBar';
@@ -19,6 +19,15 @@ import AttentionItemList from '@/components/project/subcomponents/AttentionItemL
 import type { CreateAggregationRuleInput, SummaryPreviewResponse, AggregationRuleSettingsProps } from '@/types/aggregationRule';
 
 const { Title, Text } = Typography;
+
+/** tooltip テキストの \n を改行要素に変換して React.ReactNode として返す */
+const formatTooltip = (text: string): React.ReactNode => (
+  <>
+    {text.split('\n').map((line, i) => (
+      <React.Fragment key={i}>{i > 0 && <br />}{line}</React.Fragment>
+    ))}
+  </>
+);
 
 const AggregationRuleSettings: React.FC<AggregationRuleSettingsProps> = ({ previewProjectId }) => {
   const { t } = useLanguage();
@@ -81,6 +90,15 @@ const AggregationRuleSettings: React.FC<AggregationRuleSettingsProps> = ({ previ
     transition_hierarchy: activeRule?.transition_hierarchy ?? 'MERGE',
   };
 
+  const scoreMappingTitle = (
+    <Flex align="center" gap={4}>
+      {t('aggregationRule.scoreMappingTitle')}
+      <Tooltip title={formatTooltip(t('aggregationRule.scoreMappingTooltip'))}>
+        <QuestionCircleOutlined style={{ color: '#8c8c8c', cursor: 'help' }} />
+      </Tooltip>
+    </Flex>
+  );
+
   return (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <Title level={5} style={{ marginBottom: 0 }}>{t('aggregationRule.title')}</Title>
@@ -92,15 +110,27 @@ const AggregationRuleSettings: React.FC<AggregationRuleSettingsProps> = ({ previ
       {saveSuccess && <Alert type="success" title={t('aggregationRule.saveSuccess')} showIcon closable onClose={() => setSaveSuccess(false)} />}
       {error && <Alert type="error" title={error} showIcon closable onClose={() => setError(null)} />}
 
-      <Card size="small" title={t('aggregationRule.scoreMappingTitle')}>
+      <Card size="small" title={scoreMappingTitle}>
         <Form form={form} initialValues={initialValues} layout="inline">
-          <Form.Item label={t('aggregationRule.scoreGood')} name="score_good">
+          <Form.Item
+            label={t('aggregationRule.scoreGood')}
+            name="score_good"
+            tooltip={t('aggregationRule.scoreGoodTooltip')}
+          >
             <InputNumber min={0} max={100} size="small" style={{ width: 70 }} />
           </Form.Item>
-          <Form.Item label={t('aggregationRule.scoreCaution')} name="score_caution">
+          <Form.Item
+            label={t('aggregationRule.scoreCaution')}
+            name="score_caution"
+            tooltip={t('aggregationRule.scoreCautionTooltip')}
+          >
             <InputNumber min={0} max={100} size="small" style={{ width: 70 }} />
           </Form.Item>
-          <Form.Item label={t('aggregationRule.scoreBad')} name="score_bad">
+          <Form.Item
+            label={t('aggregationRule.scoreBad')}
+            name="score_bad"
+            tooltip={t('aggregationRule.scoreBadTooltip')}
+          >
             <InputNumber min={0} max={100} size="small" style={{ width: 70 }} />
           </Form.Item>
         </Form>
@@ -109,33 +139,58 @@ const AggregationRuleSettings: React.FC<AggregationRuleSettingsProps> = ({ previ
       <Card size="small" title={t('aggregationRule.aggregationRuleTitle')}>
         <Form form={form} initialValues={initialValues} layout="vertical">
           <Flex gap={16} wrap="wrap">
-            <Form.Item label={t('aggregationRule.targetRollup.label')} name="target_rollup" style={{ minWidth: 200 }}>
+            <Form.Item
+              label={t('aggregationRule.targetRollup.label')}
+              name="target_rollup"
+              tooltip={formatTooltip(t('aggregationRule.targetRollup.tooltip'))}
+              style={{ minWidth: 200 }}
+            >
               <Select size="small" options={[
                 { value: 'WORST_CASE', label: t('aggregationRule.targetRollup.worstCase') },
                 { value: 'MAJORITY',  label: t('aggregationRule.targetRollup.majority') },
                 { value: 'AVERAGE',   label: t('aggregationRule.targetRollup.average') },
               ]} />
             </Form.Item>
-            <Form.Item label={t('aggregationRule.levelStatusRule.label')} name="level_status_rule" style={{ minWidth: 200 }}>
+            <Form.Item
+              label={t('aggregationRule.levelStatusRule.label')}
+              name="level_status_rule"
+              tooltip={formatTooltip(t('aggregationRule.levelStatusRule.tooltip'))}
+              style={{ minWidth: 200 }}
+            >
               <Select size="small" options={[
                 { value: 'WORST_CASE', label: t('aggregationRule.levelStatusRule.worstCase') },
                 { value: 'MAJORITY',  label: t('aggregationRule.levelStatusRule.majority') },
               ]} />
             </Form.Item>
-            <Form.Item label={t('aggregationRule.levelScoreRule.label')} name="level_score_rule" style={{ minWidth: 150 }}>
+            <Form.Item
+              label={t('aggregationRule.levelScoreRule.label')}
+              name="level_score_rule"
+              tooltip={formatTooltip(t('aggregationRule.levelScoreRule.tooltip'))}
+              style={{ minWidth: 150 }}
+            >
               <Select size="small" options={[
                 { value: 'MEAN', label: t('aggregationRule.levelScoreRule.mean') },
                 { value: 'MIN',  label: t('aggregationRule.levelScoreRule.min') },
               ]} />
             </Form.Item>
-            <Form.Item label={t('aggregationRule.missingHandling.label')} name="missing_handling" style={{ minWidth: 200 }}>
+            <Form.Item
+              label={t('aggregationRule.missingHandling.label')}
+              name="missing_handling"
+              tooltip={formatTooltip(t('aggregationRule.missingHandling.tooltip'))}
+              style={{ minWidth: 200 }}
+            >
               <Select size="small" options={[
                 { value: 'SEPARATE_COUNT',      label: t('aggregationRule.missingHandling.separateCount') },
                 { value: 'EXCLUDE_DENOMINATOR', label: t('aggregationRule.missingHandling.excludeDenominator') },
                 { value: 'TREAT_AS_GOOD',       label: t('aggregationRule.missingHandling.treatAsGood') },
               ]} />
             </Form.Item>
-            <Form.Item label={t('aggregationRule.transitionHierarchy.label')} name="transition_hierarchy" style={{ minWidth: 180 }}>
+            <Form.Item
+              label={t('aggregationRule.transitionHierarchy.label')}
+              name="transition_hierarchy"
+              tooltip={formatTooltip(t('aggregationRule.transitionHierarchy.tooltip'))}
+              style={{ minWidth: 180 }}
+            >
               <Select size="small" options={[
                 { value: 'MERGE', label: t('aggregationRule.transitionHierarchy.merge') },
                 { value: 'SPLIT', label: t('aggregationRule.transitionHierarchy.split') },

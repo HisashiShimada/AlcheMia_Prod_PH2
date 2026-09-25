@@ -46,7 +46,7 @@ router.get(
       .withMessage((_, { req }) => getMessage(getLang(req as any), 'projectRoutes.validation.limitInt')),
     query('status')
       .optional()
-      .isIn(['1', '2', '3'])
+      .isIn(['1', '2', '3', '6'])
       .withMessage((_, { req }) => getMessage(getLang(req as any), 'projectRoutes.validation.statusIn')),
     query('sort_by')
       .optional()
