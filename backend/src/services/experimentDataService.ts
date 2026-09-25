@@ -722,9 +722,15 @@ function convertPropertyForFallback(
       const isQualitative = detail?.evaluationMethod === 2;
 
       if (!isQualitative) {
-        const tv   = unc.value     != null ? String(unc.value) : null;
+        // 許容値はMAIML計画段階の<uncertainty>タグには<value>要素がないため、
+        // DBの tolerance_upper / tolerance_lower から "{lower} ~ {upper}" 形式で生成する
+        const toleranceLower = detail?.toleranceLower ?? null;
+        const toleranceUpper = detail?.toleranceUpper ?? null;
+        const tv = (toleranceLower !== null && toleranceUpper !== null)
+          ? `${toleranceLower} ~ ${toleranceUpper}`
+          : null;
         const tn   = unc.description ?? null;
-        const name = detail?.termDisplayName ?? null;
+        const name = detail?.termDisplayName ?? detail?.uncertaintyName ?? null;
         // 後方互換: 最初の1件を toleranceValue（単一フィールド）にも設定
         if (toleranceValue === null) {
           toleranceValue  = tv;

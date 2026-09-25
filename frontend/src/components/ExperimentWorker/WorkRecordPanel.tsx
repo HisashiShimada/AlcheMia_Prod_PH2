@@ -74,6 +74,11 @@ interface AddedUncertaintyValue {
   uncertaintyKey: string;
   /** 入力された値 */
   value: string;
+  /**
+   * prop.quantitativeUncertainties からプリセット生成された行かどうか。
+   * true の場合は不確かさキーの Select を固定（disabled）にする。
+   */
+  isPreset?: boolean;
 }
 
 /**
@@ -355,27 +360,40 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   const [qualitativeReason, setQualitativeReason] = useState<string>(prop.qualitativeReason ?? '');
   /**
    * 定量評価入力行。
-   * quantitativeUncertainties が設定されている場合は件数分の行を初期生成し
-   * uncertaintyKey をプリセットする。それ以外は空行1件。
-   * initialUncertaintyValues が渡された場合は uncertaintyKey に対応する value を復元する。
+   * quantitativeUncertainties が設定されている場合は件数分のプリセット行（isPreset: true）を生成し
+   * uncertaintyKey をプリセットする。それ以外は空配列。
+   * initialUncertaintyValues が渡された場合は:
+   *   - プリセット行: uncertaintyKey に対応する value を復元
+   *   - 追加行: プリセット外の uncertaintyKey を持つエントリを末尾に追加（isPreset: false）
    */
   const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>(() => {
-    if (prop.quantitativeUncertainties && prop.quantitativeUncertainties.length > 0) {
-      return prop.quantitativeUncertainties.map((qu) => {
-        // initialUncertaintyValues から対応するエントリの value を復元（テンプレート切替後の保持）
-        const savedEntry = initialUncertaintyValues?.find(
-          (e) => e.uncertaintyKey === qu.uncertaintyKey
-        );
-        // 次に DB から復元した recordedValue を使用（getTemplateData API 経由で付与）
-        const dbValue = qu.recordedValue != null ? String(qu.recordedValue) : '';
-        return {
-          id: qu.uncertaintyKey,
-          uncertaintyKey: qu.uncertaintyKey,
-          value: savedEntry?.value ?? dbValue,
-        };
-      });
-    }
-    return [{ id: 'initial', uncertaintyKey: '', value: '' }];
+    const presetKeys = new Set(
+      (prop.quantitativeUncertainties ?? []).map((qu) => qu.uncertaintyKey)
+    );
+    const presetRows: AddedUncertaintyValue[] = (prop.quantitativeUncertainties ?? []).map((qu) => {
+      // initialUncertaintyValues から対応するエントリの value を復元（テンプレート切替後の保持）
+      const savedEntry = initialUncertaintyValues?.find(
+        (e) => e.uncertaintyKey === qu.uncertaintyKey
+      );
+      // 次に DB から復元した recordedValue を使用（getTemplateData API 経由で付与）
+      const dbValue = qu.recordedValue != null ? String(qu.recordedValue) : '';
+      return {
+        id: qu.uncertaintyKey,
+        uncertaintyKey: qu.uncertaintyKey,
+        value: savedEntry?.value ?? dbValue,
+        isPreset: true,
+      };
+    });
+    // 追加行: initialUncertaintyValues のプリセット外エントリを復元（テンプレート切替後の保持）
+    const extraRows: AddedUncertaintyValue[] = (initialUncertaintyValues ?? [])
+      .filter((e) => !presetKeys.has(e.uncertaintyKey))
+      .map((e) => ({
+        id: e.uncertaintyKey,
+        uncertaintyKey: e.uncertaintyKey,
+        value: e.value,
+        isPreset: false,
+      }));
+    return [...presetRows, ...extraRows];
   });
 
   /** addedValues の uncertaintyKey に対応する QuantitativeUncertaintyInfo を返す */
@@ -404,7 +422,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   const handleUncertaintyKeyChange = (id: string, newKey: string) => {
     setAddedValues((prev) => {
       const next = prev.map((av) => (av.id === id ? { ...av, uncertaintyKey: newKey } : av));
-      onUncertaintyValuesChange?.(next.filter((av) => av.uncertaintyKey && av.value).map((av) => ({
+      onUncertaintyValuesChange?.(next.map((av) => ({
         propKey: prop.key, uncertaintyKey: av.uncertaintyKey, value: av.value,
       })));
       return next;
@@ -415,7 +433,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   const handleValueChange = (id: string, newValue: string) => {
     setAddedValues((prev) => {
       const next = prev.map((av) => (av.id === id ? { ...av, value: newValue } : av));
-      onUncertaintyValuesChange?.(next.filter((av) => av.uncertaintyKey && av.value).map((av) => ({
+      onUncertaintyValuesChange?.(next.map((av) => ({
         propKey: prop.key, uncertaintyKey: av.uncertaintyKey, value: av.value,
       })));
       return next;
@@ -424,7 +442,13 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
   /** 行を削除する */
   const handleRemoveValue = (id: string) => {
-    setAddedValues((prev) => prev.filter((av) => av.id !== id));
+    setAddedValues((prev) => {
+      const next = prev.filter((av) => av.id !== id);
+      onUncertaintyValuesChange?.(next.map((av) => ({
+        propKey: prop.key, uncertaintyKey: av.uncertaintyKey, value: av.value,
+      })));
+      return next;
+    });
   };
 
   return (
@@ -614,7 +638,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     <div style={{ marginBottom: 6 }}>
                       <Flex align="baseline" gap={6} style={{ marginBottom: 2 }}>
                         <Text type="secondary" style={{ fontSize: 11, flexShrink: 0 }}>
-                          {qInfo.uncertaintyName ?? t('workRecord.uncertaintyValue')}
+                          {qInfo.uncertaintyName || qInfo.uncertaintyKey || t('workRecord.uncertaintyValue')}
                         </Text>
                         {qInfo.toleranceValue !== undefined && (
                           <Text style={{ fontSize: 12, fontWeight: 500 }}>
@@ -631,14 +655,22 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   )}
                   {/* 入力行 */}
                   <Flex gap={4} align="center">
-                    <Select
-                      size="small"
-                      style={{ flex: 6, minWidth: 0 }}
-                      placeholder={t('workRecord.quantitativeEvalPlaceholder')}
-                      value={av.uncertaintyKey || undefined}
-                      onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
-                      options={uncertaintyOptionsCache}
-                    />
+                    {av.isPreset ? (
+                      // プリセット行: キー名テキスト固定表示（Select不要）
+                      <Text style={{ flex: 6, minWidth: 0, fontSize: 12 }}>
+                        {qInfo?.uncertaintyName || av.uncertaintyKey}
+                      </Text>
+                    ) : (
+                      // 追加行: Select でキーを選択
+                      <Select
+                        size="small"
+                        style={{ flex: 6, minWidth: 0 }}
+                        placeholder={t('workRecord.quantitativeEvalPlaceholder')}
+                        value={av.uncertaintyKey || undefined}
+                        onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
+                        options={uncertaintyOptionsCache}
+                      />
+                    )}
                     <Input
                       size="small"
                       style={{ flex: 4, minWidth: 0 }}
@@ -646,14 +678,15 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                       value={av.value}
                       onChange={(e) => handleValueChange(av.id, e.target.value)}
                     />
-                    <Button
-                      size="small"
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleRemoveValue(av.id)}
-                      disabled={addedValues.length === 1}
-                    />
+                    {!av.isPreset && (
+                      <Button
+                        size="small"
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemoveValue(av.id)}
+                      />
+                    )}
                   </Flex>
                 </div>
               );
@@ -2484,24 +2517,24 @@ export default function WorkRecordPanel({
           templates: templatesMap.get(transitionId) ?? [],
         }));
 
-        // uncertaintyValuesRef を DB の recordedValue で初期化する
+        // uncertaintyValuesRef を DB の recordedValue でプロパティ単位に初期化する
         // ユーザーが操作しなくても handleSave 時に既存記録値が uncertaintyValues として送信されるようにする
         // 既にユーザーが操作して値が入っている場合（uncertaintyValuesRef.current.has）は上書きしない
         for (const [, builtTemplates] of templatesMap.entries()) {
           for (const tpl of builtTemplates) {
-            const refKey = tpl.id;
-            if (uncertaintyValuesRef.current.has(refKey)) continue;
-            const entries: UncertaintyValueEntry[] = tpl.properties.flatMap((wp) =>
-              (wp.quantitativeUncertainties ?? [])
+            for (const wp of tpl.properties) {
+              const refKey = `${tpl.id}__${wp.key}`;
+              if (uncertaintyValuesRef.current.has(refKey)) continue;
+              const entries: UncertaintyValueEntry[] = (wp.quantitativeUncertainties ?? [])
                 .filter((qu) => qu.recordedValue != null)
                 .map((qu) => ({
                   propKey: wp.key,
                   uncertaintyKey: qu.uncertaintyKey,
                   value: String(qu.recordedValue),
-                }))
-            );
-            if (entries.length > 0) {
-              uncertaintyValuesRef.current.set(refKey, entries);
+                }));
+              if (entries.length > 0) {
+                uncertaintyValuesRef.current.set(refKey, entries);
+              }
             }
           }
         }
@@ -2805,6 +2838,66 @@ export default function WorkRecordPanel({
             }
           });
         }
+        // 定性評価選択値・定性評価理由を対応する uncertainty[].value / description に書き込む
+        // ※ 定量評価（toleranceValues に含まれるキー）には書き込まない
+        if (Array.isArray(baseData.properties)) {
+          (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+            if (p.isCustomProperty === true) return;
+            const propKey = String(p.key ?? '');
+            const confidenceEntry =
+              confidenceValuesRef.current.get(`${item.placeId}__${propKey}`) ??
+              confidenceValuesRef.current.get(`${item.templateId}__${propKey}`);
+            // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
+            const quantitativeKeys = new Set(
+              (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
+                ?.map((tv) => tv.uncertaintyKey) ?? []
+            );
+            if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
+              (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+                const ucKey = unc['key'] as string | undefined;
+                // 定量評価キーはスキップ（定性評価のキーのみ書き込む）
+                if (!ucKey || quantitativeKeys.has(ucKey)) return;
+                // 定性評価選択値を書き込む
+                if (confidenceEntry?.value) {
+                  unc.value = confidenceEntry.value;
+                }
+                // 定性評価理由を書き込む
+                if (confidenceEntry?.description) {
+                  unc.description = confidenceEntry.description;
+                }
+              });
+            }
+            // フラットフィールドも同期して上書きする
+            if (confidenceEntry?.value) {
+              p['qualitativeEval'] = confidenceEntry.value;
+            }
+            if (confidenceEntry?.description != null) {
+              p['qualitativeReason'] = confidenceEntry.description;
+            } else if (confidenceEntry !== undefined) {
+              p['qualitativeReason'] = null;
+            }
+          });
+        }
+        // ── 定量評価値（uncertaintyValuesRef）を uncertainty[] に書き込む ──
+        if (Array.isArray(baseData.properties)) {
+          (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+            if (p.isCustomProperty === true) return;
+            const propKey = String(p.key ?? '');
+            // キー形式 ${templateId}__${propKey} で取得（placeId も試みてフォールバック）
+            const propEntries: UncertaintyValueEntry[] =
+              uncertaintyValuesRef.current.get(`${item.templateId}__${propKey}`) ??
+              uncertaintyValuesRef.current.get(`${item.placeId}__${propKey}`) ?? [];
+            if (propEntries.length === 0 || !Array.isArray(p.uncertainty)) return;
+            (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+              const ucKey = unc['key'] as string | undefined;
+              if (!ucKey) return;
+              const entry = propEntries.find((e) => e.uncertaintyKey === ucKey);
+              if (entry && entry.value && !isNaN(Number(entry.value))) {
+                unc['value'] = entry.value;
+              }
+            });
+          });
+        }
         return {
           placeId: item.placeId,
           transitionId,
@@ -2876,7 +2969,9 @@ export default function WorkRecordPanel({
           (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
             if (p.isCustomProperty === true) return;
             const propKey = String(p.key ?? '');
-            const confidenceEntry = confidenceValuesRef.current.get(`${item.templateId}__${propKey}`);
+            const confidenceEntry =
+              confidenceValuesRef.current.get(`${item.placeId}__${propKey}`) ??
+              confidenceValuesRef.current.get(`${item.templateId}__${propKey}`);
             // 定量評価キーのセットを構築（toleranceValues に含まれるキー = 定量）
             const quantitativeKeys = new Set(
               (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
@@ -2908,6 +3003,26 @@ export default function WorkRecordPanel({
               // エントリは存在するが description が null/undefined の場合はクリア
               p['qualitativeReason'] = null;
             }
+          });
+        }
+        // ── 定量評価値（uncertaintyValuesRef）を uncertainty[] に書き込む ──
+        if (Array.isArray(baseData.properties)) {
+          (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+            if (p.isCustomProperty === true) return;
+            const propKey = String(p.key ?? '');
+            // キー形式 ${templateId}__${propKey} で取得（placeId も試みてフォールバック）
+            const propEntries: UncertaintyValueEntry[] =
+              uncertaintyValuesRef.current.get(`${item.templateId}__${propKey}`) ??
+              uncertaintyValuesRef.current.get(`${item.placeId}__${propKey}`) ?? [];
+            if (propEntries.length === 0 || !Array.isArray(p.uncertainty)) return;
+            (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
+              const ucKey = unc['key'] as string | undefined;
+              if (!ucKey) return;
+              const entry = propEntries.find((e) => e.uncertaintyKey === ucKey);
+              if (entry && entry.value && !isNaN(Number(entry.value))) {
+                unc['value'] = entry.value;
+              }
+            });
           });
         }
         return {
@@ -3464,11 +3579,14 @@ export default function WorkRecordPanel({
     },
     onUncertaintyValuesChange: (placeId: string, entries: UncertaintyValueEntry[]) => {
       // PropertyCard の addedValues が変化するたびに Ref を更新する
-      // キーは placeId（template.id）。entries が空の場合はキーを削除
+      // キーは ${placeId}__${propKey}（プロパティ単位で管理し複数カード間の上書きを防ぐ）
+      const propKey = entries[0]?.propKey ?? '';
+      if (!propKey) return;
+      const refKey = `${placeId}__${propKey}`;
       if (entries.length === 0) {
-        uncertaintyValuesRef.current.delete(placeId);
+        uncertaintyValuesRef.current.delete(refKey);
       } else {
-        uncertaintyValuesRef.current.set(placeId, entries);
+        uncertaintyValuesRef.current.set(refKey, entries);
       }
     },
     onConfidenceChange: (templateId: string, propKey: string, value: string | null, uncertaintyKey?: string | null) => {
@@ -3520,8 +3638,8 @@ export default function WorkRecordPanel({
       };
     },
     onGetInitialUncertaintyValues: (placeId: string, propKey: string): UncertaintyValueEntry[] => {
-      const key = `${placeId}__${propKey}`;
-      return uncertaintyValuesRef.current.get(key) ?? [];
+      const refKey = `${placeId}__${propKey}`;
+      return uncertaintyValuesRef.current.get(refKey) ?? [];
     },
   };
 

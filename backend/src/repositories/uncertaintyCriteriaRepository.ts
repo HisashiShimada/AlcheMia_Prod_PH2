@@ -671,6 +671,8 @@ export async function findByKeysWithDetails(
     uncertaintyName:    string;
     evaluationMethod:   number;
     termDisplayName:    string | null;
+    toleranceUpper:     number | null;
+    toleranceLower:     number | null;
     qualitativeOptions: QualitativeOptionRow[];
   }>(sqlQuery, [organizationId, keys]);
 
@@ -679,6 +681,8 @@ export async function findByKeysWithDetails(
     uncertaintyName:    r.uncertaintyName,
     evaluationMethod:   r.evaluationMethod,
     termDisplayName:    r.termDisplayName ?? null,
+    toleranceUpper:     r.toleranceUpper ?? null,
+    toleranceLower:     r.toleranceLower ?? null,
     qualitativeOptions: Array.isArray(r.qualitativeOptions) ? r.qualitativeOptions : [],
   }));
 }
@@ -695,6 +699,10 @@ export interface UncertaintyKeyDetail {
   evaluationMethod: number;
   /** 名前空間の表示名（namespace_term.display_name） */
   termDisplayName: string | null;
+  /** 許容上限値（uncertainty_criteria.tolerance_upper。null=未設定） */
+  toleranceUpper: number | null;
+  /** 許容下限値（uncertainty_criteria.tolerance_lower。null=未設定） */
+  toleranceLower: number | null;
   /** 定性評価の選択肢（定量の場合は空配列） */
   qualitativeOptions: QualitativeOptionRow[];
 }

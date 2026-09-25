@@ -1,11 +1,13 @@
 -- 不確かさ基準キー複数件詳細取得クエリ
 -- キーの配列でフィルタし、各キーの最新バージョンを1件取得する
--- evaluation_method / termDisplayName / intuition_selector（選択肢）も返す
+-- evaluation_method / termDisplayName / tolerance_upper / tolerance_lower / intuition_selector（選択肢）も返す
 SELECT DISTINCT ON (uc.uncertainty_key)
   uc.uncertainty_key            AS "uncertaintyKey",
   uc.uncertainty_name           AS "uncertaintyName",
   uc.evaluation_method          AS "evaluationMethod",
   nt.display_name               AS "termDisplayName",
+  uc.tolerance_upper            AS "toleranceUpper",
+  uc.tolerance_lower            AS "toleranceLower",
   COALESCE(
     json_agg(
       json_build_object(
@@ -35,5 +37,7 @@ GROUP BY
   uc.evaluation_method,
   uc.name_space_id,
   uc.version,
-  nt.display_name
+  nt.display_name,
+  uc.tolerance_upper,
+  uc.tolerance_lower
 ORDER BY uc.uncertainty_key, uc.version DESC
