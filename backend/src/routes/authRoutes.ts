@@ -32,14 +32,14 @@ const validateOrgId = () => {
   return oneOf([
     header('x-amzn-mtls-clientcert-subject')
       .notEmpty()
-      .withMessage('Organization ID is required in mTLS client cert subject'),
+      .withMessage('組織のIDは必須です'),
     header('x-organization-id')
       .notEmpty()
-      .withMessage('Organization ID is required in header'),
+      .withMessage('組織のIDは必須です'),
     query('orgId')
       .notEmpty()
-      .withMessage('Organization ID is required in query parameter'),
-  ], { message: 'Organization ID is required in either query parameter (orgId) or header (X-Organization-Id)' });
+      .withMessage('組織のIDは必須です'),
+  ], { message: '組織のIDは必須です' });
 };
 
 // 1. ログインエンドポイント
@@ -51,14 +51,14 @@ router.post(
   [
     body('userId')
       .notEmpty()
-      .withMessage('User ID is required')
+      .withMessage('ユーザーIDは必須です')
       .isLength({ min: 1, max: 100 })
-      .withMessage('User ID must be between 1 and 100 characters'),
+      .withMessage('ユーザーIDは 1〜100文字の範囲でなければなりません'),
     body('password')
       .notEmpty()
-      .withMessage('Password is required')
+      .withMessage('パスワードは必須です')
       .isLength({ min: 8, max: 255 })
-      .withMessage('Password must be between 8 and 255 characters'),
+      .withMessage('パスワードは 8〜255文字の範囲でなければなりません'),
     validateOrgId(),
   ],
   handleValidationErrors,
@@ -73,14 +73,14 @@ router.post(
   [
     body('pinCode')
       .notEmpty()
-      .withMessage('PIN code is required')
+      .withMessage('PIN コードは必須です')
       .matches(/^\d{6}$/)
-      .withMessage('PIN code must be exactly 6 digits'),
+      .withMessage('PIN コードは 6 桁でなければなりません'),
     header('authorization')
       .notEmpty()
-      .withMessage('Authorization header is required')
+      .withMessage('Authorization ヘッダーは必須です')
       .matches(/^Bearer .+$/)
-      .withMessage('Bearer scheme is required'),
+      .withMessage('Bearer スキームは必須です'),
     validateOrgId(),
   ],
   handleValidationErrors,
@@ -95,9 +95,9 @@ router.post(
   [
     header('authorization')
       .notEmpty()
-      .withMessage('Authorization header is required')
+      .withMessage('Authorization ヘッダーは必須です')
       .matches(/^Bearer .+$/)
-      .withMessage('Bearer scheme is required'),
+      .withMessage('Bearer スキームは必須です'),
     validateOrgId(),
   ],
   handleValidationErrors,
@@ -139,11 +139,11 @@ router.post(
   [
     body('email')
       .notEmpty()
-      .withMessage('Email is required')
+      .withMessage('メールアドレスは必須です')
       .isEmail()
-      .withMessage('Valid email is required')
+      .withMessage('有効なメールアドレスが必要です')
       .isLength({ min: 1, max: 100 })
-      .withMessage('Email must be between 1 and 100 characters'),
+      .withMessage('メールアドレスは 1〜100文字の範囲でなければなりません'),
     validateOrgId(),
   ],
   handleValidationErrors,
@@ -157,12 +157,12 @@ router.post(
   [
     body('resetToken')
       .notEmpty()
-      .withMessage('Reset token is required'),
+      .withMessage('リセットトークンは必須です'),
     body('newPassword')
       .notEmpty()
-      .withMessage('New password is required')
+      .withMessage('新しいパスワードは必須です')
       .isLength({ min: 8, max: 255 })
-      .withMessage('Password must be between 8 and 255 characters'),
+      .withMessage('パスワードは 8〜255文字の範囲でなければなりません'),
   ],
   handleValidationErrors,
   authController.resetPassword
@@ -176,12 +176,12 @@ router.post(
   [
     body('currentPassword')
       .notEmpty()
-      .withMessage('Current password is required'),
+      .withMessage('現在のパスワードは必須です'),
     body('newPassword')
       .notEmpty()
-      .withMessage('New password is required')
+      .withMessage('新しいパスワードは必須です')
       .isLength({ min: 8, max: 255 })
-      .withMessage('Password must be between 8 and 255 characters'),
+      .withMessage('パスワードは 8〜255文字の範囲でなければなりません'),
   ],
   handleValidationErrors,
   authController.changePassword

@@ -11,7 +11,6 @@ SELECT
   o.corporation_id,
   c.corporation_name,
   o.is_entry,
-  o.use_deemed_progress,
   o.is_active,
   o.contract_capacity,
   o.contract_users,

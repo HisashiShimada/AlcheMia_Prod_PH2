@@ -62,7 +62,6 @@ export interface MethodTaskRecord {
   task_status: number | null;  // DBから返される値は数値（0, 1, 3, 4）
   assign_user_id: string | null;
   assign_user_name: string | null;
-  progress_rate: number;
   created_at: Date | null;
   updated_at: Date | null;
 }
@@ -76,7 +75,6 @@ export interface TaskSummary {
   task_status: TaskStatus;
   assign_user_id: string | null;
   assign_user_name: string | null;
-  progress_rate: number;
   created_at: string;
   updated_at: string;
 }

@@ -404,9 +404,6 @@ export interface TaskDetailTransitionItem {
   /** トランジションステータス数値（1:初期状態, 2:準備状態, 3:準備完了状態, 4:動作状態, 5:休止状態, 6:終状態, 7:異常終了状態） */
   status: number | null;
 
-  /** 進捗率（0〜100） */
-  progressRate: number | null;
-
   /** 最終更新日時（ISO8601） */
   updatedAt: string | null;
 }
@@ -426,9 +423,6 @@ export interface TaskDetailStats {
 
   /** 未着手数（status = 0 または NULL） */
   notStarted: number;
-
-  /** 進捗率（0〜100、avg_progress_rate から算出） */
-  progressPercentage: number;
 }
 
 /**
@@ -514,9 +508,6 @@ export interface TaskProgressStats {
 
   /** 未着手数（status = 0 または NULL） */
   not_started: number;
-
-  /** 進捗率（0〜100、avg_progress_rate から算出） */
-  progress_percentage: number;
 }
 
 /**

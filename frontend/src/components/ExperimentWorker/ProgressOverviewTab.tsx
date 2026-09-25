@@ -302,27 +302,11 @@ export default function ProgressOverviewTab({
     const matRec    = r.materialRecorded  ?? 0;
     const condRec   = r.conditionRecorded ?? 0;
     const resRec    = r.resultRecorded    ?? 0;
-    const totalItems = matTotal + condTotal + resTotal;
-    const totalDone  = matRec  + condRec  + resRec;
-
-    // 進捗率の決定（優先順位）:
-    // 1. completed ステータスは必ず 100%（バックエンドの normalizeProgress と整合）
-    // 2. バックエンドから progressRate が渡されている場合はその値を使用
-    // 3. MCR 件数から算出（テンプレート定義がある場合のフォールバック）
-    let progressRate: number;
-    if (r.status === 'completed') {
-      progressRate = 100;
-    } else if (r.progressRate !== undefined) {
-      progressRate = r.progressRate;
-    } else {
-      progressRate = totalItems > 0 ? Math.round((totalDone / totalItems) * 100) : 0;
-    }
 
     return {
       transitionId: r.transitionId,
       transitionName: r.transitionName ?? r.transitionId,
       status: r.status as ProgressStatus,
-      progressRate,
       inputMaterialsCount:   matRec,
       totalMaterialsCount:   matTotal,
       inputIngredientsCount: condRec,

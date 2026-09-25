@@ -258,7 +258,7 @@ export class EmailService {
     if (!/^\d{6}$/.test(pinCode)) {
       return {
         code: 'VALIDATION_INVALID_PIN_CODE',
-        message: 'PIN code must be exactly 6 digits'
+        message: 'PIN コードは 6 桁でなければなりません'
       };
     }
 

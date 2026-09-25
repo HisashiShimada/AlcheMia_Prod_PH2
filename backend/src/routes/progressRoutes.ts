@@ -105,32 +105,32 @@ router.get(
     // パスパラメータバリデーション
     param('projectId')
       .notEmpty()
-      .withMessage('projectId is required')
+      .withMessage('projectIdは必須です')
       .isString()
-      .withMessage('projectId must be a string')
+      .withMessage('projectIdは文字列でなければなりません')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectId must be 1-255 characters'),
+      .withMessage('projectId は 1〜255文字でなければなりません'),
     
     // クエリパラメータバリデーション（オプション）
     query('status')
       .optional()
       .isIn(['not_started', 'started', 'in_progress', 'completed', 'forced_terminated'])
-      .withMessage('status must be one of: not_started, started, in_progress, completed, forced_terminated'),
+      .withMessage('ステータスは次のいずれかでなければなりません：未開始, 開始済み, 実行中, 完了, 強制終了'),
     
     query('assignedTo')
       .optional()
       .isUUID()
-      .withMessage('assignedTo must be a valid UUID'),
+      .withMessage('assignedTo は有効な UUID でなければなりません'),
     
     query('sortBy')
       .optional()
       .isIn(['task_no', 'created_at', 'updated_at', 'status'])
-      .withMessage('sortBy must be one of: task_no, created_at, updated_at, status'),
+      .withMessage('ソート項目は次のいずれかでなければなりません：タスク番号、作成日時、更新日時、ステータス'),
     
     query('order')
       .optional()
       .isIn(['asc', 'desc'])
-      .withMessage('order must be either asc or desc'),
+      .withMessage('ソート順は昇順または降順のいずれかでなければなりません'),
   ],
   handleValidationErrors,
   progressController.getWorkerTasks
@@ -170,10 +170,6 @@ router.patch(
       .isInt({ min: 1, max: 7 })
       .withMessage('statusは1〜7の整数である必要があります（1:初期状態, 2:準備状態, 3:準備完了状態, 4:動作状態, 5:休止状態, 6:終状態, 7:異常終了状態）')
       .toInt(),
-    body('progressRate')
-      .optional()
-      .isInt({ min: 0, max: 100 })
-      .withMessage('progressRateは0-100の整数である必要があります'),
     body('comment')
       .optional()
       .isLength({ max: 2000 })

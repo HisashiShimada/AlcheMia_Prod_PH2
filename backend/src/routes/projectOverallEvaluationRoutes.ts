@@ -27,7 +27,7 @@ router.get(
   authMiddleware,
   tenantIsolation,
   [
-    param('projectId').notEmpty().withMessage('projectId is required').isString(),
+    param('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
   ],
   handleValidationErrors,
   projectOverallEvaluationController.getSummary
@@ -43,7 +43,7 @@ router.get(
   authMiddleware,
   tenantIsolation,
   [
-    param('projectId').notEmpty().withMessage('projectId is required').isString(),
+    param('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
   ],
   handleValidationErrors,
   projectOverallEvaluationController.getSubEvaluations
@@ -59,7 +59,7 @@ router.post(
   authMiddleware,
   tenantIsolation,
   [
-    param('projectId').notEmpty().withMessage('projectId is required').isString(),
+    param('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
   ],
   handleValidationErrors,
   projectOverallEvaluationController.exportToMaiml
@@ -75,17 +75,17 @@ router.post(
   authMiddleware,
   tenantIsolation,
   [
-    param('projectId').notEmpty().withMessage('projectId is required').isString(),
-    body('evaluations').isArray({ min: 1 }).withMessage('evaluations must be a non-empty array'),
+    param('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
+    body('evaluations').isArray({ min: 1 }).withMessage('evaluations は空でない配列でなければなりません'),
     body('evaluations.*.evaluationScope')
       .notEmpty()
-      .withMessage('evaluationScope is required')
+      .withMessage('evaluationScope は必須です')
       .isIn(Object.values(SubEvaluationScopeValues))
-      .withMessage('evaluationScope must be METHOD/TASK/TRANSITION_METHOD/TRANSITION_TASK'),
+      .withMessage('evaluationScope は METHOD / TASK / TRANSITION_METHOD / TRANSITION_TASK のいずれかでなければなりません'),
     body('evaluations.*.evaluationValue')
       .optional()
       .isIn(['良好', '要確認', '不良'])
-      .withMessage('evaluationValue must be 良好/要確認/不良'),
+      .withMessage('evaluationValue は『良好』『要確認』『不良』のいずれかでなければなりません'),
   ],
   handleValidationErrors,
   projectOverallEvaluationController.saveSubEvaluations
@@ -100,9 +100,9 @@ router.post(
   authMiddleware,
   tenantIsolation,
   [
-    body('projectId').notEmpty().withMessage('projectId is required').isString(),
-    body('overallDigital').optional().isIn(['良好', '要確認', '不良']).withMessage('overallDigital must be 良好/要確認/不良'),
-    body('overallScore').optional().isInt({ min: 0, max: 100 }).withMessage('overallScore must be 0-100'),
+    body('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
+    body('overallDigital').optional().isIn(['良好', '要確認', '不良']).withMessage('overallDigital は『良好』『要確認』『不良』のいずれかでなければなりません'),
+    body('overallScore').optional().isInt({ min: 0, max: 100 }).withMessage('overallScore は 0〜100 の範囲でなければなりません'),
     body('overallAnalog').optional().isString(),
   ],
   handleValidationErrors,
@@ -119,7 +119,7 @@ router.get(
   authMiddleware,
   tenantIsolation,
   [
-    param('projectId').notEmpty().withMessage('projectId is required').isString(),
+    param('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
   ],
   handleValidationErrors,
   projectOverallEvaluationController.getByProject

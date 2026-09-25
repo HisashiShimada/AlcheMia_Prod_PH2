@@ -28,7 +28,6 @@ type Messages = {
       chiefUserNameRequired: string;
       chiefUserEmailRequired: string;
       isEntryInvalid: string;
-      useDeemedProgressInvalid: string;
       isActiveInvalid: string;
       cdDuplicateInCsv: string;
       cdAlreadyExists: string;
@@ -150,7 +149,6 @@ const ja: Messages = {
       chiefUserNameRequired: '{row}行目: 代表システム管理者は必須です',
       chiefUserEmailRequired: '{row}行目: 代表者メールアドレスは必須です',
       isEntryInvalid: '{row}行目: is_entryは0または1である必要があります',
-      useDeemedProgressInvalid: '{row}行目: use_deemed_progressは true/false/1/0 のいずれかである必要があります',
       isActiveInvalid: '{row}行目: is_activeは true/false/1/0 のいずれかである必要があります',
       cdDuplicateInCsv: '{row}行目: 組織CD「{cd}」はCSV内で重複しています',
       cdAlreadyExists: '{row}行目: 組織CD「{cd}」は既に存在します',
@@ -272,7 +270,6 @@ const en: Messages = {
       chiefUserNameRequired: 'Row {row}: Chief system administrator is required',
       chiefUserEmailRequired: 'Row {row}: Chief user email address is required',
       isEntryInvalid: 'Row {row}: is_entry must be 0 or 1',
-      useDeemedProgressInvalid: 'Row {row}: use_deemed_progress must be one of true/false/1/0',
       isActiveInvalid: 'Row {row}: is_active must be one of true/false/1/0',
       cdDuplicateInCsv: 'Row {row}: Organization CD "{cd}" is duplicated within the CSV',
       cdAlreadyExists: 'Row {row}: Organization CD "{cd}" already exists',

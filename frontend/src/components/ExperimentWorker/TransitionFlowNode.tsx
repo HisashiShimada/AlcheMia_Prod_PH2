@@ -34,7 +34,7 @@ interface TransitionFlowNodeProps {
 export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
   const { token } = theme.useToken();
   const { t } = useLanguage();
-  const { transition, onRecordClick, onIssueClick, isProjectRecordable } = data;
+  const { transition, onRecordClick, isProjectRecordable } = data;
 
   // ステータスに応じた色とアイコンを取得
   // アイコン・色は ProgressOverviewTab の STATUS_CONFIG に合わせて統一
@@ -97,18 +97,11 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
   };
 
   const statusConfig = getStatusConfig(transition.status);
-  const progressRate = transition.progressRate ?? 0;
 
   // 記録ボタンクリックハンドラ
   const handleRecordClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onRecordClick(transition);
-  };
-
-  // 問題報告ボタンクリックハンドラ
-  const handleIssueClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onIssueClick(transition);
   };
 
   return (
@@ -168,35 +161,6 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
               {transition.transitionName}
             </Text>
           </div>
-
-          {/* 進捗率 */}
-          {progressRate !== undefined && (
-            <div>
-              <Progress
-                percent={progressRate}
-                size="small"
-                strokeColor={
-                  progressRate === 100
-                    ? token.colorSuccess
-                    : progressRate > 0
-                    ? token.colorWarning
-                    : token.colorBorder
-                }
-                style={{ marginBottom: 0 }}
-              />
-              <Text
-                type="secondary"
-                style={{
-                  fontSize: 11,
-                  display: 'block',
-                  textAlign: 'center',
-                  marginTop: 2,
-                }}
-              >
-                進捗 {progressRate}%
-              </Text>
-            </div>
-          )}
 
           {/* データ入力状況 */}
           {(transition.inputMaterialsCount !== undefined ||

@@ -1451,7 +1451,6 @@ async function registerOrganizationsViaUI(
       contract_users?: number;
       contract_projects?: number;
       is_entry?: string;
-      use_deemed_progress?: string;
       is_active: boolean;
       chief_user_name?: string;
       chief_user_email?: string;
@@ -1516,10 +1515,6 @@ async function registerOrganizationsViaUI(
     // 二段階認証判定を選択（デフォルト「無効」以外の場合のみ変更）
     if (rec.is_entry && rec.is_entry !== '無効') {
       await selectOptionByLabel(page, '二段階認証判定', rec.is_entry);
-    }
-    // みなし進捗使用フラグを選択（デフォルト「なし」以外の場合のみ変更）
-    if (rec.use_deemed_progress && rec.use_deemed_progress !== 'なし') {
-      await selectOptionByLabel(page, 'みなし進捗使用フラグ', rec.use_deemed_progress);
     }
     // 状態が false（非アクティブ）の場合のみ変更
     if (!rec.is_active) {
@@ -1713,12 +1708,12 @@ async function setupOrganizationTestData(scenarioId: string): Promise<void> {
       await db.query(
         `INSERT INTO organization (
           organization_id, organization_cd, organization_display_name,
-          organization_email, is_entry, use_deemed_progress,
+          organization_email, is_entry,
           contract_capacity, contract_users, contract_projects,
           is_active, create_user_id, update_user_id, create_at, update_at
         ) VALUES (
           gen_random_uuid(), $1, $2,
-          'e2e-test@example.com', 0, false,
+          'e2e-test@example.com', 0,
           0, 0, 0,
           $3, 'e2e-test', 'e2e-test', NOW(), NOW()
         )`,
@@ -1773,12 +1768,12 @@ async function upsertOrganization(displayName: string, isActive: boolean): Promi
     await db.query(
       `INSERT INTO organization (
          organization_id, organization_cd, organization_display_name,
-         organization_email, is_entry, use_deemed_progress,
+         organization_email, is_entry,
          contract_capacity, contract_users, contract_projects,
          is_active, create_user_id, update_user_id, create_at, update_at
        ) VALUES (
          gen_random_uuid(), $1, $2,
-         'e2e-test@example.com', 0, false,
+         'e2e-test@example.com', 0,
          0, 0, 0,
          $3, 'e2e-test', 'e2e-test', NOW(), NOW()
        )`,

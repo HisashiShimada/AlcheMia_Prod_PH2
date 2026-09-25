@@ -602,7 +602,6 @@ export class TaskService {
       task_status: taskStatus,
       assign_user_id: record.assign_user_id,
       assign_user_name: record.assign_user_name,
-      progress_rate: record.progress_rate,
       created_at: record.created_at ? toJSTIsoString(record.created_at) : '',
       updated_at: record.updated_at ? toJSTIsoString(record.updated_at) : '',
     };

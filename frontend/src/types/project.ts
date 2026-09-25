@@ -216,7 +216,6 @@ export interface WorkerProject {
   projectName: string;
   projectCd?: string;
   projectStatus: number;
-  useDeemedProgress?: boolean;
   description: string;
   /** 所属グループCD。不確かさ基準のKey属性設定スコープ絞り込みに使用 */
   organizationGroupCd?: string | null;
@@ -258,7 +257,6 @@ export interface WorkerTask {
   created_at: string;
   updated_at: string;
   progress: number;
-  progress_rate: string;
 }
 
 /**

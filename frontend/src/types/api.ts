@@ -392,8 +392,6 @@ export interface UpdateTransitionStatusRequest {
    * 1: 初期状態, 2: 準備状態, 3: 準備完了状態, 4: 動作状態, 5: 休止状態, 6: 終状態, 7: 異常終了状態
    */
   status: number;
-  /** 進捗率（0〜100、statusが6=completedの場合は自動的に100） */
-  progressRate?: number;
   /** コメント（最大2000文字） */
   comment?: string;
 }
@@ -414,7 +412,6 @@ export interface UpdateTransitionStatusResponse {
    * 1: 初期状態, 2: 準備状態, 3: 準備完了状態, 4: 動作状態, 5: 休止状態, 6: 終状態, 7: 異常終了状態
    */
   status: number;
-  progressRate: number;
   comment: string | null;
   updatedBy: string;
   updatedAt: string;

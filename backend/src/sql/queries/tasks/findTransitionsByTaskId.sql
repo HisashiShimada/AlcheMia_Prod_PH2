@@ -8,12 +8,11 @@
 --
 -- Returns:
 --   transition_data の全レコード（0件の場合は空結果）
---   transition_id, status, progress_rate, create_at, update_at
+--   transition_id, status, create_at, update_at
 
 SELECT
   td.transition_id,
   td.status,
-  td.progress_rate,
   td.create_at,
   td.update_at
 FROM transition_data td

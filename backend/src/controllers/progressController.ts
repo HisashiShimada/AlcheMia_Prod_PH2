@@ -224,7 +224,7 @@ export async function updateTransitionStatus(
   try {
     // リクエストパラメータとボディの抽出
     const { projectId, methodId, transitionId } = req.params;
-    const { taskNo: _taskNo, status, progressRate, comment: _comment } = req.body;
+    const { taskNo: _taskNo, status, comment: _comment } = req.body;
 
     // 認証・認可情報の取得（authMiddlewareで検証済み）
     const { organizationId, userId: updatedBy } = req.user!;
@@ -252,7 +252,6 @@ export async function updateTransitionStatus(
     const updateData: TransitionDataUpdate = {
       status,
       updated_by: updatedBy,
-      ...(progressRate !== undefined && { progress_rate: progressRate }),
     };
 
     // サービス層を呼び出してステータス更新（commentをイベントログ用に渡す）
@@ -277,7 +276,6 @@ export async function updateTransitionStatus(
         methodId: methodId,
         projectId: projectId,
         status: updatedTransitionData.status,
-        progressRate: updatedTransitionData.progress_rate,
         comment: _comment || null,
         updatedBy: updatedBy,
         updatedAt: updatedTransitionData.updated_at

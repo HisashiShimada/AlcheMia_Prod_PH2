@@ -20,7 +20,6 @@ export interface TransitionDataRow {
   task_no: number;
   transition_id: string;
   status: TransitionStatus; // 数値型（1-7）
-  progress_rate: number;
   /** 記録済みフラグ（TRUE=記録済み、FALSE=未記録） */
   is_recorded: boolean;
   update_user_id: string;
@@ -33,7 +32,6 @@ export interface TransitionDataRow {
  */
 export interface TransitionDataUpdate {
   status: TransitionStatus; // 数値型（1-7）
-  progress_rate: number;
   updated_by: string;
 }
 
@@ -191,7 +189,7 @@ export class TransitionDataRepository {
    * @param methodId - メソッドID
    * @param taskNo - タスク番号
    * @param transitionId - トランジションID
-   * @param updateData - 更新データ（status, progress_rate, comment, updated_by）
+   * @param updateData - 更新データ（status, comment, updated_by）
    * @returns 更新後のトランジションデータ
    * @throws {TransitionNotFoundError} トランジションが見つからない場合
    * @throws {DatabaseError} データベースエラーが発生した場合
@@ -212,7 +210,6 @@ export class TransitionDataRepository {
 
       const params = [
         updateData.status,
-        updateData.progress_rate,
         updateData.updated_by,
         organizationId,
         projectId,
@@ -279,7 +276,6 @@ export class TransitionDataRepository {
         taskNo,
         transitionId,
         TransitionStatusEnum.INITIAL,   // status: 初期値（1 = INITIAL）
-        0,                              // progress_rate: 初期値0
         workOrder,                      // work_order: 実行順序
         prerequisiteTransitionIds,      // prerequisite_transition_ids: 前提トランジションID配列
         userId,                         // create_user_id
@@ -289,59 +285,6 @@ export class TransitionDataRepository {
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while inserting transition data',
-        error as Error
-      );
-    }
-  }
-
-  /**
-   * みなし進捗によるトランジションステータス更新（バリデーションなし）
-   * 
-   * 実験データ一括保存API から呼び出される。
-   * progressService.validateStatusTransition() を経由せず、直接ステータスを更新する。
-   * レコードが存在しない場合は何もしない（silent skip）。
-   * 
-   * @param organizationId - 組織ID（マルチテナント分離）
-   * @param projectId - プロジェクトID
-   * @param methodId - メソッドID
-   * @param taskNo - タスク番号
-   * @param transitionId - トランジションID
-   * @param status - 新しいステータス（数値型）
-   * @param progressRate - 進捗率（0-100）
-   * @param updatedBy - 更新者ユーザーID
-   * @param client - トランザクション用PoolClient
-   * @throws {DatabaseError} データベースエラーが発生した場合
-   */
-  async updateStatusDeemed(
-    organizationId: string,
-    projectId: string,
-    methodId: string,
-    taskNo: number,
-    transitionId: string,
-    status: TransitionStatus,
-    progressRate: number,
-    updatedBy: string,
-    client: PoolClient
-  ): Promise<void> {
-    try {
-      const query = await loadSqlFile('transition_data/updateStatus.sql');
-
-      const params = [
-        status,
-        progressRate,
-        updatedBy,
-        organizationId,
-        projectId,
-        methodId,
-        taskNo,
-        transitionId
-      ];
-
-      // レコードが存在しない場合は何もしない（silent skip）
-      await client.query(query, params);
-    } catch (error) {
-      throw new DatabaseError(
-        'Database error occurred while updating transition status (deemed progress)',
         error as Error
       );
     }

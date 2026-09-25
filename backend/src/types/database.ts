@@ -271,9 +271,6 @@ export interface TransitionData {
   /** ステータス（数値、2桁） */
   status?: number | null;
   
-  /** 進捗率（数値、3桁） */
-  progress_rate?: number | null;
-  
   /** 作成者ユーザID */
   create_user_id?: string;
   
@@ -510,7 +507,6 @@ export interface ProjectTaskDetailByMethod {
 export interface TransitionProgressRow {
   transition_id: string;
   status: number;
-  progress_rate: number;
   update_user_id: string | null;
   worker_name: string | null;
   create_at: Date;

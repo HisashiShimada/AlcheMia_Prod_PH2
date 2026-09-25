@@ -684,14 +684,12 @@
       "notStarted": "開始前のトランジション",
       "started": "開始",
       "inProgress": "作業中",
-      "completed": "完了",
-      "progressRate": "進捗率"
+      "completed": "完了"
     },
     "table": {
       "methodName": "メソッド名",
       "taskName": "タスク名",
       "status": "ステータス",
-      "progressRate": "進捗率",
       "issueReport": "問題報告",
       "experimentRecord": "実験記録",
       "actions": "操作",
@@ -1155,7 +1153,6 @@
       "workCount": "作業数",
       "taskProgress": "完了タスク数/総タスク数",
       "workIdCount": "作業ID数",
-      "progressRate": "進捗率",
       "completedTransitions": "完了トランジション",
       "actions": "操作",
       "total": "合計",
@@ -1408,7 +1405,6 @@
       "chiefUserName": "代表システム管理者",
       "corporationName": "会社名",
       "twoFactorAuth": "二段階認証判定",
-      "useDeemedProgress": "みなし進捗使用フラグ",
       "updatedAt": "更新日時"
     },
     "yesNo": {
@@ -1434,8 +1430,7 @@
     "filters": {
       "organizationDisplayName": "組織表示名",
       "corporationName": "会社名",
-      "twoFactorAuth": "二段階認証判定",
-      "useDeemedProgress": "みなし進捗使用フラグ"
+      "twoFactorAuth": "二段階認証判定"
     },
     "modal": {
       "addTitle": "組織追加",
@@ -1467,8 +1462,6 @@
       "contractedProjectsPlaceholder": "契約プロジェクト数を入力してください",
       "isEntry": "二段階認証判定",
       "isEntryRequired": "二段階認証判定を選択してください",
-      "useDeemedProgress": "みなし進捗使用フラグ",
-      "useDeemedProgressRequired": "みなし進捗使用フラグを選択してください",
       "defaultRetentionDays": "公開保持日数（日）",
       "defaultRetentionDaysRequired": "公開保持日数を入力してください",
       "defaultRetentionDaysInvalid": "公開保持日数は1以上の整数で入力してください",

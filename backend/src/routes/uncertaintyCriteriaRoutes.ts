@@ -51,7 +51,7 @@ router.get(
     query('scopeKey')
       .optional()
       .isString()
-      .withMessage('scopeKey must be a string'),
+      .withMessage('scopeKeyは文字列でなければなりません'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.getList
@@ -76,7 +76,7 @@ router.get(
     query('organizationGroupCd')
       .optional()
       .isString()
-      .withMessage('organizationGroupCd must be a string'),
+      .withMessage('組織グループCDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.getForSelector
@@ -97,11 +97,11 @@ router.get(
   [
     query('uncertaintyKeys')
       .notEmpty()
-      .withMessage('uncertaintyKeys is required'),
+      .withMessage('不確かさ基準Keyは必須です'),
     query('format')
       .optional()
       .isIn(['xml', 'json'])
-      .withMessage('format must be xml or json'),
+      .withMessage('フォーマットは xml または json でなければなりません'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.exportCriteria
@@ -139,39 +139,39 @@ router.post(
   [
     body('nameSpaceId')
       .notEmpty()
-      .withMessage('nameSpaceId is required'),
+      .withMessage('名前空間IDは必須です'),
     body('uncertaintyKey')
       .notEmpty()
-      .withMessage('uncertaintyKey is required'),
+      .withMessage('不確かさ基準Keyは必須です'),
     body('evaluationMethod')
       .notEmpty()
-      .withMessage('evaluationMethod is required')
+      .withMessage('評価方式は必須です')
       .isInt({ min: 1, max: 2 })
-      .withMessage('evaluationMethod must be 1 (quantitative) or 2 (qualitative)'),
+      .withMessage('評価方式は 1（定量評価）または 2（定性評価）でなければなりません'),
     body('uncertaintyName')
       .optional()
       .isString()
-      .withMessage('uncertaintyName must be a string'),
+      .withMessage('不確かさ基準名は文字列でなければなりません'),
     body('isInvalid')
       .optional()
       .isBoolean()
-      .withMessage('isInvalid must be a boolean'),
+      .withMessage('無効フラグは boolean（真偽値）でなければなりません」'),
     body('qualitativeOptions')
       .optional()
       .isArray()
-      .withMessage('qualitativeOptions must be an array'),
+      .withMessage('qualitativeOptions は配列でなければなりません'),
     body('qualitativeOptions.*.displayOrder')
       .optional()
       .isInt({ min: 1 })
-      .withMessage('qualitativeOptions[].displayOrder must be a positive integer'),
+      .withMessage('qualitativeOptions[].displayOrder は正の整数でなければなりません'),
     body('qualitativeOptions.*.value')
       .optional()
       .isString()
-      .withMessage('qualitativeOptions[].value must be a string'),
+      .withMessage('qualitativeOptions[].value は文字列でなければなりません'),
     body('qualitativeOptions.*.displayColor')
       .optional()
       .matches(/^#[0-9A-Fa-f]{6}$/)
-      .withMessage('qualitativeOptions[].displayColor must be in #RRGGBB format'),
+      .withMessage('qualitativeOptions[].displayColor は #RRGGBB 形式でなければなりません'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.createNewVersion
@@ -191,12 +191,12 @@ router.get(
   [
     param('uncertaintyKey')
       .notEmpty()
-      .withMessage('uncertaintyKey is required'),
+      .withMessage('不確かさ基準Keyは必須です'),
     query('version')
       .notEmpty()
-      .withMessage('version (integer) is required')
+      .withMessage('バージョン（整数）は必須です')
       .isInt({ min: 1 })
-      .withMessage('version must be an integer of 1 or more'),
+      .withMessage('バージョンは 1 以上の整数でなければなりません'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.getDetail

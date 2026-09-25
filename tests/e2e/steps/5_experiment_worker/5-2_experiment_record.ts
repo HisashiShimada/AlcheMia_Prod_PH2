@@ -12,7 +12,6 @@
  *   - project テーブルに E2E-5-2-A (project_status: 2 = executing_task) が存在すること
  *   - project_task テーブルに上記プロジェクトのメソッド・タスクが存在すること
  *   - transition_set テーブルに上記タスクのトランジションデータが存在すること
- *   - 5-2-12 用: organization の use_deemed_progress = false が設定可能なこと
  *   - 5-2-15 用: transition_set に status=5 のトランジションが存在すること
  *   - 5-2-16 用: project に project_status=3 (waiting_approval) が存在すること
  */
@@ -81,9 +80,6 @@ const createdProjectTaskKeys: Array<{
 /** テスト中に作成した project の主キー（After で削除） */
 const createdProjectIds: string[] = [];
 
-/** 5-2-12 用: テスト前の use_deemed_progress 値を退避（After で復元） */
-let savedUseDeemedProgress: boolean | null = null;
-
 // ---------------------------------------------------------------------------
 // Before フック: テストデータ準備
 // ---------------------------------------------------------------------------
@@ -105,33 +101,6 @@ Before({
     console.log('[5-2 Before] テストデータ準備 完了（基本シナリオ）');
   } catch (error) {
     console.error('[5-2 Before] テストデータ準備 失敗:', error);
-    throw error;
-  }
-});
-
-/**
- * 5-2-12 用: 組織の use_deemed_progress を false に設定
- */
-Before({ tags: '@5-2-12' }, async () => {
-  console.log('[5-2 Before] テストデータ準備 開始（5-2-12: use_deemed_progress=false）');
-  try {
-    await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME, PROJECT_STATUS_EXECUTING_TASK);
-    await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_TASK_NO);
-    await upsertTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_TASK_NO);
-    // use_deemed_progress の現在値を退避
-    const result = await db.query<{ use_deemed_progress: boolean }>(
-      'SELECT use_deemed_progress FROM organization WHERE organization_id = $1',
-      [ORG_ID]
-    );
-    savedUseDeemedProgress = result.rows[0]?.use_deemed_progress ?? true;
-    // use_deemed_progress を false に設定
-    await db.query(
-      'UPDATE organization SET use_deemed_progress = false, update_at = NOW() WHERE organization_id = $1',
-      [ORG_ID]
-    );
-    console.log('[5-2 Before] use_deemed_progress を false に設定完了');
-  } catch (error) {
-    console.error('[5-2 Before] テストデータ準備 失敗（5-2-12）:', error);
     throw error;
   }
 });
@@ -249,18 +218,6 @@ After(async () => {
     }
     createdProjectIds.length = 0;
 
-    // 5-2-12 用: use_deemed_progress を元に戻す
-    if (savedUseDeemedProgress !== null) {
-      await db
-        .query(
-          'UPDATE organization SET use_deemed_progress = $1, update_at = NOW() WHERE organization_id = $2',
-          [savedUseDeemedProgress, ORG_ID]
-        )
-        .catch((e) => console.error('[5-2 After] use_deemed_progress 復元 失敗:', e));
-      savedUseDeemedProgress = null;
-      console.log('[5-2 After] use_deemed_progress を復元完了');
-    }
-
     console.log('[5-2 After] クリーンアップ 完了');
   } catch (error) {
     console.error('[5-2 After] クリーンアップ 失敗:', error);
@@ -325,18 +282,6 @@ Given('プロジェクトを選択せずに実験記録タブを表示してい�
   // 実験記録タブをクリック（プロジェクト未選択のまま）
   await page.locator('.ant-tabs-tab').filter({ hasText: '実験記録' }).first().click();
   await page.waitForTimeout(500);
-});
-
-/** 組織のみなし進捗設定が有効である */
-Given('組織のみなし進捗設定が有効である', async () => {
-  // Before フックで use_deemed_progress = true（デフォルト）が設定済み
-  // ここでは確認のみ（no-op）
-});
-
-/** 組織のみなし進捗設定が無効である */
-Given('組織のみなし進捗設定が無効である', async () => {
-  // Before @5-2-12 フックで use_deemed_progress = false に設定済み
-  // ここでは確認のみ（no-op）
 });
 
 /** 対象トランジションに実験データが登録済みである */

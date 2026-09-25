@@ -162,13 +162,13 @@ export const saveBatchData = async (
 
     // 必須パラメータの検証
     if (!organizationId) {
-      const error: any = new Error('Organization ID is required');
+      const error: any = new Error('組織のIDは必須です');
       error.name = 'ValidationError';
       throw error;
     }
 
     if (!recordedBy) {
-      const error: any = new Error('User authentication required');
+      const error: any = new Error('ユーザー認証が必要です');
       error.name = 'AuthenticationError';
       throw error;
     }

@@ -579,7 +579,6 @@ export class ProgressService {
           transition_id: transition.id,
           transition_name: transition.data?.label || transition.id,
           status: TransitionStatusEnum.INITIAL,
-          progress: 0,
           last_updated: null,
           is_recorded: false,
           material_count: materialCount,
@@ -592,14 +591,10 @@ export class ProgressService {
         };
       }
 
-      // ステータスと進捗率の整合性チェック
-      const progress = this.normalizeProgress(latestRecord.status, latestRecord.progress_rate);
-
       return {
         transition_id: transition.id,
         transition_name: transition.data?.label || transition.id,
         status: latestRecord.status,
-        progress,
         last_updated: toJSTIsoString(latestRecord.update_at),
         is_recorded: latestRecord.is_recorded ?? false,
         material_count: materialCount,
@@ -619,7 +614,6 @@ export class ProgressService {
         transition_id: transition.id,
         transition_name: transition.data?.label || transition.id,
         status: TransitionStatusEnum.INITIAL,
-        progress: 0,
         last_updated: null,
         is_recorded: false,
         material_count: materialCount,
@@ -631,26 +625,6 @@ export class ProgressService {
         prerequisite_transition_ids: prerequisiteTransitionIds
       };
     }
-  }
-
-  /**
-   * ステータスと進捗率の正規化
-   * 
-   * @private
-   * @requirements Requirement 9: データ整合性
-   */
-  private normalizeProgress(status: TransitionStatusNumber, progressRate: number): number {
-    // ステータスに応じて進捗率を補正
-    if (status === TransitionStatusEnum.COMPLETED) {
-      return 100;
-    }
-    
-    if (status === TransitionStatusEnum.INITIAL) {
-      return 0;
-    }
-
-    // それ以外（PREPARING/READY/IN_PROGRESS/PAUSED/ERROR）は0-100の範囲に制限
-    return Math.max(0, Math.min(100, progressRate));
   }
 
   /**
@@ -687,8 +661,7 @@ export class ProgressService {
     const notStarted = transitions.filter(t => t.status === TransitionStatusEnum.INITIAL).length;
 
     // 全体進捗率の計算（全トランジションの進捗率の平均値）
-    const totalProgress = transitions.reduce((sum, t) => sum + t.progress, 0);
-    const overallPercentage = parseFloat((totalProgress / totalTransitions).toFixed(1));
+    const overallPercentage = Math.round(completed / totalTransitions * 100);
 
     return {
       total_transitions: totalTransitions,
@@ -981,14 +954,8 @@ export class ProgressService {
       const toStatus = Number(update.status) as TransitionStatusNumber;
       this.validateStatusTransition(currentStatus, toStatus);
 
-      // 3. completedステータス時は進捗率を100%に自動設定
-      const finalProgressRate = toStatus === TransitionStatusEnum.COMPLETED
-        ? 100
-        : (update.progress_rate ?? 0);
-
       const finalUpdate = {
         status: toStatus,
-        progress_rate: finalProgressRate,
         updated_by: update.updated_by
       };
 
@@ -1157,7 +1124,6 @@ export class ProgressService {
             // INITIAL → PREPARING に更新
             const prepUpdate = {
               status: TransitionStatusEnum.PREPARING,
-              progress_rate: 0,
               updated_by: update.updated_by,
             };
             await this.transitionDataRepository.updateStatus(

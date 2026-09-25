@@ -52,23 +52,23 @@ router.get(
     query('search')
       .optional()
       .isString()
-      .withMessage('search must be a string'),
+      .withMessage('検索は文字列でなければなりません'),
     query('is_active')
       .optional()
       .isBoolean()
-      .withMessage('is_active must be a boolean'),
+      .withMessage('アクティブ/非アクティブは boolean（真偽値）でなければなりません'),
     query('role_cd')
       .optional()
       .isString()
-      .withMessage('role_cd must be a string'),
+      .withMessage('ロールCDは文字列でなければなりません'),
     query('sort_by')
       .optional()
       .isIn(['user_id', 'user_name', 'update_at'])
-      .withMessage('sort_by must be one of: user_id, user_name, update_at'),
+      .withMessage('sort_by は user_id / user_name / update_at のいずれかでなければなりません'),
     query('sort_order')
       .optional()
       .isIn(['asc', 'desc'])
-      .withMessage('sort_order must be either "asc" or "desc"'),
+      .withMessage('sort_order は昇順または降順のいずれかでなければなりません'),
   ],
   handleValidationErrors,
   userController.getUsers
@@ -115,11 +115,11 @@ router.get(
   [
     param('userId')
       .notEmpty()
-      .withMessage('userId is required')
+      .withMessage('ユーザーIDは必須です')
       .isString()
-      .withMessage('userId must be a string')
+      .withMessage('ユーザーIDは文字列でなければなりません')
       .isEmail()
-      .withMessage('userId must be a valid email address'),
+      .withMessage('ユーザーIDは有効なメールアドレスでなければなりません'),
   ],
   handleValidationErrors,
   userController.getUserById
@@ -137,36 +137,36 @@ router.post(
   [
     body('userId')
       .notEmpty()
-      .withMessage('userId is required')
+      .withMessage('ユーザーIDは必須です')
       .isEmail()
-      .withMessage('userId must be a valid email address'),
+      .withMessage('ユーザーIDは有効なメールアドレスでなければなりません'),
     body('userName')
       .notEmpty()
-      .withMessage('userName is required')
+      .withMessage('ユーザー名は必須です')
       .isString()
-      .withMessage('userName must be a string')
+      .withMessage('ユーザー名は文字列でなければなりません')
       .isLength({ max: 30 })
-      .withMessage('userName must be at most 30 characters'),
+      .withMessage('ユーザー名は 30 文字以内でなければなりません'),
     body('mailAddress')
       .notEmpty()
-      .withMessage('mailAddress is required')
+      .withMessage('メールアドレスは必須です')
       .isEmail()
-      .withMessage('mailAddress must be a valid email address'),
+      .withMessage('メールアドレスは有効なメールアドレスでなければなりません'),
     body('roleCd')
       .notEmpty()
-      .withMessage('roleCd is required')
+      .withMessage('ロールCDは必須です')
       .isString()
-      .withMessage('roleCd must be a string'),
+      .withMessage('ロールCDは文字列でなければなりません'),
     body('isActive')
       .optional()
       .isBoolean()
-      .withMessage('isActive must be a boolean'),
+      .withMessage('状態は boolean（真偽値）でなければなりません'),
     body('password')
       .optional()
       .isString()
-      .withMessage('password must be a string')
+      .withMessage('パスワードは文字列でなければなりません')
       .isLength({ min: 8 })
-      .withMessage('password must be at least 8 characters'),
+      .withMessage('パスワードは 8 文字以上でなければなりません'),
   ],
   handleValidationErrors,
   userController.createUser
@@ -184,21 +184,21 @@ router.put(
   [
     param('userId')
       .notEmpty()
-      .withMessage('userId is required')
+      .withMessage('ユーザーIDは必須です')
       .isString()
-      .withMessage('userId must be a string')
+      .withMessage('ユーザーIDは文字列でなければなりません')
       .isEmail()
-      .withMessage('userId must be a valid email address'),
+      .withMessage('ユーザーIDは有効なメールアドレスでなければなりません'),
     body('userName')
       .optional()
       .isString()
-      .withMessage('userName must be a string')
+      .withMessage('ユーザー名は文字列でなければなりません')
       .isLength({ max: 30 })
-      .withMessage('userName must be at most 30 characters'),
+      .withMessage('ユーザー名は 30 文字以内でなければなりません'),
     body('roleCd')
       .optional()
       .isString()
-      .withMessage('roleCd must be a string'),
+      .withMessage('ロールCDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   userController.updateUser
@@ -216,16 +216,16 @@ router.patch(
   [
     param('userId')
       .notEmpty()
-      .withMessage('userId is required')
+      .withMessage('ユーザーIDは必須です')
       .isString()
-      .withMessage('userId must be a string')
+      .withMessage('ユーザーIDは文字列でなければなりません')
       .isEmail()
-      .withMessage('userId must be a valid email address'),
+      .withMessage('ユーザーIDは有効なメールアドレスでなければなりません'),
     body('isActive')
       .notEmpty()
-      .withMessage('isActive is required')
+      .withMessage('状態は必須です')
       .isBoolean()
-      .withMessage('isActive must be a boolean'),
+      .withMessage('状態は boolean（真偽値）でなければなりません'),
   ],
   handleValidationErrors,
   userController.updateUserStatus
