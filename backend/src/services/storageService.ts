@@ -155,7 +155,7 @@ export class StorageService {
   private buildKey(organizationId: string, filePath: string): string {
     // organizationIdの検証
     if (!organizationId || organizationId.trim() === '') {
-      throw new Error('Organization ID is required');
+      throw new Error('組織のIDは必須です');
     }
 
     // filePathの正規化（先頭のスラッシュを除去）

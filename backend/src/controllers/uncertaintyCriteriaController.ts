@@ -199,7 +199,7 @@ export async function exportCriteria(
       : rawKeys ? [rawKeys as string] : [];
 
     if (uncertaintyKeys.length === 0) {
-      res.status(400).json({ error: { code: 'E1003', message: 'uncertaintyKeys is required' } });
+      res.status(400).json({ error: { code: 'E1003', message: '不確かさ基準Keyは必須です' } });
       return;
     }
 

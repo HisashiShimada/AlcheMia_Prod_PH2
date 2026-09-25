@@ -54,9 +54,9 @@ router.post(
   authMiddleware,
   tenantIsolation,
   [
-    body('score_good').optional().isInt({ min: 0, max: 100 }).withMessage('score_good must be 0-100'),
-    body('score_caution').optional().isInt({ min: 0, max: 100 }).withMessage('score_caution must be 0-100'),
-    body('score_bad').optional().isInt({ min: 0, max: 100 }).withMessage('score_bad must be 0-100'),
+    body('score_good').optional().isInt({ min: 0, max: 100 }).withMessage('score_good は 0〜100 の範囲でなければなりません'),
+    body('score_caution').optional().isInt({ min: 0, max: 100 }).withMessage('score_caution は 0〜100 の範囲でなければなりません'),
+    body('score_bad').optional().isInt({ min: 0, max: 100 }).withMessage('score_bad は 0〜100 の範囲でなければなりません'),
     body('target_rollup').optional().isIn(Object.values(TargetRollup)),
     body('level_status_rule').optional().isIn(Object.values(LevelStatusRule)),
     body('level_score_rule').optional().isIn(Object.values(LevelScoreRule)),
@@ -76,7 +76,7 @@ router.post(
   authMiddleware,
   tenantIsolation,
   [
-    body('projectId').notEmpty().withMessage('projectId is required').isString(),
+    body('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
   ],
   handleValidationErrors,
   aggregationRuleController.previewSummary

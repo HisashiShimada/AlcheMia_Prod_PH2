@@ -40,9 +40,9 @@ router.use(cors(corsOptions));
 // バリデーションヘルパー（非推奨: authMiddlewareがorganizationIdを設定するため不要）
 // const validateOrganizationHeader = header('X-Organization-Id')
 //   .notEmpty()
-//   .withMessage('Organization ID is required');
+//   .withMessage('組織のIDは必須です');
 //   // .isUUID()  // TODO: 一時的にUUIDチェックを無効化（テスト用）
-//   // .withMessage('Invalid organization ID format');
+//   // .withMessage('組織IDの形式が不正です');
 
 /**
  * Creatorマスタ一覧取得
@@ -56,15 +56,15 @@ router.get(
     query('display_scope')
       .optional()
       .isIn(['all', 'own'])
-      .withMessage('display_scope must be either "all" or "own"'),
+      .withMessage('表示切替は “全体” か “自組織” のいずれかでなければなりません'),
     query('search')
       .optional()
       .isString()
-      .withMessage('search must be a string'),
+      .withMessage('検索は文字列でなければなりません'),
     query('is_active')
       .optional()
       .isBoolean()
-      .withMessage('is_active must be a boolean'),
+      .withMessage('アクティブ/非アクティブは boolean（真偽値）でなければなりません'),
   ],
   handleValidationErrors,
   masterController.getCreators
@@ -108,9 +108,9 @@ router.get(
     // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
     param('creatorId')
       .notEmpty()
-      .withMessage('creatorId is required')
+      .withMessage('CreatorのIDは必須です')
       .isString()
-      .withMessage('creatorId must be a string'),
+      .withMessage('CreatorのIDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   masterController.getCreatorById
@@ -165,9 +165,9 @@ router.get(
     // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
     param('instrumentId')
       .notEmpty()
-      .withMessage('instrumentId is required')
+      .withMessage('InstrumentのIDは必須です')
       .isString()
-      .withMessage('instrumentId must be a string'),
+      .withMessage('InstrumentのIDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   masterController.getInstrumentById
@@ -222,9 +222,9 @@ router.get(
     // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
     param('vendorId')
       .notEmpty()
-      .withMessage('vendorId is required')
+      .withMessage('VendorのIDは必須です')
       .isString()
-      .withMessage('vendorId must be a string'),
+      .withMessage('VendorのIDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   masterController.getVendorById
@@ -240,20 +240,20 @@ router.post(
   [
     body('instrumentId')
       .notEmpty()
-      .withMessage('instrumentId is required')
+      .withMessage('InstrumentのIDは必須です')
       .isString()
-      .withMessage('instrumentId must be a string')
+      .withMessage('InstrumentのIDは文字列でなければなりません')
       .isLength({ max: 50 })
-      .withMessage('instrumentId must be 50 characters or less')
+      .withMessage('InstrumentのIDは 50 文字以内でなければなりません')
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('instrumentId must contain only half-width alphanumeric characters, hyphens, or underscores'),
+      .withMessage('InstrumentのIDは半角の英数字、ハイフン、またはアンダースコアのみで構成されていなければなりません'),
     body('instrumentName')
       .notEmpty()
-      .withMessage('instrumentName is required')
+      .withMessage('Instrumentの名称は必須です')
       .isString()
-      .withMessage('instrumentName must be a string')
+      .withMessage('Instrumentの名称は文字列でなければなりません')
       .isLength({ max: 50 })
-      .withMessage('instrumentName must be 50 characters or less'),
+      .withMessage('Instrumentの名称は 50 文字以内でなければなりません'),
   ],
   handleValidationErrors,
   masterController.createInstrument
@@ -269,15 +269,15 @@ router.put(
   [
     param('instrumentId')
       .notEmpty()
-      .withMessage('instrumentId is required')
+      .withMessage('InstrumentのIDは必須です')
       .isString()
-      .withMessage('instrumentId must be a string'),
+      .withMessage('InstrumentのIDは文字列でなければなりません'),
     body('instrumentName')
       .optional()
       .isString()
-      .withMessage('instrumentName must be a string')
+      .withMessage('Instrumentの名称は文字列でなければなりません')
       .isLength({ max: 50 })
-      .withMessage('instrumentName must be 50 characters or less'),
+      .withMessage('Instrumentの名称は 50 文字以内でなければなりません'),
   ],
   handleValidationErrors,
   masterController.updateInstrument
@@ -293,9 +293,9 @@ router.patch(
   [
     param('instrumentId')
       .notEmpty()
-      .withMessage('instrumentId is required')
+      .withMessage('InstrumentのIDは必須です')
       .isString()
-      .withMessage('instrumentId must be a string'),
+      .withMessage('InstrumentのIDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   masterController.updateInstrumentStatus
@@ -311,20 +311,20 @@ router.post(
   [
     body('vendorId')
       .notEmpty()
-      .withMessage('vendorId is required')
+      .withMessage('VendorのIDは必須です')
       .isString()
-      .withMessage('vendorId must be a string')
+      .withMessage('VendorのIDは文字列でなければなりません')
       .isLength({ max: 50 })
-      .withMessage('vendorId must be 50 characters or less')
+      .withMessage('VendorのIDは 50 文字以内でなければなりません')
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('vendorId must contain only half-width alphanumeric characters, hyphens, or underscores'),
+      .withMessage('VendorのIDは半角の英数字、ハイフン、またはアンダースコアのみで構成されていなければなりません'),
     body('vendorName')
       .notEmpty()
-      .withMessage('vendorName is required')
+      .withMessage('Vendorの名称は必須です')
       .isString()
-      .withMessage('vendorName must be a string')
+      .withMessage('Vendorの名称は文字列でなければなりません')
       .isLength({ max: 50 })
-      .withMessage('vendorName must be 50 characters or less'),
+      .withMessage('Vendorの名称は 50 文字以内でなければなりません'),
   ],
   handleValidationErrors,
   masterController.createVendor
@@ -340,15 +340,15 @@ router.put(
   [
     param('vendorId')
       .notEmpty()
-      .withMessage('vendorId is required')
+      .withMessage('VendorのIDは必須です')
       .isString()
-      .withMessage('vendorId must be a string'),
+      .withMessage('VendorのIDは文字列でなければなりません'),
     body('vendorName')
       .optional()
       .isString()
-      .withMessage('vendorName must be a string')
+      .withMessage('Vendorの名称は文字列でなければなりません')
       .isLength({ max: 50 })
-      .withMessage('vendorName must be 50 characters or less'),
+      .withMessage('Vendorの名称は 50 文字以内でなければなりません'),
   ],
   handleValidationErrors,
   masterController.updateVendor
@@ -364,9 +364,9 @@ router.patch(
   [
     param('vendorId')
       .notEmpty()
-      .withMessage('vendorId is required')
+      .withMessage('VendorのIDは必須です')
       .isString()
-      .withMessage('vendorId must be a string'),
+      .withMessage('VendorのIDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   masterController.updateVendorStatus
@@ -382,20 +382,20 @@ router.post(
   [
     body('creatorId')
       .notEmpty()
-      .withMessage('creatorId is required')
+      .withMessage('CreatorのIDは必須です')
       .isString()
-      .withMessage('creatorId must be a string')
+      .withMessage('CreatorのIDは文字列でなければなりません')
       .isLength({ max: 50 })
-      .withMessage('creatorId must be 50 characters or less')
+      .withMessage('CreatorのIDは 50 文字以内でなければなりません')
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('creatorId must contain only half-width alphanumeric characters, hyphens, or underscores'),
+      .withMessage('CreatorのIDは半角の英数字、ハイフン、またはアンダースコアのみで構成されていなければなりません'),
     body('creatorName')
       .notEmpty()
-      .withMessage('creatorName is required')
+      .withMessage('Creatorの名称は必須です')
       .isString()
-      .withMessage('creatorName must be a string')
+      .withMessage('Creatorの名称は文字列でなければなりません')
       .isLength({ max: 50 })
-      .withMessage('creatorName must be 50 characters or less'),
+      .withMessage('Creatorの名称は 50 文字以内でなければなりません'),
   ],
   handleValidationErrors,
   masterController.createCreator
@@ -411,15 +411,15 @@ router.put(
   [
     param('creatorId')
       .notEmpty()
-      .withMessage('creatorId is required')
+      .withMessage('CreatorのIDは必須です')
       .isString()
-      .withMessage('creatorId must be a string'),
+      .withMessage('CreatorのIDは文字列でなければなりません'),
     body('creatorName')
       .optional()
       .isString()
-      .withMessage('creatorName must be a string')
+      .withMessage('Creatorの名称は文字列でなければなりません')
       .isLength({ max: 50 })
-      .withMessage('creatorName must be 50 characters or less'),
+      .withMessage('Creatorの名称は 50 文字以内でなければなりません'),
   ],
   handleValidationErrors,
   masterController.updateCreator
@@ -435,9 +435,9 @@ router.patch(
   [
     param('creatorId')
       .notEmpty()
-      .withMessage('creatorId is required')
+      .withMessage('CreatorのIDは必須です')
       .isString()
-      .withMessage('creatorId must be a string'),
+      .withMessage('CreatorのIDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   masterController.updateCreatorStatus
@@ -455,9 +455,9 @@ router.get(
   '/attribute',
   authMiddleware,
   [
-    query('search').optional().isString().withMessage('search must be a string'),
-    query('is_active').optional().isBoolean().withMessage('is_active must be a boolean'),
-    query('attribute_name').optional().isString().withMessage('attribute_name must be a string'),
+    query('search').optional().isString().withMessage('検索は文字列でなければなりません'),
+    query('is_active').optional().isBoolean().withMessage('アクティブ/非アクティブは boolean（真偽値）でなければなりません'),
+    query('attribute_name').optional().isString().withMessage('属性名は文字列でなければなりません'),
   ],
   handleValidationErrors,
   masterController.getAttributes
@@ -494,7 +494,7 @@ router.get(
   '/attribute/:attributeId',
   authMiddleware,
   [
-    param('attributeId').notEmpty().withMessage('attributeId is required').isString(),
+    param('attributeId').notEmpty().withMessage('属性のIDは必須です').isString(),
   ],
   handleValidationErrors,
   masterController.getAttributeById
@@ -518,7 +518,7 @@ router.put(
   '/attribute/:attributeId',
   authMiddleware,
   [
-    param('attributeId').notEmpty().withMessage('attributeId is required').isString(),
+    param('attributeId').notEmpty().withMessage('属性のIDは必須です').isString(),
   ],
   handleValidationErrors,
   masterController.updateAttribute
@@ -532,7 +532,7 @@ router.patch(
   '/attribute/:attributeId/status',
   authMiddleware,
   [
-    param('attributeId').notEmpty().withMessage('attributeId is required').isString(),
+    param('attributeId').notEmpty().withMessage('属性のIDは必須です').isString(),
   ],
   handleValidationErrors,
   masterController.updateAttributeStatus
