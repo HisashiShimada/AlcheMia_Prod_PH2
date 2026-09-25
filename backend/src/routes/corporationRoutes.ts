@@ -48,19 +48,19 @@ router.get(
     query('search')
       .optional()
       .isString()
-      .withMessage('search must be a string'),
+      .withMessage('検索は文字列でなければなりません'),
     query('is_active')
       .optional()
       .isBoolean()
-      .withMessage('is_active must be a boolean'),
+      .withMessage('アクティブ/非アクティブは boolean（真偽値）でなければなりません'),
     query('sort_by')
       .optional()
       .isString()
-      .withMessage('sort_by must be a string'),
+      .withMessage('sort_by は文字列でなければなりません'),
     query('sort_order')
       .optional()
       .isIn(['asc', 'desc'])
-      .withMessage('sort_order must be either "asc" or "desc"'),
+      .withMessage('sort_order は昇順または降順のいずれかでなければなりません'),
   ],
   handleValidationErrors,
   corporationController.getCorporation
@@ -101,9 +101,9 @@ router.get(
   [
     param('corporationId')
       .notEmpty()
-      .withMessage('corporationId is required')
+      .withMessage('会社のIDは必須です')
       .isString()
-      .withMessage('corporationId must be a string'),
+      .withMessage('会社のIDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   corporationController.getCorporationById
@@ -119,13 +119,13 @@ router.post(
   [
     body('corporationName')
       .notEmpty()
-      .withMessage('corporationName is required')
+      .withMessage('会社名は必須です')
       .isString()
-      .withMessage('corporationName must be a string'),
+      .withMessage('会社名は文字列でなければなりません'),
     body('isActive')
       .optional()
       .isBoolean()
-      .withMessage('isActive must be a boolean'),
+      .withMessage('状態は boolean（真偽値）でなければなりません'),
   ],
   handleValidationErrors,
   corporationController.createCorporation
@@ -141,18 +141,18 @@ router.put(
   [
     param('corporationId')
       .notEmpty()
-      .withMessage('corporationId is required')
+      .withMessage('会社のIDは必須です')
       .isString()
-      .withMessage('corporationId must be a string'),
+      .withMessage('会社のIDは文字列でなければなりません'),
     body('corporationName')
       .notEmpty()
-      .withMessage('corporationName is required')
+      .withMessage('会社名は必須です')
       .isString()
-      .withMessage('corporationName must be a string'),
+      .withMessage('会社名は文字列でなければなりません'),
     body('isActive')
       .optional()
       .isBoolean()
-      .withMessage('isActive must be a boolean'),
+      .withMessage('状態は boolean（真偽値）でなければなりません'),
   ],
   handleValidationErrors,
   corporationController.updateCorporation
@@ -168,9 +168,9 @@ router.patch(
   [
     param('corporationId')
       .notEmpty()
-      .withMessage('corporationId is required')
+      .withMessage('会社のIDは必須です')
       .isString()
-      .withMessage('corporationId must be a string'),
+      .withMessage('会社のIDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   corporationController.updateCorporationStatus

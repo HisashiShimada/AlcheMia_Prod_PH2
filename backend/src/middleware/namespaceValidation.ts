@@ -22,7 +22,7 @@ export const validateGetNamespaces = [
   query('scopeKey')
     .optional()
     .isString()
-    .withMessage('scopeKey must be a string'),
+    .withMessage('scopeKeyは文字列でなければなりません'),
 ];
 
 /**
@@ -32,16 +32,16 @@ export const validateGetNamespaces = [
 export const validateCreateNamespace = [
   body('prefix')
     .notEmpty()
-    .withMessage('prefix is required')
+    .withMessage('prefix は必須です')
     .isString()
-    .withMessage('prefix must be a string')
+    .withMessage('prefix は文字列でなければなりません')
     .matches(NCNAME_REGEX)
-    .withMessage('prefix must be a valid NCName (xs:NCName format)'),
+    .withMessage('prefix は有効な NCName（xs:NCName 形式）でなければなりません'),
   body('uri')
     .notEmpty()
-    .withMessage('uri is required')
+    .withMessage('URI は必須です')
     .isString()
-    .withMessage('uri must be a string'),
+    .withMessage('URI は文字列でなければなりません'),
 ];
 
 /**
@@ -52,17 +52,17 @@ export const validateCreateNamespace = [
 export const validateUpdateNamespace = [
   param('prefix')
     .notEmpty()
-    .withMessage('prefix is required'),
+    .withMessage('prefix は必須です'),
   body('newPrefix')
     .optional()
     .isString()
-    .withMessage('newPrefix must be a string')
+    .withMessage('newPrefix は文字列でなければなりません')
     .matches(NCNAME_REGEX)
-    .withMessage('newPrefix must be a valid NCName (xs:NCName format)'),
+    .withMessage('newPrefix は有効な NCName（xs:NCName 形式）でなければなりません'),
   body('description')
     .optional()
     .isString()
-    .withMessage('description must be a string'),
+    .withMessage('説明は文字列でなければなりません'),
 ];
 
 /**
@@ -72,7 +72,7 @@ export const validateUpdateNamespace = [
 export const validateDeleteNamespace = [
   param('prefix')
     .notEmpty()
-    .withMessage('prefix is required'),
+    .withMessage('prefix は必須です'),
 ];
 
 // ─── 用語操作 ─────────────────────────────────────────────────────────────────
@@ -84,16 +84,16 @@ export const validateDeleteNamespace = [
 export const validateCreateTerm = [
   body('prefix')
     .notEmpty()
-    .withMessage('prefix is required')
+    .withMessage('prefix は必須です')
     .isString()
-    .withMessage('prefix must be a string'),
+    .withMessage('prefix は文字列でなければなりません'),
   body('localName')
     .notEmpty()
-    .withMessage('localName is required')
+    .withMessage('ローカル名は必須です')
     .isString()
-    .withMessage('localName must be a string')
+    .withMessage('ローカル名は文字列でなければなりません')
     .matches(NCNAME_REGEX)
-    .withMessage('localName must be a valid NCName (xs:NCName format)'),
+    .withMessage('ローカル名は有効な NCName（xs:NCName 形式）でなければなりません'),
 ];
 
 /**
@@ -103,10 +103,10 @@ export const validateCreateTerm = [
 export const validateUpdateTerm = [
   param('prefix')
     .notEmpty()
-    .withMessage('prefix is required'),
+    .withMessage('prefix は必須です'),
   param('localName')
     .notEmpty()
-    .withMessage('localName is required'),
+    .withMessage('ローカル名は必須です'),
 ];
 
 /**
@@ -116,10 +116,10 @@ export const validateUpdateTerm = [
 export const validateDeleteTerm = [
   param('prefix')
     .notEmpty()
-    .withMessage('prefix is required'),
+    .withMessage('prefix は必須です'),
   param('localName')
     .notEmpty()
-    .withMessage('localName is required'),
+    .withMessage('ローカル名は必須です'),
 ];
 
 /**
@@ -130,15 +130,15 @@ export const validateDeleteTerm = [
 export const validateToggleTermActive = [
   param('prefix')
     .notEmpty()
-    .withMessage('prefix is required'),
+    .withMessage('prefix は必須です'),
   param('localName')
     .notEmpty()
-    .withMessage('localName is required'),
+    .withMessage('ローカル名は必須です'),
   body('isActive')
     .exists()
-    .withMessage('isActive is required')
+    .withMessage('状態は必須です')
     .isBoolean()
-    .withMessage('isActive must be a boolean'),
+    .withMessage('状態は boolean（真偽値）でなければなりません'),
 ];
 
 // ─── 用語一覧取得 ─────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ export const validateGetTerms = [
   query('scopeKey')
     .optional()
     .isString()
-    .withMessage('scopeKey must be a string'),
+    .withMessage('scopeKeyは文字列でなければなりません'),
 ];
 
 // ─── 名前空間宣言 ─────────────────────────────────────────────────────────────
@@ -170,9 +170,9 @@ export const validateGetDeclarations: never[] = [];
 export const validateGetDeclarationsByProject = [
   query('projectId')
     .notEmpty()
-    .withMessage('projectId is required')
+    .withMessage('projectIdは必須です')
     .isString()
-    .withMessage('projectId must be a string'),
+    .withMessage('projectIdは文字列でなければなりません'),
 ];
 
 // ─── グローバル名前空間宣言（ファイルサーバ管理） ─────────────────────────────
@@ -197,12 +197,12 @@ export const validateImportGlobalDeclarations: never[] = [];
 export const validateToggleNamespaceActive = [
   param('prefix')
     .notEmpty()
-    .withMessage('prefix is required'),
+    .withMessage('prefix は必須です'),
   body('isActive')
     .notEmpty()
-    .withMessage('isActive is required')
+    .withMessage('状態は必須です')
     .isBoolean()
-    .withMessage('isActive must be a boolean'),
+    .withMessage('状態は boolean（真偽値）でなければなりません'),
 ];
 
 // ─── 用語共有 ─────────────────────────────────────────────────────────────────
@@ -214,18 +214,18 @@ export const validateToggleNamespaceActive = [
 export const validateShareTerms = [
   body('sourceScopeKey')
     .notEmpty()
-    .withMessage('sourceScopeKey is required')
+    .withMessage('sourceScopeKey は必須です')
     .isString()
-    .withMessage('sourceScopeKey must be a string'),
+    .withMessage('sourceScopeKey は文字列でなければなりません'),
   body('targetScopeKey')
     .notEmpty()
-    .withMessage('targetScopeKey is required')
+    .withMessage('targetScopeKey は必須です')
     .isString()
-    .withMessage('targetScopeKey must be a string'),
+    .withMessage('targetScopeKey は文字列でなければなりません'),
   body('termIds')
     .isArray({ min: 1 })
-    .withMessage('termIds must be a non-empty array'),
+    .withMessage('termIds は空でない配列でなければなりません'),
   body('termIds.*')
     .isString()
-    .withMessage('each termId must be a string'),
+    .withMessage('各 termId は文字列でなければなりません'),
 ];

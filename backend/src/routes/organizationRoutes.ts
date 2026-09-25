@@ -48,19 +48,19 @@ router.get(
     query('search')
       .optional()
       .isString()
-      .withMessage('search must be a string'),
+      .withMessage('検索は文字列でなければなりません'),
     query('is_active')
       .optional()
       .isBoolean()
-      .withMessage('is_active must be a boolean'),
+      .withMessage('アクティブ/非アクティブは boolean（真偽値）でなければなりません'),
     query('sort_by')
       .optional()
       .isString()
-      .withMessage('sort_by must be a string'),
+      .withMessage('sort_by は文字列でなければなりません'),
     query('sort_order')
       .optional()
       .isIn(['asc', 'desc'])
-      .withMessage('sort_order must be either "asc" or "desc"'),
+      .withMessage('sort_order は昇順または降順のいずれかでなければなりません'),
   ],
   handleValidationErrors,
   organizationController.getOrganizations
@@ -78,9 +78,9 @@ router.get(
   [
     param('organizationCd')
       .notEmpty()
-      .withMessage('organizationCd is required')
+      .withMessage('組織CDは必須です')
       .isString()
-      .withMessage('organizationCd must be a string'),
+      .withMessage('組織CDは文字列でなければなりません'),
   ],
   handleValidationErrors,
   organizationController.checkOrganizationCd
@@ -136,9 +136,9 @@ router.get(
   [
     param('organizationId')
       .notEmpty()
-      .withMessage('organizationId is required')
+      .withMessage('組織IDは必須です')
       .isUUID()
-      .withMessage('organizationId must be a valid UUID'),
+      .withMessage('組織IDは有効な UUID でなければなりません'),
   ],
   handleValidationErrors,
   organizationController.getSystemAdminsByOrganizationId
@@ -156,9 +156,9 @@ router.get(
   [
     param('organizationId')
       .notEmpty()
-      .withMessage('organizationId is required')
+      .withMessage('組織IDは必須です')
       .isUUID()
-      .withMessage('organizationId must be a valid UUID'),
+      .withMessage('組織IDは有効な UUID でなければなりません'),
   ],
   handleValidationErrors,
   organizationController.downloadCertificate
@@ -174,9 +174,9 @@ router.get(
   [
     param('organizationId')
       .notEmpty()
-      .withMessage('organizationId is required')
+      .withMessage('組織IDは必須です')
       .isUUID()
-      .withMessage('organizationId must be a valid UUID'),
+      .withMessage('組織IDは有効な UUID でなければなりません'),
   ],
   handleValidationErrors,
   organizationController.getOrganizationById
@@ -192,58 +192,58 @@ router.post(
   [
     body('organizationId')
       .notEmpty()
-      .withMessage('organizationId is required')
+      .withMessage('組織IDは必須です')
       .isUUID()
-      .withMessage('organizationId must be a valid UUID'),
+      .withMessage('組織IDは有効な UUID でなければなりません'),
     body('organizationCd')
       .notEmpty()
-      .withMessage('organizationCd is required')
+      .withMessage('組織CDは必須です')
       .isString()
-      .withMessage('organizationCd must be a string')
+      .withMessage('組織CDは文字列でなければなりません')
       .matches(/^[A-Za-z0-9\-_]+$/)
-      .withMessage('organizationCd must contain only alphanumeric characters, hyphens, or underscores')
+      .withMessage('組織IDは英数字・ハイフン・アンダースコアのみを含む必要があります')
       .isLength({ max: 50 })
-      .withMessage('organizationCd must be 50 characters or less'),
+      .withMessage('組織IDは 50文字以下でなければなりません'),
     body('organizationDisplayName')
       .notEmpty()
-      .withMessage('organizationDisplayName is required')
+      .withMessage('組織表示名は必須です')
       .isString()
-      .withMessage('organizationDisplayName must be a string'),
+      .withMessage('組織表示名は文字列でなければなりません'),
     body('organizationEmail')
       .notEmpty()
-      .withMessage('organizationEmail is required')
+      .withMessage('組織のメールアドレスは必須です')
       .isEmail()
-      .withMessage('organizationEmail must be a valid email'),
+      .withMessage('組織のメールアドレスは有効なメールアドレスでなければなりません'),
     body('chiefUserName')
       .notEmpty()
-      .withMessage('chiefUserName is required')
+      .withMessage('代表システム管理者は必須です')
       .isString()
-      .withMessage('chiefUserName must be a string'),
+      .withMessage('代表システム管理者は文字列でなければなりません'),
     body('chiefUserEmail')
       .notEmpty()
-      .withMessage('chiefUserEmail is required')
+      .withMessage('代表者メールアドレスは必須です')
       .isEmail()
-      .withMessage('chiefUserEmail must be a valid email'),
+      .withMessage('代表者メールアドレスは有効なメールアドレスでなければなりません'),
     body('chiefUserId')
       .optional()
       .isString()
-      .withMessage('chiefUserId must be a string'),
+      .withMessage('代表者のIDは文字列でなければなりません'),
     body('corporationId')
       .optional()
       .isUUID()
-      .withMessage('corporationId must be a valid UUID'),
+      .withMessage('会社のIDは有効な UUID でなければなりません'),
     body('isEntry')
       .optional()
       .isInt({ min: 0, max: 1 })
-      .withMessage('isEntry must be 0 or 1'),
+      .withMessage('二段階認証判定は 0 または 1 でなければなりません'),
     body('isActive')
       .optional()
       .isBoolean()
-      .withMessage('isActive must be a boolean'),
+      .withMessage('状態は boolean（真偽値）でなければなりません'),
     body('defaultRetentionDays')
       .optional()
       .isInt({ min: 1 })
-      .withMessage('defaultRetentionDays must be an integer of 1 or more'),
+      .withMessage('MaiMLデータ公開時のデフォルト保持日数は 1 以上の整数でなければなりません'),
   ],
   handleValidationErrors,
   organizationController.createOrganization
@@ -259,41 +259,41 @@ router.put(
   [
     param('organizationId')
       .notEmpty()
-      .withMessage('organizationId is required')
+      .withMessage('組織IDは必須です')
       .isUUID()
-      .withMessage('organizationId must be a valid UUID'),
+      .withMessage('組織IDは有効な UUID でなければなりません'),
     body('organizationName')
       .optional()
       .isString()
-      .withMessage('organizationName must be a string'),
+      .withMessage('組織名は文字列でなければなりません'),
     body('organizationDisplayName')
       .optional()
       .isString()
-      .withMessage('organizationDisplayName must be a string'),
+      .withMessage('組織表示名は文字列でなければなりません'),
     body('organizationPrefix')
       .optional()
       .isString()
-      .withMessage('organizationPrefix must be a string'),
+      .withMessage('組織prefixは文字列でなければなりません'),
     body('organizationEmail')
       .optional()
       .isEmail()
-      .withMessage('organizationEmail must be a valid email'),
+      .withMessage('組織のメールアドレスは有効なメールアドレスでなければなりません'),
     body('chiefUserId')
       .optional()
       .isString()
-      .withMessage('chiefUserId must be a string'),
+      .withMessage('代表者のIDは文字列でなければなりません'),
     body('corporationId')
       .optional()
       .isUUID()
-      .withMessage('corporationId must be a valid UUID'),
+      .withMessage('会社のIDは有効な UUID でなければなりません'),
     body('isActive')
       .optional()
       .isBoolean()
-      .withMessage('isActive must be a boolean'),
+      .withMessage('状態は boolean（真偽値）でなければなりません'),
     body('defaultRetentionDays')
       .optional()
       .isInt({ min: 1 })
-      .withMessage('defaultRetentionDays must be an integer of 1 or more'),
+      .withMessage('MaiMLデータ公開時のデフォルト保持日数は 1 以上の整数でなければなりません'),
   ],
   handleValidationErrors,
   organizationController.updateOrganization
@@ -309,14 +309,14 @@ router.patch(
   [
     param('organizationId')
       .notEmpty()
-      .withMessage('organizationId is required')
+      .withMessage('組織IDは必須です')
       .isUUID()
-      .withMessage('organizationId must be a valid UUID'),
+      .withMessage('組織IDは有効な UUID でなければなりません'),
     body('isActive')
       .notEmpty()
-      .withMessage('isActive is required')
+      .withMessage('状態は必須です')
       .isBoolean()
-      .withMessage('isActive must be a boolean'),
+      .withMessage('状態は boolean（真偽値）でなければなりません'),
   ],
   handleValidationErrors,
   organizationController.updateOrganizationStatus

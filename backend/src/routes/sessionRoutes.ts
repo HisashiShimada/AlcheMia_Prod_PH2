@@ -47,9 +47,9 @@ router.delete(
   [
     param('tokenId')
       .notEmpty()
-      .withMessage('Token ID is required')
+      .withMessage('トークンIDは必須です')
       .isUUID()
-      .withMessage('Token ID must be a valid UUID'),
+      .withMessage('トークンID は有効な UUID でなければなりません'),
   ],
   handleValidationErrors,
   sessionController.terminate
