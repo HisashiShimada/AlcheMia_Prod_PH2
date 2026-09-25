@@ -1112,6 +1112,7 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
       <UncertaintyImportModal
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
+        scopeKey={resolveScopeKey(selectedNsKey) ?? null}
         onImported={() => {
           const scopeKey = resolveScopeKey(selectedNsKey);
           fetchUncertaintyCriteriaList(scopeKey)
