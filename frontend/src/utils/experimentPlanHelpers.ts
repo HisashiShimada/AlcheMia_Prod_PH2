@@ -24,7 +24,15 @@ export function createInitialTabData(): ExperimentPlanTabData {
 }
 
 /**
- * テンプレート定義一覧から defaultValue を収集し、templateValues の初期値を生成する
+ * テンプレート定義一覧から templateValues の初期値を生成する
+ *
+ * JIS規格上 MAIMLの Property タグの value 要素は省略可能（入力なし許容）。
+ * そのため defaultValue の有無にかかわらず、すべてのフィールドをエントリとして登録する。
+ * - defaultValue がある場合: その値を初期値として使用
+ * - defaultValue がない場合: 空文字 "" を初期値として登録（フィールドの存在を保持）
+ *
+ * insertion 型フィールドはファイル挿入の情報表示専用であり、
+ * 値入力の対象外のためスキップする。
  *
  * @param templates - APIから取得した TemplateDef[] (TemplateDef.fields[].defaultValue を使用)
  * @returns `{templateId}_{fieldKey}` をキーとした初期 templateValues
@@ -35,9 +43,11 @@ export function buildDefaultTemplateValues(
   const values: Record<string, string | number | boolean> = {};
   for (const tmpl of templates) {
     for (const field of tmpl.fields) {
-      if (field.defaultValue !== undefined && field.defaultValue !== null) {
-        values[`${tmpl.id}_${field.key}`] = field.defaultValue;
-      }
+      // insertion 型は表示専用のためスキップ
+      if (field.xsiType === 'insertion') continue;
+      // defaultValue があればその値、なければ空文字で初期登録
+      // （value 要素なし Property もフィールドとして存在を保持するため）
+      values[`${tmpl.id}_${field.key}`] = field.defaultValue ?? '';
     }
   }
   return values;

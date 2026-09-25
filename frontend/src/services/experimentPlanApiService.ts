@@ -104,9 +104,10 @@ function tabDataToTransitionValues(tabData: ExperimentPlanTabData): TransitionPl
   const values: TransitionPlanValues = {};
 
   for (const [key, value] of Object.entries(tabData.templateValues)) {
-    // null / undefined / 空文字はスキップ（InputNumber クリア時に null が渡る場合を考慮）
+    // null / undefined のみスキップ（InputNumber クリア時に null が渡る場合を考慮）
+    // 空文字 "" は value 要素なし Property のフィールド存在を保持するため通過させる
     // boolean false や 数値 0 は有効値なので通過させる
-    if (value !== null && value !== undefined && value !== '') {
+    if (value !== null && value !== undefined) {
       values[key] = String(value);
     }
   }
