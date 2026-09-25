@@ -2792,6 +2792,13 @@ export default function WorkRecordPanel({
   }, [projectId, methodId]);
 
   /**
+   * デフォルト定性評価のキー定数。
+   * テンプレートで不確かさ基準が指定されていない場合（uncertainty[] が空配列）に
+   * handleSave / handleSaveCorrection で使用し、MAIML に書き出す <uncertainty> タグのキーとする。
+   */
+  const DEFAULT_QUALITATIVE_UNCERTAINTY_KEY = 'Alchemia:QualitativeEvaluation';
+
+  /**
    * 訂正保存処理
    * viewingKey のトランジションに対して correctRecord API を呼び出す。
    * actuals の現在の入力値を rawTemplateItemsRef のプロパティ構造に反映して送信。
@@ -2852,6 +2859,26 @@ export default function WorkRecordPanel({
               (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
                 ?.map((tv) => tv.uncertaintyKey) ?? []
             );
+            // ── デフォルト定性評価: uncertainty[] に定性評価エントリがない場合に追加 ──
+            // テンプレートで不確かさ基準が指定されていない場合（uncertainty[] が空配列）に
+            // 定性評価値または定性評価理由があれば、デフォルトキーでエントリを追加する。
+            // これにより maimlDataWriter が <uncertainty key="Alchemia:QualitativeEvaluation"> を出力できる。
+            if (confidenceEntry && (confidenceEntry.value || confidenceEntry.description)) {
+              const hasQualitativeEntry =
+                Array.isArray(p.uncertainty) &&
+                (p.uncertainty as Array<Record<string, unknown>>).some((unc) => {
+                  const k = unc['key'] as string | undefined;
+                  return k && !quantitativeKeys.has(k);
+                });
+              if (!hasQualitativeEntry) {
+                if (!Array.isArray(p.uncertainty)) p.uncertainty = [];
+                (p.uncertainty as Array<Record<string, unknown>>).push({
+                  key: DEFAULT_QUALITATIVE_UNCERTAINTY_KEY,
+                  value: confidenceEntry.value || null,
+                  description: confidenceEntry.description || null,
+                });
+              }
+            }
             if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
               (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
                 const ucKey = unc['key'] as string | undefined;
@@ -2977,6 +3004,26 @@ export default function WorkRecordPanel({
               (p['toleranceValues'] as Array<{ uncertaintyKey: string }> | null)
                 ?.map((tv) => tv.uncertaintyKey) ?? []
             );
+            // ── デフォルト定性評価: uncertainty[] に定性評価エントリがない場合に追加 ──
+            // テンプレートで不確かさ基準が指定されていない場合（uncertainty[] が空配列）に
+            // 定性評価値または定性評価理由があれば、デフォルトキーでエントリを追加する。
+            // これにより maimlDataWriter が <uncertainty key="Alchemia:QualitativeEvaluation"> を出力できる。
+            if (confidenceEntry && (confidenceEntry.value || confidenceEntry.description)) {
+              const hasQualitativeEntry =
+                Array.isArray(p.uncertainty) &&
+                (p.uncertainty as Array<Record<string, unknown>>).some((unc) => {
+                  const k = unc['key'] as string | undefined;
+                  return k && !quantitativeKeys.has(k);
+                });
+              if (!hasQualitativeEntry) {
+                if (!Array.isArray(p.uncertainty)) p.uncertainty = [];
+                (p.uncertainty as Array<Record<string, unknown>>).push({
+                  key: DEFAULT_QUALITATIVE_UNCERTAINTY_KEY,
+                  value: confidenceEntry.value || null,
+                  description: confidenceEntry.description || null,
+                });
+              }
+            }
             if (Array.isArray(p.uncertainty) && p.uncertainty.length > 0) {
               (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
                 const ucKey = unc['key'] as string | undefined;
