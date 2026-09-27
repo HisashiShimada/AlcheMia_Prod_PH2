@@ -2638,7 +2638,7 @@ export default function WorkRecordPanel({
         if (cancelled) return;
         uncertaintyOptionsCache = result.map((c) => ({
           value: c.key,
-          label: c.name,
+          label: c.name || c.key,
         }));
       } catch (err) {
         console.error('[WorkRecordPanel] uncertainty criteria fetch error:', err);
@@ -2914,7 +2914,10 @@ export default function WorkRecordPanel({
             const propEntries: UncertaintyValueEntry[] =
               uncertaintyValuesRef.current.get(`${item.templateId}__${propKey}`) ??
               uncertaintyValuesRef.current.get(`${item.placeId}__${propKey}`) ?? [];
-            if (propEntries.length === 0 || !Array.isArray(p.uncertainty)) return;
+            if (propEntries.length === 0) return;
+            // uncertainty[] が未定義または配列でない場合は空配列で初期化
+            if (!Array.isArray(p.uncertainty)) p.uncertainty = [];
+            // 既存エントリへの value 書き込み
             (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
               const ucKey = unc['key'] as string | undefined;
               if (!ucKey) return;
@@ -2923,6 +2926,19 @@ export default function WorkRecordPanel({
                 unc['value'] = entry.value;
               }
             });
+            // 追加行: p.uncertainty[] に存在しないキーのエントリを新規 push する
+            // （「値の追加」ボタンで追加した行をテンプレート構造に反映させるために必要）
+            const existingUncKeys = new Set(
+              (p.uncertainty as Array<Record<string, unknown>>).map((unc) => unc['key'] as string)
+            );
+            for (const entry of propEntries) {
+              if (!entry.uncertaintyKey || existingUncKeys.has(entry.uncertaintyKey)) continue;
+              if (!entry.value || isNaN(Number(entry.value))) continue;
+              (p.uncertainty as Array<Record<string, unknown>>).push({
+                key: entry.uncertaintyKey,
+                value: entry.value,
+              });
+            }
           });
         }
         return {
@@ -3061,7 +3077,10 @@ export default function WorkRecordPanel({
             const propEntries: UncertaintyValueEntry[] =
               uncertaintyValuesRef.current.get(`${item.templateId}__${propKey}`) ??
               uncertaintyValuesRef.current.get(`${item.placeId}__${propKey}`) ?? [];
-            if (propEntries.length === 0 || !Array.isArray(p.uncertainty)) return;
+            if (propEntries.length === 0) return;
+            // uncertainty[] が未定義または配列でない場合は空配列で初期化
+            if (!Array.isArray(p.uncertainty)) p.uncertainty = [];
+            // 既存エントリへの value 書き込み
             (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
               const ucKey = unc['key'] as string | undefined;
               if (!ucKey) return;
@@ -3070,6 +3089,19 @@ export default function WorkRecordPanel({
                 unc['value'] = entry.value;
               }
             });
+            // 追加行: p.uncertainty[] に存在しないキーのエントリを新規 push する
+            // （「値の追加」ボタンで追加した行をテンプレート構造に反映させるために必要）
+            const existingUncKeys = new Set(
+              (p.uncertainty as Array<Record<string, unknown>>).map((unc) => unc['key'] as string)
+            );
+            for (const entry of propEntries) {
+              if (!entry.uncertaintyKey || existingUncKeys.has(entry.uncertaintyKey)) continue;
+              if (!entry.value || isNaN(Number(entry.value))) continue;
+              (p.uncertainty as Array<Record<string, unknown>>).push({
+                key: entry.uncertaintyKey,
+                value: entry.value,
+              });
+            }
           });
         }
         return {
