@@ -356,7 +356,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                   <Input
                     size="small"
                     value={attrValue || ''}
-                    onChange={(e) => onUpdateNestedAttribute(propertyKey, attrName, e.target.value)}
+                    readOnly
                     style={{ flex: 1 }}
                   />
                   <Button
@@ -382,7 +382,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 <Input
                   size="small"
                   value={elemValue || ''}
-                  onChange={(e) => onUpdateNestedElement(propertyKey, elemName, e.target.value)}
+                  readOnly
                   style={{ flex: 1 }}
                 />
                 <Button
@@ -410,7 +410,6 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 {t('nestedPropertyEditor.uncertaintySection')}
               </Text>
               {uncertaintyChildren.map((uncertaintyChild, ucIdx) => {
-                const ucValue = uncertaintyChild.elements?.['value'] ?? '';
                 const ucDesc = uncertaintyChild.elements?.['description'] ?? '';
                 return (
                   <div
@@ -472,17 +471,6 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                         <span style={{ width: 24 }} />
                       </div>
                     )}
-                    {/* value 行 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <Text style={{ minWidth: 100, fontSize: 12 }}>value:</Text>
-                      <Input
-                        size="small"
-                        value={ucValue}
-                        onChange={(e) => onUpdateNestedElement(uncertaintyChild.key, 'value', e.target.value)}
-                        style={{ flex: 1 }}
-                      />
-                      <span style={{ width: 24 }} />
-                    </div>
                     {/* description 行（値がある場合のみ） */}
                     {ucDesc !== '' && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -490,7 +478,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                         <Input
                           size="small"
                           value={ucDesc}
-                          onChange={(e) => onUpdateNestedElement(uncertaintyChild.key, 'description', e.target.value)}
+                          readOnly
                           style={{ flex: 1 }}
                         />
                         <span style={{ width: 24 }} />

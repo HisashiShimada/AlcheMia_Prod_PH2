@@ -18,6 +18,12 @@ interface UncertaintyImportModalProps {
   onClose: () => void;
   /** インポート成功後に呼び出されるコールバック（一覧再取得用） */
   onImported?: () => void;
+  /**
+   * 画面で選択中のスコープキー（organization_group_cd または userId）。
+   * 指定時: このスコープに対してインポートする（ファイル内 nameSpaceId を上書き）。
+   * 省略時: ファイル内の nameSpaceId をそのまま使用する。
+   */
+  scopeKey?: string | null;
 }
 
 type ImportFormat = 'CSV' | 'JSON';
@@ -29,6 +35,7 @@ export default function UncertaintyImportModal({
   open,
   onClose,
   onImported,
+  scopeKey,
 }: UncertaintyImportModalProps) {
   const { message } = App.useApp();
   const { t } = useLanguage();
@@ -45,7 +52,7 @@ export default function UncertaintyImportModal({
     setLoading(true);
     try {
       const file = fileList[0].originFileObj;
-      const result = await importUncertaintyCriteria(file, importFormat);
+      const result = await importUncertaintyCriteria(file, importFormat, scopeKey);
       message.success(
         t('uncertaintyImport.importSuccess', {
           inserted: String(result.insertedCount),

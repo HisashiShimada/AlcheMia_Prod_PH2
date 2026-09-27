@@ -416,21 +416,27 @@ export async function exportUncertaintyCriteria(
  *
  * @remarks
  * POST /api/v1/uncertainty-criteria/import
- * multipart/form-data で CSV または JSON ファイルと nameSpaceId を送信する。
+ * multipart/form-data で CSV または JSON ファイルと scopeKey を送信する。
  *
  * @param file - アップロードするファイル
  * @param format - ファイル形式（'CSV' | 'JSON'）
- * @param nameSpaceId - 取り込み先の名前空間ID
+ * @param scopeKey - 画面で選択中のスコープキー（organization_group_cd または userId）。
+ *   指定時: バックエンドで namespace_id に解決し、ファイル内の nameSpaceId を上書きする。
+ *   省略時: ファイル内の nameSpaceId をそのまま使用する。
  */
 export async function importUncertaintyCriteria(
   file: File,
-  format: string
+  format: string,
+  scopeKey?: string | null
 ): Promise<ImportUncertaintyCriteriaResponse> {
   const client = createApiClient();
 
   const formData = new FormData();
   formData.append('file',   file);
   formData.append('format', format.toLowerCase());
+  if (scopeKey) {
+    formData.append('scopeKey', scopeKey);
+  }
 
   const response = await client.post<ImportUncertaintyCriteriaResponse>(
     '/uncertainty-criteria/import',

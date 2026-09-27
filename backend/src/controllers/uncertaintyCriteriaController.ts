@@ -245,21 +245,36 @@ export async function importCriteria(
 
     const format      = (req.body.format as string) ?? 'csv';
     const nameSpaceId = (req.body.nameSpaceId as string) ?? '';
+    const scopeKey    = (req.body.scopeKey as string | undefined) ?? undefined;
 
     const fileContent = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+
+    // scopeKey が指定された場合は namespace テーブルで namespace_id に解決する
+    // 解決できた場合は overrideNameSpaceId として Service に渡し、ファイル内の値を上書きする
+    let overrideNameSpaceId: string | null = null;
+    if (scopeKey) {
+      overrideNameSpaceId = await findNamespaceIdByScopeKey(organizationId, scopeKey);
+    }
 
     const importOptions: ImportOptions = {
       fileContent,
       format,
       createUserId: userId ?? 'system',
       nameSpaceId,
+      overrideNameSpaceId,
     };
 
     const result = await uncertaintyCriteriaService.importCriteria(organizationId, importOptions);
 
     res.json({ success: true, insertedCount: result.insertedCount, skippedCount: result.skippedCount });
   } catch (error: any) {
-    if (error.message?.includes('CSVのヘッダー') || error.message?.includes('JSON')) {
+    if (
+      error.message?.includes('CSVのヘッダー') ||
+      error.message?.includes('JSON') ||
+      error.message?.includes('nameSpaceId') ||
+      error.message?.includes('Prefix が対象レイヤーに存在しません') ||
+      error.message?.includes('用語が対象レイヤー')
+    ) {
       res.status(400).json({ error: { code: 'E1004', message: error.message } });
       return;
     }

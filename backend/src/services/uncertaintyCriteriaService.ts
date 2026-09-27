@@ -70,8 +70,14 @@ export interface ImportOptions {
   format: string;
   /** 作成ユーザーID */
   createUserId: string;
-  /** 取り込み先の名前空間ID */
+  /** 取り込み先の名前空間ID（後方互換用。overrideNameSpaceId が優先される） */
   nameSpaceId: string;
+  /**
+   * 画面で選択中のスコープから解決した namespace_id。
+   * 指定された場合、ファイル内の nameSpaceId を全件この値で上書きする。
+   * null/undefined の場合はファイル内の nameSpaceId をそのまま使用する。
+   */
+  overrideNameSpaceId?: string | null;
 }
 
 /** インポート結果 */
@@ -86,10 +92,10 @@ export interface ImportResult {
 // 内部ヘルパー
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CSV_REQUIRED_HEADERS = ['uncertaintyKey', 'uncertaintyName', 'evaluationMethod'] as const;
+const CSV_REQUIRED_HEADERS = ['nameSpaceId', 'uncertaintyKey', 'uncertaintyName', 'evaluationMethod'] as const;
 
 export const EXPORT_CSV_HEADERS = [
-  'uncertaintyKey', 'uncertaintyName', 'evaluationMethod', 'isInvalid',
+  'nameSpaceId', 'uncertaintyKey', 'uncertaintyName', 'evaluationMethod', 'isInvalid',
   'inheritanceUncertaintyKey', 'xsiType', 'units', 'scaleFactor',
   'formatString', 'toleranceUpper', 'toleranceLower', 'description',
 ] as const;
@@ -391,6 +397,35 @@ export async function importCriteria(
   }
 
   if (items.length === 0) { return { insertedCount: 0, skippedCount: 0 }; }
+
+  // ─── 画面選択スコープによる nameSpaceId 上書き ────────────────────────────
+  // overrideNameSpaceId が指定されている場合、ファイル内の nameSpaceId を全件上書きする。
+  // これにより「スコープAを選択した状態でインポートしたのにスコープBに入る」問題を防ぐ。
+  if (options.overrideNameSpaceId) {
+    for (const item of items) {
+      item.nameSpaceId = options.overrideNameSpaceId;
+    }
+  }
+
+  // ─── nameSpaceId 空文字チェック ────────────────────────────────────────────
+  const emptyNsItem = items.find((item) => !item.nameSpaceId);
+  if (emptyNsItem) {
+    throw new Error(
+      `nameSpaceId が指定されていません。CSVまたはJSONファイルに nameSpaceId カラムを含めてください（key: ${emptyNsItem.uncertaintyKey}）`
+    );
+  }
+
+  // ─── nameSpaceId ごとに Prefix・namespace_term 存在確認 ────────────────────
+  // 同一 nameSpaceId 単位でまとめて一括バリデーション（N+1 回避）
+  const nsMap = new Map<string, string[]>();
+  for (const item of items) {
+    const arr = nsMap.get(item.nameSpaceId) ?? [];
+    arr.push(item.uncertaintyKey);
+    nsMap.set(item.nameSpaceId, arr);
+  }
+  for (const [nameSpaceId, keys] of nsMap.entries()) {
+    await uncertaintyCriteriaRepository.validatePrefixAndTerms(organizationId, nameSpaceId, keys);
+  }
 
   const result = await uncertaintyCriteriaRepository.bulkInsertCriteria(organizationId, items);
   return { insertedCount: result.insertedCount, skippedCount: result.skippedCount };

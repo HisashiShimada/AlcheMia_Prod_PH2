@@ -706,3 +706,76 @@ export interface UncertaintyKeyDetail {
   /** 定性評価の選択肢（定量の場合は空配列） */
   qualitativeOptions: QualitativeOptionRow[];
 }
+
+// ============================================================================
+// インポートバリデーション
+// ============================================================================
+
+/**
+ * インポート時の Prefix・namespace_term 存在確認
+ *
+ * @remarks
+ * - prefix テーブルに各 prefix が存在するかを一括確認する
+ * - namespace_term テーブルに各 uncertaintyKey（prefix:localname）が
+ *   指定 nameSpaceId 配下に存在するかを一括確認する
+ * - 存在しない場合はエラーメッセージを持つ Error を throw する（全体中止用）
+ * - 一括取得してメモリで突合することで N+1 クエリを回避する
+ *
+ * @param organizationId - 組織ID
+ * @param nameSpaceId    - インポート先の namespace_id（uncertainty_criteria.name_space_id）
+ * @param uncertaintyKeys - 確認対象の uncertainty_key 配列（"prefix:localname" 形式）
+ * @throws {Error} Prefix または namespace_term が存在しない場合
+ */
+export async function validatePrefixAndTerms(
+  organizationId: string,
+  nameSpaceId: string,
+  uncertaintyKeys: string[]
+): Promise<void> {
+  if (uncertaintyKeys.length === 0) return;
+
+  const pgp = getPgp();
+
+  // uncertainty_key から prefix を抽出（"prefix:localname" → "prefix"）
+  // コロンを含まないキーはスキップ（バリデーション不能）
+  const prefixes = [...new Set(
+    uncertaintyKeys
+      .filter((k) => k.includes(':'))
+      .map((k) => k.split(':')[0])
+  )];
+
+  if (prefixes.length === 0) return;
+
+  // ─── Prefix 存在確認 ───────────────────────────────────────────────────────
+  // namespace_id（スコープ）配下の prefix テーブルで確認する
+  // 他スコープの同名 prefix をヒットさせないよう namespace_id を絞り込む
+  const prefixSql = await loadSqlFile('uncertainty_criteria/validatePrefixExists.sql');
+  const existingPrefixRows = await pgp.manyOrNone<{ prefix: string }>(
+    prefixSql,
+    [organizationId, nameSpaceId, prefixes]
+  );
+  const existingPrefixes = new Set(existingPrefixRows.map((r) => r.prefix));
+
+  const missingPrefixes = prefixes.filter((p) => !existingPrefixes.has(p));
+  if (missingPrefixes.length > 0) {
+    throw new Error(
+      `Prefix が対象レイヤー（nameSpaceId=${nameSpaceId}）に存在しません: ${missingPrefixes.join(', ')}`
+    );
+  }
+
+  // ─── namespace_term 存在確認 ────────────────────────────────────────────────
+  const termKeys = [...new Set(uncertaintyKeys.filter((k) => k.includes(':')))];
+  const termSql = await loadSqlFile('uncertainty_criteria/validateTermExists.sql');
+  const existingTermRows = await pgp.manyOrNone<{ qname: string }>(
+    termSql,
+    [organizationId, nameSpaceId, termKeys]
+  );
+  const existingTerms = new Set(existingTermRows.map((r) => r.qname));
+
+  const missingTerms = termKeys.filter((k) => !existingTerms.has(k));
+  if (missingTerms.length > 0) {
+    throw new Error(
+      `用語が対象レイヤー（nameSpaceId=${nameSpaceId}）に存在しません: ${missingTerms.join(', ')}`
+    );
+  }
+}
+
