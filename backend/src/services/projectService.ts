@@ -815,7 +815,8 @@ export class ProjectService {
             null,
             TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): チェックアウト時は常に INITIAL → PREPARING
             TransitionStatusEnum.PREPARING, // toStatus   = 2(PREPARING)
-            project.project_name            // ownerRef ID 命名用プロジェクト名
+            project.project_name,           // ownerRef ID 命名用プロジェクト名
+            preparedTransition.task_no      // タスク連番（Alchemia:ReferenceTaskNo 記録用）
           );
         }
         console.log(`[DEBUG] checkout - Inserted transition progress logs for ${preparedTransitions.length} transitions`);
@@ -1976,221 +1977,6 @@ export class ProjectService {
   }
 
   /**
-   * 指示確認を記録する
-   *
-   * @description instructionConfirmationService.tsから移植
-   * Task: 2.1, 2.2 Service層実装
-   * maiml_event_log へのINSERTをトランザクション内で追加（2026-03-03）
-   *
-   * @param instructionId - 指示ID
-   * @param projectName - プロジェクト名
-   * @param userId - ユーザーID
-   * @param organizationId - 組織ID
-   * @param role - ユーザーロール
-   * @returns 確認結果
-   */
-  async confirmInstruction(
-    instructionId: string,
-    projectId: string,
-    userId: string,
-    organizationId: string,
-    role: string
-  ): Promise<ServiceResult<InstructionConfirmationData>> {
-    const pool = getPool();
-    let client;
-
-    try {
-      // 1. 指示の存在確認（organization_idフィルタ付き）
-      const instruction = await instructionRepository.findById(
-        instructionId,
-        projectId,
-        organizationId
-      );
-
-      if (!instruction) {
-        return {
-          success: false,
-          error: {
-            code: 'E6001',
-            message: '指示が見つかりません',
-          },
-        };
-      }
-
-      // 2. 既確認チェック
-      const acknowledgedHistory = await instructionRepository.checkAcknowledged(
-        instructionId,
-        projectId,
-        organizationId
-      );
-
-      if (acknowledgedHistory) {
-        return {
-          success: false,
-          error: {
-            code: 'BUSINESS_ALREADY_ACKNOWLEDGED',
-            message: 'この指示は既に確認済みです',
-          },
-        };
-      }
-
-      // 3. 権限チェック（experiment_workerの場合は自分のタスクか確認）
-      if (role === 'experiment_worker') {
-        const taskAssignments = await instructionRepository.checkWorkerAssignment(
-          instructionId,
-          projectId,
-          userId,
-          organizationId
-        );
-
-        if (taskAssignments.length === 0) {
-          return {
-            success: false,
-            error: {
-              code: 'E5015',
-              message: '自分に割り当てられていない指示は確認できません',
-            },
-          };
-        }
-      }
-
-      // 4. MAIMLファイルを解析して programId を取得
-      //    トランジション（target=3）・タスク（target=2）の場合、
-      //    <program id="..."> の id を trace @ref に使用する。
-      let programId: string | null = null;
-      const hasMethod = !!(instruction.method_id);
-      const hasTransition = !!(instruction.transition_id);
-      const hasTask = !!(instruction.task_no);
-
-      if (hasMethod && (hasTransition || hasTask)) {
-        try {
-          // MAIMLファイル取得: project_uuid → file_metadata 経由で最新 file_key を取得
-          const projectInfoForMaiml = await projectRepository.findNameAndUuidById(organizationId, projectId);
-          const projectUuidForMaiml = projectInfoForMaiml?.project_uuid ?? null;
-
-          if (!projectUuidForMaiml) {
-            throw new Error('project_uuid が設定されていません');
-          }
-
-          const fileMetadataRepository = new FileMetadataRepository();
-          const maimlRecord = await fileMetadataRepository.findMaimlByProjectUuid(projectUuidForMaiml);
-
-          if (!maimlRecord) {
-            throw new Error('MAIMLファイルのメタデータが見つかりません');
-          }
-
-          const relativeFileKey = maimlRecord.file_key.startsWith(`${organizationId}/`)
-            ? maimlRecord.file_key.substring(organizationId.length + 1)
-            : maimlRecord.file_key;
-
-          const storageService = getStorageService();
-          const fileBuffer = await storageService.downloadFile(organizationId, relativeFileKey);
-          const maimlContent = fileBuffer.toString('utf-8');
-
-          const parser = new XMLParser({
-            ignoreAttributes: false,
-            attributeNamePrefix: '@_',
-          });
-          const parsed = parser.parse(maimlContent);
-
-          // protocol.method は単一要素の場合もあるため配列に統一
-          const methods = parsed?.maiml?.protocol?.method;
-          const methodsArray = Array.isArray(methods) ? methods : methods ? [methods] : [];
-
-          // method_id が一致するメソッドの program id を取得
-          const targetMethod = methodsArray.find((m: any) => m['@_id'] === instruction.method_id);
-          programId = targetMethod?.program?.['@_id'] ?? null;
-        } catch (maimlError) {
-          // MAIMLファイル取得・パース失敗時は null のまま続行（ログのみ）
-          logError('Failed to parse MAIML for programId', maimlError as Error, {
-            projectId,
-            organizationId,
-            methodId: instruction.method_id,
-          });
-        }
-      }
-
-      // 5. トランザクション開始
-      //    - instruction_acknowledged_history に確認履歴を挿入
-      //    - maiml_event_log にイベントログを挿入
-      //    の2つを同一トランザクションで実行する
-      client = await pool.connect();
-      await client.query('BEGIN');
-
-      // 5-1. 確認履歴の挿入（PoolClient版）
-      const insertedHistory = await instructionRepository.insertAcknowledgedWithClient(
-        instructionId,
-        projectId,
-        userId,
-        organizationId,
-        client
-      );
-
-      const acknowledgedAt = toJSTIsoString(insertedHistory.acknowledged_at);
-
-      // 5-2. maiml_event_log にイベントログを挿入
-      const eventLogRepository = new EventLogRepository();
-      await eventLogRepository.insertInstructionConfirmLog(
-        organizationId,
-        projectId,
-        {
-          methodId: instruction.method_id ?? null,
-          transitionId: instruction.transition_id ?? null,
-          programId,
-          taskNo: instruction.task_no ?? null,
-          experimentInstructionId: instructionId,
-          userId,
-          acknowledgedAt,
-        },
-        client
-      );
-
-      // トランザクションコミット
-      await client.query('COMMIT');
-
-      // 5. ユーザー名の取得（トランザクション外）
-      const userName = await instructionRepository.findUserNameFromAuth(userId, organizationId);
-
-      // 6. レスポンスデータの整形
-      const responseData: InstructionConfirmationData = {
-        instruction_id: instructionId,
-        is_acknowledged: true,
-        acknowledged_at: acknowledgedAt,
-        acknowledged_user_id: userId,
-        acknowledged_user_name: userName || '',
-      };
-
-      return {
-        success: true,
-        data: responseData,
-      };
-    } catch (error) {
-      // エラー時はROLLBACK
-      if (client) {
-        await client.query('ROLLBACK');
-      }
-
-      logError('Instruction confirmation error', error as Error, {
-        instructionId,
-        userId,
-        organizationId,
-      });
-
-      return {
-        success: false,
-        error: {
-          code: 'SYSTEM_DATABASE_ERROR',
-          message: 'データベースエラーが発生しました',
-        },
-      };
-    } finally {
-      if (client) {
-        client.release();
-      }
-    }
-  }
-
-  /**
    * レビュー待ちタスクを一括完了に更新
    *
    * @param organizationId 組織ID
@@ -2392,6 +2178,85 @@ export class ProjectService {
     } catch (error) {
       await client.query('ROLLBACK');
       logError('forceTerminate error', error as Error, { organizationId, projectId });
+      return { success: false, error: { code: 'E4002', message: 'Database error occurred' } };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * プロジェクトを完了状態に遷移させる
+   *
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @returns 更新結果
+   *
+   * @remarks
+   * - project_status を REVIEW_WAITING(3) → COMPLETED(4) に更新する
+   * - COMMIT 後に MaimlWriterService で実績データ + EventLog を MAiML ファイルに書き出す（失敗は警告扱い）
+   * - 許可ステータス: REVIEW_WAITING(3) のみ
+   */
+  async completeProject(
+    organizationId: string,
+    projectId: string
+  ): Promise<ServiceResult<{ projectId: string; projectStatus: number }>> {
+    const pool = getPool();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // ① プロジェクト情報取得 + 前提条件チェック
+      const project = await projectRepository.findByIdFull(organizationId, projectId);
+      if (!project) {
+        await client.query('ROLLBACK');
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+
+      if (project.project_status !== ProjectStatusEnum.REVIEW_WAITING) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          error: {
+            code: 'E4003',
+            message: 'プロジェクト完了はステータスがレビュー待ちのプロジェクトのみ実行できます',
+          },
+        };
+      }
+
+      // ② プロジェクトステータスを COMPLETED(4) に更新
+      const updateSql = await loadSqlFile('project/completeProject.sql');
+      const updateResult = await client.query(updateSql, [
+        ProjectStatusEnum.COMPLETED,
+        organizationId,
+        projectId,
+      ]);
+      if (updateResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+
+      await client.query('COMMIT');
+
+      // ③ COMMIT 後: MAiML ファイルの <eventLog> のみ書き出し（実績データは完了時点で書き込み済みのため不要）（失敗は警告扱い）
+      const projectName = project.project_name ?? projectId;
+      try {
+        const maimlWriterService = new MaimlWriterService();
+        await maimlWriterService.writeEventLogOnly(organizationId, projectId, projectName);
+      } catch (maimlWriteError) {
+        console.warn(
+          '[ProjectService.completeProject] MAiMLファイルへの書き出しに失敗しました（処理は継続）:',
+          maimlWriteError
+        );
+      }
+
+      return {
+        success: true,
+        data: { projectId, projectStatus: ProjectStatusEnum.COMPLETED },
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logError('completeProject error', error as Error, { organizationId, projectId });
       return { success: false, error: { code: 'E4002', message: 'Database error occurred' } };
     } finally {
       client.release();

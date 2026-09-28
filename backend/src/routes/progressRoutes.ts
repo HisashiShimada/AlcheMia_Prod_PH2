@@ -304,6 +304,11 @@ router.get(
     validateParamString('projectId', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamString('transitionId', 1, 255),
+    // taskNo はオプショナルなクエリパラメータ（省略可・1以上の整数）
+    query('taskNo')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('taskNoは1以上の整数である必要があります'),
   ],
   handleValidationErrors,
   progressController.getTransitionStateRecords

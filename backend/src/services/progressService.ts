@@ -913,6 +913,7 @@ export class ProgressService {
    * @param projectId プロジェクトID
    * @param methodId メソッドID
    * @param transitionId トランジションID
+   * @param taskNo タスク番号（同一トランジションIDが複数タスクに存在する場合の絞り込み用）
    * @param update 更新内容
    * @param comment イベントログに記録するコメント（省略可）
    * @returns 更新後のトランジションデータ
@@ -922,6 +923,7 @@ export class ProgressService {
     projectId: string,
     methodId: string,
     transitionId: string,
+    taskNo: number,
     update: TransitionDataUpdate,
     comment?: string | null
   ): Promise<TransitionData> {
@@ -944,7 +946,21 @@ export class ProgressService {
         throw error;
       }
 
-      const { method_id, task_no, status: _rawCurrentStatus } = findResult.rows[0];
+      // taskNo で絞り込み、対象タスクのトランジション行を取得する
+      // findByTransitionId.sql は task_no 絞り込みを持たないため、
+      // 同一 transitionId が複数タスク（task_no=1, 2...）に存在する場合に複数行が返る。
+      // rows[0] のみ参照すると完了済みタスクの行が先に来たときに誤ったレコードを
+      // 更新してしまうため、必ず引数の taskNo に一致する行を使用する。
+      const targetRow = findResult.rows.find(
+        (row: { method_id: string; task_no: number; status: number }) => row.task_no === taskNo
+      );
+      if (!targetRow) {
+        const error: any = new Error('Transition not found for specified taskNo');
+        error.name = 'TransitionNotFoundError';
+        throw error;
+      }
+
+      const { method_id, task_no, status: _rawCurrentStatus } = targetRow;
       // DB の numeric(2,0) は parseFloat で変換されるが、確実に整数 number 型にキャストする
       // LIFECYCLE_TRANSITION_VALUE_MAP のキー比較は number 型同士である必要があるため
       const currentStatus = Number(_rawCurrentStatus) as TransitionStatusNumber;
@@ -1086,7 +1102,8 @@ export class ProgressService {
         eventLogResultsRefs,   // event/resultsRef = result-type place IDs
         currentStatus,         // fromStatus = 遷移元ステータス（Number変換済み）
         toStatus,              // toStatus   = 遷移先ステータス（Number変換済み）
-        projectName            // ownerRef ID 命名用プロジェクト名
+        projectName,           // ownerRef ID 命名用プロジェクト名
+        task_no                // タスク連番（Alchemia:ReferenceTaskNo 記録用）
       );
 
       // 7. 前提トランジション完了時の連鎖更新
@@ -1149,7 +1166,8 @@ export class ProgressService {
               null,
               TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): 連鎖更新は常に INITIAL → PREPARING
               TransitionStatusEnum.PREPARING, // toStatus   = 2(PREPARING)
-              projectName                     // ownerRef ID 命名用プロジェクト名
+              projectName,                    // ownerRef ID 命名用プロジェクト名
+              dep.task_no                     // タスク連番（Alchemia:ReferenceTaskNo 記録用）
             );
           }
         } catch (chainErr) {
@@ -1227,12 +1245,15 @@ export class ProgressService {
    * @param organizationId - 組織ID（マルチテナント分離）
    * @param projectId      - プロジェクトID
    * @param transitionId   - トランジションID
+   * @param taskNo         - タスク連番（指定時は Alchemia:ReferenceTaskNo が一致するエントリのみ採用。
+   *                         未指定または null の場合は全エントリを対象とする（後方互換））
    * @returns 各状態の遷移時刻（未記録は null）
    */
   async getTransitionStateRecords(
     organizationId: string,
     projectId: string,
-    transitionId: string
+    transitionId: string,
+    taskNo?: number | null
   ): Promise<TransitionStateRecordsResult> {
     const rows = await this.eventLogRepository.findTransitionStateRecords(
       organizationId,
@@ -1258,6 +1279,19 @@ export class ProgressService {
         // （transitionProgress ログのみ lifecycle:transition を保持し、transitionComment ログは保持しない）
         const lifecycleProp = properties.find((p) => p['@key'] === 'lifecycle:transition');
         if (!lifecycleProp) continue;
+
+        // taskNo フィルタ:
+        // - Alchemia:ReferenceTaskNo が存在するログ（新形式）: taskNo が指定されている場合は値が一致するもののみ採用
+        // - Alchemia:ReferenceTaskNo が存在しないログ（旧形式）: taskNo に関わらず採用（後方互換）
+        if (taskNo != null) {
+          const taskNoProp = properties.find((p) => p['@key'] === 'Alchemia:ReferenceTaskNo');
+          if (taskNoProp !== undefined) {
+            // 新形式ログ: ReferenceTaskNo が存在する場合は値が一致するもののみ通す
+            const logTaskNo = Number(taskNoProp['#text']);
+            if (logTaskNo !== taskNo) continue;
+          }
+          // 旧形式ログ（ReferenceTaskNo なし）: そのまま通す（後方互換）
+        }
 
         const timestampProp = properties.find((p) => p['@key'] === 'time:timestamp');
 

@@ -396,37 +396,6 @@ router.get(
 );
 
 /**
- * 指示確認完了
- * PUT /api/v1/projects/:projectId/instructions/:instructionId/confirm
- * 
- * @middleware authMiddleware - JWT認証
- * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
- * @description 実験作業者が指示を確認したことを記録する
- * @note API 2.14: プロジェクト管理APIの一部として実装
- * @requirements REQ-001, REQ-002
- * @roles experiment_worker（書込可）
- */
-router.put(
-  '/:projectId/instructions/:instructionId/confirm',
-  authMiddleware,
-  checkPermission('050000', 1),
-  [
-    param('projectId')
-      .notEmpty()
-      .withMessage('projectIdは必須です')
-      .isLength({ min: 1, max: 255 })
-      .withMessage('projectIdは1〜255文字である必要があります'),
-    param('instructionId')
-      .notEmpty()
-      .withMessage('instructionIdは必須です')
-      .isString()
-      .withMessage('instructionIdは文字列である必要があります'),
-  ],
-  handleValidationErrors,
-  projectController.confirmInstruction
-);
-
-/**
  * タスク登録情報取得
  * GET /api/v1/projects/:projectId/task-registration
  * 
@@ -779,6 +748,30 @@ router.post(
   ],
   handleValidationErrors,
   projectController.forceTerminate
+);
+
+/**
+ * プロジェクト完了
+ * POST /api/v1/projects/:projectId/complete
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description プロジェクトステータスをレビュー待ち（REVIEW_WAITING=3）から完了（COMPLETED=4）に更新する
+ * @roles experiment_admin（書込可）
+ */
+router.post(
+  '/:projectId/complete',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectId')
+      .notEmpty()
+      .withMessage('projectIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectIdは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.complete
 );
 
 export default router;
