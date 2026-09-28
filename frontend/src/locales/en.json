@@ -4023,7 +4023,9 @@
     "toleranceUpperRequired": "Tolerance Upper is required",
     "toleranceLowerLabel": "Tolerance Lower",
     "toleranceLowerPlaceholder": "e.g. 0.0",
-    "toleranceLowerRequired": "Tolerance Lower is required"
+    "toleranceLowerRequired": "Tolerance Lower is required",
+    "toleranceUpperMustBeGreater": "Tolerance Upper must be greater than Tolerance Lower",
+    "toleranceLowerMustBeLess": "Tolerance Lower must be less than Tolerance Upper"
   },
   "uncertaintyDetail": {
     "titleSuffix": "Detail / Edit",
@@ -4073,6 +4075,8 @@
     "toleranceLowerLabel": "Tolerance Lower",
     "toleranceLowerPlaceholder": "e.g. 0.0",
     "toleranceLowerRequired": "Tolerance Lower is required",
+    "toleranceUpperMustBeGreater": "Tolerance Upper must be greater than Tolerance Lower",
+    "toleranceLowerMustBeLess": "Tolerance Lower must be less than Tolerance Upper",
     "diffLabel": {
       "uncertaintyName": "Uncertainty Criteria Name",
       "uncertaintyKey": "Key Attribute Settings",

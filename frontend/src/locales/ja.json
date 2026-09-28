@@ -4023,7 +4023,9 @@
     "toleranceUpperRequired": "許容上限値は必須です",
     "toleranceLowerLabel": "許容下限値",
     "toleranceLowerPlaceholder": "例: 0.0",
-    "toleranceLowerRequired": "許容下限値は必須です"
+    "toleranceLowerRequired": "許容下限値は必須です",
+    "toleranceUpperMustBeGreater": "許容上限値は許容下限値より大きい値を入力してください",
+    "toleranceLowerMustBeLess": "許容下限値は許容上限値より小さい値を入力してください"
   },
   "uncertaintyDetail": {
     "titleSuffix": "詳細・編集",
@@ -4073,6 +4075,8 @@
     "toleranceLowerLabel": "許容下限値",
     "toleranceLowerPlaceholder": "例: 0.0",
     "toleranceLowerRequired": "許容下限値は必須です",
+    "toleranceUpperMustBeGreater": "許容上限値は許容下限値より大きい値を入力してください",
+    "toleranceLowerMustBeLess": "許容下限値は許容上限値より小さい値を入力してください",
     "diffLabel": {
       "uncertaintyName": "不確かさ基準名",
       "uncertaintyKey": "Key属性設定",
