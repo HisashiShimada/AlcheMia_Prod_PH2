@@ -61,8 +61,8 @@
 | 3-1-6 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/creator` | OK | ステータスフィルタなし |
 | 3-1-7 | 「追加」ボタンから Creator を新規作成できること | 正常系 | 要件書#3、`ui_master_add_dialog.md` §5.2 | POST `/api/v1/master/creator` | OK | |
 | 3-1-8 | Creator ID が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.1 | - | OK | |
-| 3-1-9 | Creator ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-414?atlOrigin=eyJpIjoiY2Y2M2NmMzc1OWZkNDJkYzk0OGNiYWU0OTEzNzY0ODAiLCJwIjoiaiJ9 |
-| 3-1-10 | Creator ID が 50 文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-325 |
+| 3-1-9 | Creator ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-414?atlOrigin=eyJpIjoiY2Y2M2NmMzc1OWZkNDJkYzk0OGNiYWU0OTEzNzY0ODAiLCJwIjoiaiJ9 |
+| 3-1-10 | Creator ID が 50 文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-325 |
 | 3-1-11 | 既存の Creator ID と重複する場合に重複エラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.2（MASTER_ID_DUPLICATE） | POST `/api/v1/master/creator` | OK | |
 | 3-1-12 | 「編集」ボタンから Creator 名を編集して保存できること | 正常系 | 要件書#3、`ui_master_edit_dialog.md` §5.2 | PUT `/api/v1/master/creator/:creatorId` | OK | |
 | 3-1-13 | 編集ダイアログで Creator ID が読み取り専用（変更不可）であること | 表示確認 | `ui_master_edit_dialog.md` §4.1 | - | OK | |
