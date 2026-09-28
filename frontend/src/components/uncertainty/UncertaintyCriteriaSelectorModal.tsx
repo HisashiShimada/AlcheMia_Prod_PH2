@@ -508,10 +508,6 @@ export default function UncertaintyCriteriaSelectorModal({
       </div>
       <div style={confirmRowStyle}>
         <span style={confirmLabelStyle}>{t('uncertaintyCriteriaSelector.confirmLabelEvalType')}</span>
-        <span>{isQuantitative ? t('uncertaintyCriteriaSelector.quantitativeEval') : t('uncertaintyCriteriaSelector.qualitativeEval')}</span>
-      </div>
-      <div style={confirmRowStyle}>
-        <span style={confirmLabelStyle}>{t('uncertaintyCriteriaSelector.confirmLabelEvalType')}</span>
         <span style={{ fontWeight: 600 }}>
           {isQuantitative
             ? t('uncertaintyCriteriaSelector.quantitativeEval')
