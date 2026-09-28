@@ -1699,7 +1699,10 @@ interface PlanProps {
   displayKey: { taskNo: number; transitionId: string } | null;
   /**
    * データ入力エリアの読み取り専用フラグ（本体で計算して渡す）。
-   * isRecorded === true && (isErrorStatus || !isCorrectionMode) で決定される。
+   * - status === 'not_started': 常に true（想定外読み込みの安全策）
+   * - status === 'issue': 常に true（訂正不可）
+   * - status === 'completed' && isRecorded === true && !isCorrectionMode: true
+   * - それ以外（preparing/ready/in_progress/on_hold）: false
    */
   isReadOnly: boolean;
   /**
@@ -3534,12 +3537,20 @@ export default function WorkRecordPanel({
   const displayKeyRow = progressRows?.find(
     (r) => displayKey !== null && r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId
   );
+  const isNotStartedStatus = displayKeyRow?.status === 'not_started';
   const isErrorStatus = displayKeyRow?.status === 'issue';
+  const isCompletedStatus = displayKeyRow?.status === 'completed';
 
   // データ入力エリアの読み取り専用フラグ
-  // - isRecorded === true（記録済み）かつ訂正モードでない場合: 読み取り専用
-  // - isRecorded === true かつ status === 'issue'（異常終了）: 訂正モードでも読み取り専用
-  const isReadOnly = displayKeyRow?.isRecorded === true && (isErrorStatus || !isCorrectionMode);
+  // - status === 'not_started'（未着手）: 常に読み取り専用（WorkRecordPanel への読み込み想定外・安全策）
+  // - status === 'issue'（強制終了）: 常に読み取り専用（訂正不可）
+  // - status === 'completed' かつ isRecorded === true かつ訂正モードでない: 読み取り専用
+  // - status === 'completed' かつ isRecorded === true かつ訂正モード中: 編集可
+  // - それ以外（preparing/ready/in_progress/on_hold）: 常に編集可
+  const isReadOnly =
+    isNotStartedStatus ||
+    isErrorStatus ||
+    (isCompletedStatus && displayKeyRow?.isRecorded === true && !isCorrectionMode);
 
   const planProps: PlanProps = {
     tasks,
