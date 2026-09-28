@@ -3886,28 +3886,15 @@
     "title": "評価登録"
   },
   "projectCompletion": {
-    "criteriaLabel": "不確かさ基準:",
-    "criteriaPlaceholder": "基準を選択（任意）",
-    "commentPlaceholder": "コメント（任意）",
     "maimlQualityWriteSuccess": "品質評価データ {count} 件を MAiML ファイルに書き込みました",
     "maimlQualityWriteWarning": "品質評価データの MAiML 書き込みに失敗しました（完了処理は続行します）",
     "completeFailed": "プロジェクト完了処理に失敗しました",
     "completeButton": "プロジェクトを完了する",
     "title": "プロジェクト完了",
-    "confirm": "完了にしますか？",
-    "cancel": "Cancel",
-    "execute": "完了実行",
-    "success": "プロジェクトを完了しました",
-    "failed": "プロジェクトの完了に失敗しました",
-    "loading": "処理中...",
-    "colComment": "コメント",
-    "colQualitative": "定性評価",
-    "colTarget": "対象",
-    "description": "全トランジションの評価を登録してプロジェクトを完了します。",
-    "entireProject": "プロジェクト全体",
-    "noEvalTarget": "評価対象がありません",
-    "saveNote": "※ 評価値が入力された行のみ保存されます。",
-    "unevaluated": "─ 未評価"
+    "completeSuccess": "プロジェクトを完了しました",
+    "confirmDescription": "「{projectName}」を完了状態にします。よろしいですか？",
+    "confirmDescriptionNoName": "プロジェクトを完了状態にします。よろしいですか？",
+    "irreversibleNote": "※ この操作は取り消せません。"
   },
   "approvalWizard": {
     "title": "承認",

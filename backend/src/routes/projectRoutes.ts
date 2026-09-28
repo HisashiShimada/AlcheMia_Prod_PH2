@@ -750,4 +750,28 @@ router.post(
   projectController.forceTerminate
 );
 
+/**
+ * プロジェクト完了
+ * POST /api/v1/projects/:projectId/complete
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description プロジェクトステータスをレビュー待ち（REVIEW_WAITING=3）から完了（COMPLETED=4）に更新する
+ * @roles experiment_admin（書込可）
+ */
+router.post(
+  '/:projectId/complete',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectId')
+      .notEmpty()
+      .withMessage('projectIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectIdは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.complete
+);
+
 export default router;

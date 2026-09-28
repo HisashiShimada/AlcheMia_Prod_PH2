@@ -2183,4 +2183,83 @@ export class ProjectService {
       client.release();
     }
   }
+
+  /**
+   * プロジェクトを完了状態に遷移させる
+   *
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @returns 更新結果
+   *
+   * @remarks
+   * - project_status を REVIEW_WAITING(3) → COMPLETED(4) に更新する
+   * - COMMIT 後に MaimlWriterService で実績データ + EventLog を MAiML ファイルに書き出す（失敗は警告扱い）
+   * - 許可ステータス: REVIEW_WAITING(3) のみ
+   */
+  async completeProject(
+    organizationId: string,
+    projectId: string
+  ): Promise<ServiceResult<{ projectId: string; projectStatus: number }>> {
+    const pool = getPool();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // ① プロジェクト情報取得 + 前提条件チェック
+      const project = await projectRepository.findByIdFull(organizationId, projectId);
+      if (!project) {
+        await client.query('ROLLBACK');
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+
+      if (project.project_status !== ProjectStatusEnum.REVIEW_WAITING) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          error: {
+            code: 'E4003',
+            message: 'プロジェクト完了はステータスがレビュー待ちのプロジェクトのみ実行できます',
+          },
+        };
+      }
+
+      // ② プロジェクトステータスを COMPLETED(4) に更新
+      const updateSql = await loadSqlFile('project/completeProject.sql');
+      const updateResult = await client.query(updateSql, [
+        ProjectStatusEnum.COMPLETED,
+        organizationId,
+        projectId,
+      ]);
+      if (updateResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+
+      await client.query('COMMIT');
+
+      // ③ COMMIT 後: MAiML ファイルの <eventLog> のみ書き出し（実績データは完了時点で書き込み済みのため不要）（失敗は警告扱い）
+      const projectName = project.project_name ?? projectId;
+      try {
+        const maimlWriterService = new MaimlWriterService();
+        await maimlWriterService.writeEventLogOnly(organizationId, projectId, projectName);
+      } catch (maimlWriteError) {
+        console.warn(
+          '[ProjectService.completeProject] MAiMLファイルへの書き出しに失敗しました（処理は継続）:',
+          maimlWriteError
+        );
+      }
+
+      return {
+        success: true,
+        data: { projectId, projectStatus: ProjectStatusEnum.COMPLETED },
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logError('completeProject error', error as Error, { organizationId, projectId });
+      return { success: false, error: { code: 'E4002', message: 'Database error occurred' } };
+    } finally {
+      client.release();
+    }
+  }
 }

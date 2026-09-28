@@ -3886,28 +3886,15 @@
     "title": "Evaluation Registration"
   },
   "projectCompletion": {
-    "criteriaLabel": "Uncertainty Criteria:",
-    "criteriaPlaceholder": "Select criteria (optional)",
-    "commentPlaceholder": "Comment (optional)",
     "maimlQualityWriteSuccess": "Quality evaluation data ({count} record(s)) written to MAiML file",
     "maimlQualityWriteWarning": "Failed to write quality evaluation data to MAiML file (completion process continues)",
     "completeFailed": "Project completion process failed",
     "completeButton": "Complete Project",
     "title": "Project Completion",
-    "confirm": "Mark as complete?",
-    "cancel": "Cancel",
-    "execute": "Complete",
-    "success": "Project completed successfully",
-    "failed": "Failed to complete project",
-    "loading": "Processing...",
-    "colComment": "Comment",
-    "colQualitative": "Qualitative Evaluation",
-    "colTarget": "Target",
-    "description": "Register evaluations for all transitions and complete the project.",
-    "entireProject": "Entire Project",
-    "noEvalTarget": "No evaluation targets",
-    "saveNote": "* Only rows with evaluation values entered will be saved.",
-    "unevaluated": "─ Not evaluated"
+    "completeSuccess": "Project completed successfully",
+    "confirmDescription": "Are you sure you want to complete \"{projectName}\"?",
+    "confirmDescriptionNoName": "Are you sure you want to complete this project?",
+    "irreversibleNote": "* This action cannot be undone."
   },
   "approvalWizard": {
     "title": "Approval",

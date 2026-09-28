@@ -1949,6 +1949,30 @@ export const forceTerminateProject = async (
 };
 
 /**
+ * プロジェクト完了
+ *
+ * @description プロジェクトステータスをレビュー待ち(3)から完了(4)に更新する
+ */
+export const completeProject = async (
+  projectId: string
+): Promise<{ projectId: string; projectStatus: number }> => {
+  const client = createApiClient();
+  try {
+    const response = await client.post<{
+      success: boolean;
+      data: { projectId: string; projectStatus: number };
+    }>(`/projects/${projectId}/complete`);
+    return response.data.data;
+  } catch (error) {
+    console.error('[completeProject] エラー', {
+      error,
+      projectId,
+    });
+    throw error;
+  }
+};
+
+/**
  * プロジェクトのグループメンバー（Owner候補ユーザー）を取得
  *
  * @remarks

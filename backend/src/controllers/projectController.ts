@@ -1628,3 +1628,46 @@ export async function forceTerminate(req: Request, res: Response): Promise<void>
     });
   }
 }
+
+/**
+ * プロジェクト完了エンドポイント
+ * POST /api/v1/projects/:projectId/complete
+ */
+export async function complete(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectId } = req.params;
+
+    const result = await projectService.completeProject(organizationId, projectId);
+
+    if (!result.success) {
+      const errorCode = result.error?.code || 'E4001';
+      const statusCode = errorCode === 'E6001' ? 404 : errorCode === 'E4003' ? 409 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'An error occurred',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: result.data,
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('completeProject error', error as Error, { requestId });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'System error occurred' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
