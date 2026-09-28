@@ -27,7 +27,7 @@ import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import type { WorkerProject } from '@/types/project';
 import type { ProjectStatus as ProjectStatusType } from '@/types/experimentWorker';
 import { isRecordViewableStatus } from '@/types/experimentWorker';
-import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus, getNgTasks, updateTransitionStatus, confirmInstruction, forceTerminateProject } from '@/services/projectApiService';
+import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus, getNgTasks, updateTransitionStatus, forceTerminateProject } from '@/services/projectApiService';
 import type { NgTaskItem } from '@/services/projectApiService';
 import { TransitionStatusCode } from '@/constants/codeMaster';
 import { TaskStatus } from '@/constants/codeMaster';
@@ -216,24 +216,8 @@ export default function ExperimentWorkerMenu({
     if (!selectedProject) return;
 
     try {
-      // Step 1: 未確認指示を一括確認（0件でもスキップせず Step 2 へ進む）
-      const unacknowledged = instructions.filter(
-        (i) => !i.methodId && !i.transitionId && !i.isAcknowledged
-      );
 
-      if (unacknowledged.length > 0) {
-        await Promise.all(
-          unacknowledged.map((inst) =>
-            confirmInstruction(selectedProject, inst.instructionId)
-          )
-        );
-        // 指示一覧を再取得して is_acknowledged 状態を最新化
-        if (refetchInstructions) {
-          refetchInstructions();
-        }
-      }
-
-      // Step 2: トランジションを PREPARING → READY に遷移させる
+      // トランジションを PREPARING → READY に遷移させる
       // ※ バックエンドの updateTransitionStatus が PREPARING→READY 遷移時に
       //   タスク・プロジェクトステータスを自動更新する
       // ※ methodId・taskNo・transitionId の3条件で絞り込み、

@@ -1,7 +1,9 @@
 -- トランジション進捗ログ取得クエリ（トランジション単位）
 -- trace/@id が 'trace_{transitionId}_%' に一致するレコードを sequence_no 昇順で取得する。
 -- transition_progress ログ と transition_comment ログが含まれるため、
--- サービス層で Alchemia:status プロパティの存在チェックによりフィルタリングすること。
+-- サービス層で lifecycle:transition プロパティの存在チェックによりフィルタリングすること。
+-- taskNo によるフィルタはサービス層（progressService.getTransitionStateRecords）で
+-- Alchemia:ReferenceTaskNo プロパティを確認して行う。
 SELECT
   sequence_no,
   log

@@ -924,61 +924,6 @@ export const getWorkerInstructions = async (
 };
 
 /**
- * 指示を確認済みとしてマークする
- * PUT /api/v1/projects/:projectId/instructions/:instructionId/confirm
- * 
- * @param projectName プロジェクト名
- * @param instructionId 指示ID
- * @returns 確認結果
- * @throws Error APIエラー時
- * 
- * @example
- * ```typescript
- * // 指示を確認
- * const result = await confirmInstruction('sample_project', 'instruction-id-123');
- * console.log(result.data.is_acknowledged); // true
- * ```
- */
-export const confirmInstruction = async (
-  projectId: string,
-  instructionId: string
-): Promise<ServiceApiResponse<InstructionConfirmationData>> => {
-  const client = createApiClient();
-
-  try {
-    console.log('[DEBUG] confirmInstruction - Start', { projectId, instructionId });
-    
-    const response = await client.put<{
-      success: boolean;
-      data: InstructionConfirmationData;
-      meta: {
-        timestamp: string;
-        requestId: string;
-      };
-    }>(`/projects/${encodeURIComponent(projectId)}/instructions/${instructionId}/confirm`);
-
-    console.log('[DEBUG] confirmInstruction - Success', {
-      instructionId: response.data.data.instruction_id,
-      isAcknowledged: response.data.data.is_acknowledged
-    });
-    
-    return {
-      success: response.data.success,
-      data: response.data.data,
-      meta: response.data.meta
-    };
-  } catch (error) {
-    console.error('[DEBUG] confirmInstruction - Error', {
-      error,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      errorResponse: (error as AxiosError)?.response?.data,
-      errorStatus: (error as AxiosError)?.response?.status
-    });
-    throw error;
-  }
-};
-
-/**
  * トランジションステータスを更新
  * PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status
  *
@@ -1057,21 +1002,29 @@ export const updateTransitionStatus = async (
  * @param projectId    プロジェクトID
  * @param methodId     メソッドID
  * @param transitionId トランジションID
+ * @param taskNo       タスク連番（省略可。指定時は対象タスクの遷移時刻のみ返す）
  * @returns 各状態の遷移時刻（未記録は null）
  * @throws Error APIエラー時
  *
  * @example
  * ```typescript
- * const records = await getTransitionStateRecords(projectId, methodId, transitionId);
+ * const records = await getTransitionStateRecords(projectId, methodId, transitionId, 1);
  * console.log(records.preparingTime); // "2026-09-01T05:08:08+09:00" | null
  * ```
  */
 export const getTransitionStateRecords = async (
   projectId: string,
   methodId: string,
-  transitionId: string
+  transitionId: string,
+  taskNo?: number | null
 ): Promise<TransitionStateRecordsResult> => {
   const client = createApiClient();
+
+  // taskNo が指定された場合はクエリパラメータとして付与する
+  const params: Record<string, string> = {};
+  if (taskNo != null) {
+    params['taskNo'] = String(taskNo);
+  }
 
   const response = await client.get<{
     success: boolean;
@@ -1081,7 +1034,8 @@ export const getTransitionStateRecords = async (
       requestId: string;
     };
   }>(
-    `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/state-records`
+    `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/state-records`,
+    { params }
   );
 
   return response.data.data;

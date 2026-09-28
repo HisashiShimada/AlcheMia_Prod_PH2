@@ -721,13 +721,18 @@ export async function getTransitionStateRecords(
     const { projectId, methodId, transitionId } = req.params;
     const { organizationId } = req.user!;
 
+    // taskNo はクエリパラメータから取得（省略可・整数）
+    const taskNoRaw = req.query.taskNo;
+    const taskNo = taskNoRaw != null && taskNoRaw !== '' ? parseInt(String(taskNoRaw), 10) : null;
+
     const transitionDataRepository = new TransitionDataRepository();
     const progressService = new ProgressService(transitionDataRepository);
 
     const result = await progressService.getTransitionStateRecords(
       organizationId,
       projectId,
-      transitionId
+      transitionId,
+      taskNo
     );
 
     res.status(HTTP_STATUS.OK).json({

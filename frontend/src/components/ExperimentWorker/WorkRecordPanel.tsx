@@ -3665,7 +3665,8 @@ export default function WorkRecordPanel({
         const records = await getTransitionStateRecords(
           projectId,
           targetMethodId,
-          targetEntry.transitionId
+          targetEntry.transitionId,
+          targetEntry.taskNo
         );
         // 取得した遷移時刻を各 state に反映
         // null の場合は既存 state を維持（前回保存した入力値を上書きしない）

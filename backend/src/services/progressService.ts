@@ -1102,7 +1102,8 @@ export class ProgressService {
         eventLogResultsRefs,   // event/resultsRef = result-type place IDs
         currentStatus,         // fromStatus = 遷移元ステータス（Number変換済み）
         toStatus,              // toStatus   = 遷移先ステータス（Number変換済み）
-        projectName            // ownerRef ID 命名用プロジェクト名
+        projectName,           // ownerRef ID 命名用プロジェクト名
+        task_no                // タスク連番（Alchemia:ReferenceTaskNo 記録用）
       );
 
       // 7. 前提トランジション完了時の連鎖更新
@@ -1165,7 +1166,8 @@ export class ProgressService {
               null,
               TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): 連鎖更新は常に INITIAL → PREPARING
               TransitionStatusEnum.PREPARING, // toStatus   = 2(PREPARING)
-              projectName                     // ownerRef ID 命名用プロジェクト名
+              projectName,                    // ownerRef ID 命名用プロジェクト名
+              dep.task_no                     // タスク連番（Alchemia:ReferenceTaskNo 記録用）
             );
           }
         } catch (chainErr) {
@@ -1243,12 +1245,15 @@ export class ProgressService {
    * @param organizationId - 組織ID（マルチテナント分離）
    * @param projectId      - プロジェクトID
    * @param transitionId   - トランジションID
+   * @param taskNo         - タスク連番（指定時は Alchemia:ReferenceTaskNo が一致するエントリのみ採用。
+   *                         未指定または null の場合は全エントリを対象とする（後方互換））
    * @returns 各状態の遷移時刻（未記録は null）
    */
   async getTransitionStateRecords(
     organizationId: string,
     projectId: string,
-    transitionId: string
+    transitionId: string,
+    taskNo?: number | null
   ): Promise<TransitionStateRecordsResult> {
     const rows = await this.eventLogRepository.findTransitionStateRecords(
       organizationId,
@@ -1274,6 +1279,19 @@ export class ProgressService {
         // （transitionProgress ログのみ lifecycle:transition を保持し、transitionComment ログは保持しない）
         const lifecycleProp = properties.find((p) => p['@key'] === 'lifecycle:transition');
         if (!lifecycleProp) continue;
+
+        // taskNo フィルタ:
+        // - Alchemia:ReferenceTaskNo が存在するログ（新形式）: taskNo が指定されている場合は値が一致するもののみ採用
+        // - Alchemia:ReferenceTaskNo が存在しないログ（旧形式）: taskNo に関わらず採用（後方互換）
+        if (taskNo != null) {
+          const taskNoProp = properties.find((p) => p['@key'] === 'Alchemia:ReferenceTaskNo');
+          if (taskNoProp !== undefined) {
+            // 新形式ログ: ReferenceTaskNo が存在する場合は値が一致するもののみ通す
+            const logTaskNo = Number(taskNoProp['#text']);
+            if (logTaskNo !== taskNo) continue;
+          }
+          // 旧形式ログ（ReferenceTaskNo なし）: そのまま通す（後方互換）
+        }
 
         const timestampProp = properties.find((p) => p['@key'] === 'time:timestamp');
 
