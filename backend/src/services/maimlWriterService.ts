@@ -34,6 +34,7 @@ import {
   buildPlannedValuesResultsXML,
   extractResultsBlocksFromDataXml,
   appendResultsToData,
+  extractPlannedResultsBlocksFromMaiml,
 } from '../utils/maimlDataWriter';
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
@@ -249,8 +250,11 @@ export class MaimlWriterService {
     //   <data> 全体は置き換えず、template_data から生成した <results> を </data> 直前に追記。
     //   チェックアウト時に書き込んだ planned_values（実験計画指示）の <results> を保持する。
     //   <eventLog> は従来通りプロジェクト全件で全置換する。
-    // targetFilter なし（全件書き出し時）:
-    //   従来通り <data> / <eventLog> を両方丸ごと置き換える。
+    // targetFilter なし（強制終了・訂正・completeReviewTasks 等の全件書き出し時）:
+    //   既存 MAIML の <data> に含まれる計画データ（_actual サフィックスなし <results>）を退避してから
+    //   <data> / <eventLog> を両方丸ごと置き換え、退避した計画データを再追記する。
+    //   これによりチェックアウト時に writeExperimentPlanProperties が書き込んだ
+    //   planned_values 由来の <results> が消失するバグを防ぐ。
     let updatedMaiml: string;
     if (targetFilter) {
       const newResultsXml = extractResultsBlocksFromDataXml(dataXml);
@@ -264,7 +268,16 @@ export class MaimlWriterService {
         );
       }
     } else {
+      // targetFilter なし: 計画データ <results> を退避してから全置換し、再追記する
+      const plannedResultsXml = extractPlannedResultsBlocksFromMaiml(maimlContent);
       updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
+      if (plannedResultsXml) {
+        updatedMaiml = appendResultsToData(updatedMaiml, plannedResultsXml);
+        console.log(
+          `[MaimlWriterService] 計画データ <results> を保持して再追記しました ` +
+            `(organizationId=${organizationId}, projectId=${projectId})`
+        );
+      }
     }
 
     // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
