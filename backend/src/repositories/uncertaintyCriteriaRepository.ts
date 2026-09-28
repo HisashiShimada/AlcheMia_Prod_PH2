@@ -125,6 +125,10 @@ export interface UncertaintyCriteriaSelectorRow {
   toleranceLower: number | null;
   /** 説明 */
   description: string | null;
+  /** namespace.scope_key（organization_group_cd または user_id） */
+  scopeKey: string | null;
+  /** スコープ表示名（organization_group.organization_group_name または organization_user.user_name） */
+  scopeName: string | null;
   /** 定性評価の選択肢（定量の場合は空配列） */
   qualitativeOptions: QualitativeOptionRow[];
 }
@@ -298,6 +302,8 @@ export async function findForSelector(
     toleranceUpper:   number | null;
     toleranceLower:   number | null;
     description:      string | null;
+    scopeKey:         string | null;
+    scopeName:        string | null;
     displayOrder:     number | null;
     selectorValue:    string | null;
     displayColor:     string | null;
@@ -325,6 +331,8 @@ export async function findForSelector(
         toleranceUpper:   row.toleranceUpper,
         toleranceLower:   row.toleranceLower,
         description:      row.description,
+        scopeKey:         row.scopeKey,
+        scopeName:        row.scopeName,
         qualitativeOptions: [],
       });
     }

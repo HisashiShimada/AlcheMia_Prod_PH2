@@ -150,6 +150,10 @@ export interface UncertaintyCriteriaSelectorApiRow {
   /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
   toleranceLower: number | null;
   description: string | null;
+  /** namespace.scope_key（organization_group_cd または user_id） */
+  scopeKey: string | null;
+  /** スコープ表示名（organization_group.organization_group_name または organization_user.user_name） */
+  scopeName: string | null;
   qualitativeOptions: QualitativeOptionApiRow[];
 }
 
@@ -241,7 +245,7 @@ export async function fetchUncertaintyCriteriaForSelector(
       key:            row.uncertaintyKey,
       evalType:       isQuantitative ? 'quantitative' : 'qualitative',
       scopeType:      'organization',                       // DBにスコープカラムなし → 固定
-      scopeLabel:     row.nameSpaceId,                      // nameSpaceId を表示ラベルとして使用
+      scopeLabel:     row.scopeName ?? row.scopeKey ?? row.nameSpaceId,  // スコープ表示名（グループ名 > scopeKey > nameSpaceId の優先順）
       scopeOrder:     3,                                    // organization 固定
       desc:           row.description ?? '',
       unit:           row.units ?? '',

@@ -48,6 +48,9 @@ SELECT
   , uc.tolerance_upper               AS "toleranceUpper"
   , uc.tolerance_lower               AS "toleranceLower"
   , uc.description                   AS "description"
+  -- スコープ情報（namespace.scope_key → organization_group_name または user_name）
+  , ns.scope_key                     AS "scopeKey"
+  , COALESCE(og.organization_group_name, ou.user_name, '') AS "scopeName"
   , ins.display_order                AS "displayOrder"
   , ins.value                        AS "selectorValue"
   , ins.display_color                AS "displayColor"
@@ -55,6 +58,12 @@ FROM uncertainty_criteria uc
 JOIN namespace ns
   ON ns.organization_id = uc.organization_id
  AND ns.namespace_id    = uc.name_space_id
+LEFT JOIN organization_group og
+  ON  og.organization_id       = uc.organization_id
+  AND og.organization_group_cd = ns.scope_key
+LEFT JOIN organization_user ou
+  ON  ou.organization_id = uc.organization_id
+  AND ou.user_id         = ns.scope_key
 LEFT JOIN intuition_selector ins
   ON ins.organization_id  = uc.organization_id
  AND ins.name_space_id    = uc.name_space_id
