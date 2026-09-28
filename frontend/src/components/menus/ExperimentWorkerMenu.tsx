@@ -593,6 +593,7 @@ export default function ExperimentWorkerMenu({
             initialTaskNo={viewingWorkTaskNo ?? undefined}
             initialTransitionId={viewingWorkTransitionId ?? undefined}
             onSave={refreshProjectAndProgress}
+            onClearViewing={() => handleTabChange('4')}
             onStart={async (taskNo, transitionId) => {
               if (!selectedProject) return;
               const targetRow = progressRows.find((r) => r.taskNo === taskNo && r.transitionId === transitionId);
