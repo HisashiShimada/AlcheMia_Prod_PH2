@@ -224,7 +224,7 @@ export async function updateTransitionStatus(
   try {
     // リクエストパラメータとボディの抽出
     const { projectId, methodId, transitionId } = req.params;
-    const { taskNo: _taskNo, status, comment: _comment } = req.body;
+    const { taskNo, status, comment: _comment } = req.body;
 
     // 認証・認可情報の取得（authMiddlewareで検証済み）
     const { organizationId, userId: updatedBy } = req.user!;
@@ -263,6 +263,7 @@ export async function updateTransitionStatus(
       projectId,
       methodId,
       transitionId,
+      Number(taskNo),
       updateData,
       _comment ?? null
     );
@@ -272,7 +273,7 @@ export async function updateTransitionStatus(
       success: true,
       data: {
         transitionId: transitionId,
-        taskNo: _taskNo,
+        taskNo: taskNo,
         methodId: methodId,
         projectId: projectId,
         status: updatedTransitionData.status,

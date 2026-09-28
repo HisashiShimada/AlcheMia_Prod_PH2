@@ -913,6 +913,7 @@ export class ProgressService {
    * @param projectId プロジェクトID
    * @param methodId メソッドID
    * @param transitionId トランジションID
+   * @param taskNo タスク番号（同一トランジションIDが複数タスクに存在する場合の絞り込み用）
    * @param update 更新内容
    * @param comment イベントログに記録するコメント（省略可）
    * @returns 更新後のトランジションデータ
@@ -922,6 +923,7 @@ export class ProgressService {
     projectId: string,
     methodId: string,
     transitionId: string,
+    taskNo: number,
     update: TransitionDataUpdate,
     comment?: string | null
   ): Promise<TransitionData> {
@@ -944,7 +946,21 @@ export class ProgressService {
         throw error;
       }
 
-      const { method_id, task_no, status: _rawCurrentStatus } = findResult.rows[0];
+      // taskNo で絞り込み、対象タスクのトランジション行を取得する
+      // findByTransitionId.sql は task_no 絞り込みを持たないため、
+      // 同一 transitionId が複数タスク（task_no=1, 2...）に存在する場合に複数行が返る。
+      // rows[0] のみ参照すると完了済みタスクの行が先に来たときに誤ったレコードを
+      // 更新してしまうため、必ず引数の taskNo に一致する行を使用する。
+      const targetRow = findResult.rows.find(
+        (row: { method_id: string; task_no: number; status: number }) => row.task_no === taskNo
+      );
+      if (!targetRow) {
+        const error: any = new Error('Transition not found for specified taskNo');
+        error.name = 'TransitionNotFoundError';
+        throw error;
+      }
+
+      const { method_id, task_no, status: _rawCurrentStatus } = targetRow;
       // DB の numeric(2,0) は parseFloat で変換されるが、確実に整数 number 型にキャストする
       // LIFECYCLE_TRANSITION_VALUE_MAP のキー比較は number 型同士である必要があるため
       const currentStatus = Number(_rawCurrentStatus) as TransitionStatusNumber;
