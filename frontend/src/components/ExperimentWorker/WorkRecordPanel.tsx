@@ -2228,6 +2228,11 @@ interface WorkRecordPanelProps {
    * ExperimentWorkerMenu 側でプロジェクト一覧再取得などの後処理を行う際に使用する。
    */
   onSave?: () => void;
+  /**
+   * 「作業に戻る」ボタン押下後コールバック（任意）。
+   * viewingKey クリア後に呼び出される。ExperimentWorkerMenu 側でタブ切り替えなどの後処理を行う際に使用する。
+   */
+  onClearViewing?: () => void;
 }
 
 /** API の xsiType 文字列を WorkProperty の xsiType に変換する */
@@ -2353,6 +2358,7 @@ export default function WorkRecordPanel({
   onForceEnd,
   onStatusChange,
   onSave,
+  onClearViewing,
 }: WorkRecordPanelProps = {}) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
@@ -3600,7 +3606,7 @@ export default function WorkRecordPanel({
     onActualChange: handleActualChange,
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,
-    onClearViewing: () => setViewingKey(null),
+    onClearViewing: () => { setViewingKey(null); onClearViewing?.(); },
     onSkip: handleSkip,
     onCommentClick: () => setCommentDialogOpen(true),
     onInsertionAdd: handleInsertionAdd,
