@@ -76,6 +76,7 @@
     "correctionSaved": "Correction saved",
     "correctionError": "Failed to save correction",
     "correctionQualitativeRequired": "Please select a qualitative evaluation before saving the correction",
+    "qualitativeRequired": "Please select a qualitative evaluation before saving",
     "saveSuccess": "Saved",
     "saveContent": "Work record has been saved.",
     "transitionComplete": "Transition Complete",
