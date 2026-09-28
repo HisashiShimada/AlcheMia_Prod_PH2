@@ -288,8 +288,9 @@ export interface ProgressOverviewTabProps {
   /**
    * 「記録」ボタン押下時: 作業記録タブに遷移し、指定タスク+トランジションを表示する。
    * WorkRecordPanel 側が progressRows のステータスを見て編集/閲覧モードを自己判定する。
+   * methodId は ProgressRow.methodId から取得した値を渡すこと。
    */
-  onGoToWork: (taskNo: number, transitionId: string) => void;
+  onGoToWork: (taskNo: number, transitionId: string, methodId: string) => void;
   /**
    * プロジェクトが記録操作可能な状態かどうか。
    * false の場合はリスト・フロー図どちらの記録ボタンも非活性になる。

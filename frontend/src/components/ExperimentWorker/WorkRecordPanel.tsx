@@ -1526,49 +1526,42 @@ function canAccessTransitionInTask(
 }
 
 /**
- * 現在のトランジションをスキップした後の次の実行可能なトランジションを検索する。
- * tasks の transitions を順番に走査し、スキップ済み・完了済み・前提未達のものを飛ばす。
- * availableTransitions が渡された場合はその順序を使用し、なければ task.transitions の順序を使用する。
+ * progressRows を単一の truth source として次に作業可能なトランジションを検索する。
+ * スキップ済み・完了済み（completed / issue）・未着手（not_started）のものを飛ばす。
+ * progressRows の order 昇順を正規の実行順序として扱い、
+ * 現在インデックスより後ろを先に探し、見つからない場合は先頭から循環検索する。
  */
-function findNextAvailableTransition(
-  taskNo: number,
+function findNextAvailableTransitionFromRows(
   currentTransitionId: string,
   skippedIds: string[],
-  tasks: WorkTask[],
-  availableTransitions?: WorkTransition[]
-): { taskNo: number; transitionId: string } | null {
-  const task = tasks.find((t) => t.taskNo === taskNo);
-  if (!task) return null;
+  progressRows: ProgressRow[]
+): { taskNo: number; transitionId: string; methodId: string } | null {
+  if (progressRows.length === 0) return null;
 
-  // 順序付きトランジションIDリスト（availableTransitions があればその order ソート順を優先）
-  const orderedIds: string[] = availableTransitions && availableTransitions.length > 0
-    ? [...availableTransitions].sort((a, b) => a.order - b.order).map((tr) => tr.id)
-    : task.transitions.map((tt) => tt.transitionId);
+  // order 昇順でソート（order 未設定は 0 扱い）
+  const sorted = [...progressRows].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const currentIdx = sorted.findIndex((r) => r.transitionId === currentTransitionId);
 
-  const currentIdx = orderedIds.indexOf(currentTransitionId);
+  // 作業可能かどうかを判定するヘルパー
+  const isAvailable = (r: ProgressRow): boolean => {
+    if (r.transitionId === currentTransitionId) return false;
+    if (r.status === 'completed' || r.status === 'issue' || r.status === 'not_started') return false;
+    if (skippedIds.includes(r.transitionId)) return false;
+    return true;
+  };
 
-  // 後ろから順に探す
-  for (let i = currentIdx + 1; i < orderedIds.length; i++) {
-    const tid = orderedIds[i];
-    const tt = task.transitions.find((s) => s.transitionId === tid);
-    if (!tt) continue;
-    if (tt.status === 'completed' || tt.status === 'error') continue;
-    if (skippedIds.includes(tid)) continue;
-    const transition = availableTransitions?.find((tr) => tr.id === tid);
-    if (transition && !canAccessTransitionInTask(transition, task.transitions)) continue;
-    return { taskNo, transitionId: tid };
+  // 後方検索（現在インデックスより後ろ）
+  for (let i = currentIdx + 1; i < sorted.length; i++) {
+    if (isAvailable(sorted[i])) {
+      return { taskNo: sorted[i].taskNo, transitionId: sorted[i].transitionId, methodId: sorted[i].methodId };
+    }
   }
 
-  // 前から循環検索
+  // 循環前方検索（先頭から現在インデックス未満）
   for (let i = 0; i < currentIdx; i++) {
-    const tid = orderedIds[i];
-    const tt = task.transitions.find((s) => s.transitionId === tid);
-    if (!tt) continue;
-    if (tt.status === 'completed' || tt.status === 'error') continue;
-    if (skippedIds.includes(tid)) continue;
-    const transition = availableTransitions?.find((tr) => tr.id === tid);
-    if (transition && !canAccessTransitionInTask(transition, task.transitions)) continue;
-    return { taskNo, transitionId: tid };
+    if (isAvailable(sorted[i])) {
+      return { taskNo: sorted[i].taskNo, transitionId: sorted[i].transitionId, methodId: sorted[i].methodId };
+    }
   }
 
   return null;
@@ -1577,7 +1570,7 @@ function findNextAvailableTransition(
 interface PlanProps {
   tasks: WorkTask[];
   activeTaskNo: number;
-  viewingKey: { taskNo: number; transitionId: string } | null;
+  viewingKey: { taskNo: number; transitionId: string; methodId: string } | null;
   skippedTransitionIds: string[];
   instructions: Instruction[];
   onActualChange: (taskNo: number, transitionId: string, propKey: string, value: ActualValue) => void;
@@ -1652,9 +1645,9 @@ interface PlanProps {
    * このキーが設定されている間は displayKey がこのキーに固定される。
    * 「次へ」ボタン押下後に WorkRecordPanel 本体でクリアされる。
    */
-  pendingEndKey?: { taskNo: number; transitionId: string } | null;
+  pendingEndKey?: { taskNo: number; transitionId: string; methodId: string } | null;
   /** pendingEndKey を設定するコールバック（PlanB → WorkRecordPanel 本体に通知） */
-  onSetPendingEndKey?: (key: { taskNo: number; transitionId: string }) => void;
+  onSetPendingEndKey?: (key: { taskNo: number; transitionId: string; methodId: string }) => void;
   /**
    * 不確かさ入力値変化コールバック（placeId, entries を受け取る）。
    * handleSave 時に uncertaintyValues として saveBatchExperimentData に渡すために使用する。
@@ -1691,12 +1684,12 @@ interface PlanProps {
    * 現在アクティブなトランジションのキー（本体で計算して渡す）。
    * PlanB 内での二重計算を避けるために Props で受け取る。
    */
-  activeEntry: { taskNo: number; transitionId: string } | null;
+  activeEntry: { taskNo: number; transitionId: string; methodId: string } | null;
   /**
    * 現在表示中トランジションのキー（本体で計算して渡す）。
    * viewingKey ?? pendingEndKey ?? activeEntry の優先順で決定される。
    */
-  displayKey: { taskNo: number; transitionId: string } | null;
+  displayKey: { taskNo: number; transitionId: string; methodId: string } | null;
   /**
    * データ入力エリアの読み取り専用フラグ（本体で計算して渡す）。
    * - status === 'not_started': 常に true（想定外読み込みの安全策）
@@ -1929,7 +1922,7 @@ const PlanB: React.FC<PlanProps> = ({
               // 1. 次に移動可能なトランジションが存在する
               // 2. 現在のトランジションが動作状態（in_progress）でない
               //    動作状態: 非活性 / 休止・準備・準備完了状態: 活性
-              const hasNextTransition = findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null;
+              const hasNextTransition = findNextAvailableTransitionFromRows(displayKey.transitionId, skippedTransitionIds, progressRows ?? []) !== null;
               const currentProgressRow = progressRows?.find(
                 (r) => r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId
               );
@@ -2158,7 +2151,7 @@ const PlanB: React.FC<PlanProps> = ({
             taskTransition={displayTTWithCurrentStatus}
             isReadOnly={isReadOnly}
             displayKey={displayKey}
-            canSkip={!isReadOnly && displayKey !== null && findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null}
+            canSkip={!isReadOnly && displayKey !== null && findNextAvailableTransitionFromRows(displayKey.transitionId, skippedTransitionIds, progressRows ?? []) !== null}
             onActualChange={onActualChange}
             onSave={onSave}
             onSaveAndNext={onSaveAndNext}
@@ -2199,11 +2192,14 @@ const PlanB: React.FC<PlanProps> = ({
 interface WorkRecordPanelProps {
   projectName?: string;
   projectId?: string;
-  methodId?: string;
+  /** API 呼び出しに使用するメソッドID（必須） */
+  methodId: string;
   progressRows?: ProgressRow[];
   projectStatus?: number;
   initialTaskNo?: number;
   initialTransitionId?: string;
+  /** ProgressOverviewTab の記録ボタンから遷移時に渡す初期メソッドID */
+  initialMethodId?: string;
   /** 作業指示一覧（全件）。WorkRecordPanel 内部で現在のトランジションに応じてフィルタリングする */
   allWorkerInstructions?: Instruction[];
   /** プロジェクト指示「確認」ボタン押下コールバック（methodId / taskNo / transitionId を渡す） */
@@ -2358,6 +2354,7 @@ export default function WorkRecordPanel({
   projectStatus,
   initialTaskNo,
   initialTransitionId,
+  initialMethodId,
   allWorkerInstructions,
   onConfirmInstruction,
   onStart,
@@ -2366,7 +2363,7 @@ export default function WorkRecordPanel({
   onStatusChange,
   onSave,
   onClearViewing,
-}: WorkRecordPanelProps = {}) {
+}: WorkRecordPanelProps) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
   const { message, modal } = App.useApp();
@@ -2410,7 +2407,7 @@ export default function WorkRecordPanel({
 
   // ── API データから WorkTransition[] を構築する useEffect ──
   useEffect(() => {
-    if (!projectId || !methodId || !progressRows || progressRows.length === 0) {
+    if (!projectId || !progressRows || progressRows.length === 0) {
       setApiTransitions([]);
       return;
     }
@@ -2434,7 +2431,7 @@ export default function WorkRecordPanel({
           try {
             const templateDataRes = await getTemplateData(
               projectId,
-              methodId,
+              row.methodId,
               row.taskNo,
               row.transitionId
             );
@@ -2529,7 +2526,8 @@ export default function WorkRecordPanel({
           id: transitionId,
           order: idx + 1,
           prerequisiteTransitionIds: [],
-          methodId,
+          // progressRows から各トランジション固有の methodId を取得（複数メソッド対応）
+          methodId: progressRows.find((r) => r.transitionId === transitionId)?.methodId ?? methodId,
           templates: templatesMap.get(transitionId) ?? [],
         }));
 
@@ -2600,11 +2598,11 @@ export default function WorkRecordPanel({
     buildTransitions();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, methodId, progressRows]);
-  // initialTaskNo/initialTransitionId が両方指定されている場合は、初期表示でそのトランジションを表示する
-  const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(
+  }, [projectId, progressRows]);
+  // initialTaskNo/initialTransitionId/initialMethodId が揃っている場合は、初期表示でそのトランジションを表示する
+  const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string; methodId: string } | null>(
     initialTaskNo !== undefined && initialTransitionId !== undefined
-      ? { taskNo: initialTaskNo, transitionId: initialTransitionId }
+      ? { taskNo: initialTaskNo, transitionId: initialTransitionId, methodId: initialMethodId ?? methodId }
       : null
   );
 
@@ -2616,13 +2614,13 @@ export default function WorkRecordPanel({
   useEffect(() => {
     setIsCorrectionMode(false);
   }, [viewingKey]);
-  // 進捗確認タブの「記録」ボタン押下で initialTaskNo/initialTransitionId が変化した際に
+  // 進捗確認タブの「記録」ボタン押下で initialTaskNo/initialTransitionId/initialMethodId が変化した際に
   // viewingKey を更新して、押下した行のトランジション情報を実験記録タブで表示する
   useEffect(() => {
     if (initialTaskNo !== undefined && initialTransitionId !== undefined) {
-      setViewingKey({ taskNo: initialTaskNo, transitionId: initialTransitionId });
+      setViewingKey({ taskNo: initialTaskNo, transitionId: initialTransitionId, methodId: initialMethodId ?? methodId });
     }
-  }, [initialTaskNo, initialTransitionId]);
+  }, [initialTaskNo, initialTransitionId, initialMethodId, methodId]);
 
   /**
    * 終了/異常終了ボタン押下後に画面をロックするキー。
@@ -2630,7 +2628,7 @@ export default function WorkRecordPanel({
    * PlanB の displayKey がこのキーに固定され、自動遷移を防ぐ。
    * 「次へ」ボタン押下（handleSaveAndNext 完了）後にクリアされる。
    */
-  const [pendingEndKey, setPendingEndKey] = useState<{ taskNo: number; transitionId: string } | null>(null);
+  const [pendingEndKey, setPendingEndKey] = useState<{ taskNo: number; transitionId: string; methodId: string } | null>(null);
 
   /**
    * プロパティカード未保存フラグ。
@@ -2820,8 +2818,11 @@ export default function WorkRecordPanel({
    * actuals の現在の入力値を rawTemplateItemsRef のプロパティ構造に反映して送信。
    */
   const handleSaveCorrection = useCallback(async () => {
-    if (!viewingKey || !projectId || !methodId) return;
-    const { taskNo, transitionId } = viewingKey;
+    if (!viewingKey || !projectId) return;
+    const { taskNo, transitionId, methodId: correctionMethodId } = viewingKey;
+    // viewingKey に含まれる methodId を使用（複数メソッド対応）。フォールバックとして props の methodId を使用
+    const useMethodId = correctionMethodId || methodId;
+    if (!useMethodId) return;
     const mapKey = `${taskNo}__${transitionId}`;
     const rawItems = rawTemplateItemsRef.current.get(mapKey) ?? [];
     if (rawItems.length === 0) {
@@ -2968,7 +2969,7 @@ export default function WorkRecordPanel({
         };
       });
       const requestBody = { records };
-      await correctRecord(projectId, methodId, taskNo, requestBody);
+      await correctRecord(projectId, useMethodId, taskNo, requestBody);
       message.success(t('workRecord.correctionSaved'));
       setIsCorrectionMode(false);
     } catch (err) {
@@ -3153,7 +3154,10 @@ export default function WorkRecordPanel({
           uncertaintyKey: qv.uncertaintyKey ?? null,
         }));
 
-      const res = await saveBatchExperimentData(projectId, methodId, taskNo, {
+      // progressRows からこのトランジション固有の methodId を解決（複数メソッド対応）
+      const saveMethodId = progressRows?.find((r) => r.taskNo === taskNo && r.transitionId === transitionId)?.methodId ?? methodId;
+
+      const res = await saveBatchExperimentData(projectId, saveMethodId, taskNo, {
         records,
         transitionId,
         ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
@@ -3195,7 +3199,7 @@ export default function WorkRecordPanel({
       console.error('[WorkRecordPanel] handleSave error:', err);
       message.error(t('workRecord.saveContent'));
     }
-  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions, setApiTransitions, onSave]);
+  }, [projectId, methodId, progressRows, tasks, t, uploadAllPendingInsertions, setApiTransitions, onSave]);
 
   // ─── スキップ state ────────────────────────────────────────
   const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
@@ -3207,26 +3211,29 @@ export default function WorkRecordPanel({
       // canGoNext 条件（completed && isRecorded && hasNextTransition）が満たされた場合のみ呼ばれる。
       void taskNo;
       void transitionId;
-      setViewingKey(null);
+      // progressRows ベースで次の作業可能なトランジションを検索して viewingKey にセット
+      const next = findNextAvailableTransitionFromRows(transitionId, skippedTransitionIds, progressRows ?? []);
+      setViewingKey(next);
       setPendingEndKey(null);
       setIsDirty(false);
     },
-    [setIsDirty]
+    [skippedTransitionIds, progressRows, setIsDirty]
   );
 
   const handleSkip = useCallback(
     (taskNo: number, transitionId: string) => {
+      void taskNo;
       // スキップリストに追加
       setSkippedTransitionIds((prev) =>
         prev.includes(transitionId) ? prev : [...prev, transitionId]
       );
 
-      // 次の実行可能なトランジションを検索
-      const next = findNextAvailableTransition(
-        taskNo,
+      // progressRows ベースで次の実行可能なトランジションを検索
+      // 今追加したものも skippedIds に含めて検索する
+      const next = findNextAvailableTransitionFromRows(
         transitionId,
-        [...skippedTransitionIds, transitionId], // 今追加したものも含めて検索
-        tasks
+        [...skippedTransitionIds, transitionId],
+        progressRows ?? []
       );
 
       if (next) {
@@ -3252,7 +3259,7 @@ export default function WorkRecordPanel({
         });
       }
     },
-    [skippedTransitionIds, tasks]
+    [skippedTransitionIds, progressRows, modal, t]
   );
 
   // ─── カスタムInsertion追加/削除 ───────────────────────────
@@ -3529,19 +3536,19 @@ export default function WorkRecordPanel({
         (r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing'
       );
       if (activeRow) {
-        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId, methodId: activeRow.methodId };
       }
-      // 全て完了済みの場合は null（「全トランジション完了」Alert を表示）
-      return { taskNo: progressRows[0].taskNo, transitionId: progressRows[0].transitionId };
+      // 全て完了済みの場合は先頭行を表示
+      return { taskNo: progressRows[0].taskNo, transitionId: progressRows[0].transitionId, methodId: progressRows[0].methodId };
     }
     // progressRows が空の場合: task.transitions の順序でフォールバック
     const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
     if (!task) return null;
     for (const tt of task.transitions) {
-      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tt.transitionId };
+      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tt.transitionId, methodId };
     }
     return null;
-  }, [progressRows, tasks, ASSIGNED_TASK_NO]);
+  }, [progressRows, tasks, ASSIGNED_TASK_NO, methodId]);
 
   // displayKey の優先順位:
   // 1. viewingKey（別タブから遷移してきた指定トランジション）
@@ -3583,11 +3590,11 @@ export default function WorkRecordPanel({
           progressRows?.find((r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')) ??
           progressRows?.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing');
         if (!activeRow) return null;
-        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId, methodId: activeRow.methodId };
       })();
 
       // アクティブなトランジションに対応する methodId / taskNo / transitionId を特定
-      const activeMethodId = methodId;
+      const activeMethodId = activeEntry?.methodId ?? methodId;
       const activeTaskNo = activeEntry?.taskNo ?? null;
       const activeTransitionId = activeEntry?.transitionId ?? null;
 
@@ -3647,15 +3654,17 @@ export default function WorkRecordPanel({
     onStateRecord: async () => {
       // 表示中トランジション（displayKey 優先）のIDを取得
       const targetEntry = displayKey;
-      if (!projectId || !methodId || !targetEntry) {
+      if (!projectId || !targetEntry) {
         setStateRecordDialogOpen(true);
         return;
       }
+      // displayKey に含まれる methodId を使用（複数メソッド対応）
+      const targetMethodId = targetEntry.methodId || methodId;
       setStateRecordLoading(true);
       try {
         const records = await getTransitionStateRecords(
           projectId,
-          methodId,
+          targetMethodId,
           targetEntry.transitionId
         );
         // 取得した遷移時刻を各 state に反映

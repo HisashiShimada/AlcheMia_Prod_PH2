@@ -109,6 +109,8 @@ export default function ExperimentWorkerMenu({
   const [viewingWorkTaskNo, setViewingWorkTaskNo] = useState<number | null>(null);
   /** 記録確認遷移時の対象トランジションID（WorkRecordPanel の initialTransitionId に渡す） */
   const [viewingWorkTransitionId, setViewingWorkTransitionId] = useState<string | null>(null);
+  /** 記録確認遷移時の対象メソッドID（WorkRecordPanel の initialMethodId に渡す） */
+  const [viewingWorkMethodId, setViewingWorkMethodId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   /** 問題報告モーダル（フェーズB: IssueManagementModal を接続） */
   const [issueModalOpen, setIssueModalOpen] = useState(false);
@@ -234,7 +236,11 @@ export default function ExperimentWorkerMenu({
       // Step 2: トランジションを PREPARING → READY に遷移させる
       // ※ バックエンドの updateTransitionStatus が PREPARING→READY 遷移時に
       //   タスク・プロジェクトステータスを自動更新する
-      const preparingRow = progressRows.find((r) => r.status === 'preparing');
+      // ※ methodId・taskNo・transitionId の3条件で絞り込み、
+      //   現在ロード中のトランジション以外を対象にしないようにする
+      const preparingRow = progressRows.find(
+        (r) => r.methodId === methodId && r.taskNo === taskNo && r.transitionId === transitionId
+      );
       if (preparingRow) {
         try {
           await updateTransitionStatus(selectedProject, preparingRow.methodId, preparingRow.transitionId, {
@@ -295,6 +301,7 @@ export default function ExperimentWorkerMenu({
     // 記録確認遷移用 State もリセット
     setViewingWorkTaskNo(null);
     setViewingWorkTransitionId(null);
+    setViewingWorkMethodId(null);
   };
 
   // 選択中プロジェクトのステータス（数値）を取得
@@ -584,7 +591,7 @@ export default function ExperimentWorkerMenu({
           <WorkRecordPanel
             projectName={selectedProjectName || undefined}
             projectId={selectedProject || undefined}
-            methodId={progressRows[0]?.methodId || undefined}
+            methodId={progressRows[0]?.methodId ?? ''}
             progressRows={progressRows}
             projectStatus={selectedProjectStatus ?? undefined}
             allWorkerInstructions={instructions}
@@ -592,6 +599,7 @@ export default function ExperimentWorkerMenu({
             organizationGroupCd={selectedProjectOrganizationGroupCd}
             initialTaskNo={viewingWorkTaskNo ?? undefined}
             initialTransitionId={viewingWorkTransitionId ?? undefined}
+            initialMethodId={viewingWorkMethodId ?? undefined}
             onSave={refreshProjectAndProgress}
             onClearViewing={() => handleTabChange('4')}
             onStart={async (taskNo, transitionId) => {
@@ -691,9 +699,10 @@ export default function ExperimentWorkerMenu({
             <ProgressOverviewTab
               rows={progressRows}
               isProjectRecordable={isProjectRecordable}
-              onGoToWork={(taskNo, transitionId) => {
+              onGoToWork={(taskNo, transitionId, methodId) => {
                 setViewingWorkTaskNo(taskNo);
                 setViewingWorkTransitionId(transitionId);
+                setViewingWorkMethodId(methodId);
                 handleTabChange('3');
               }}
             />
