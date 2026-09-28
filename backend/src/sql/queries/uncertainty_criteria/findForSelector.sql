@@ -5,10 +5,13 @@
 --
 -- $1: organization_id
 -- $2: organizationGroupCd（optional: NULL の場合は全件取得）
+-- $3: userId（optional: NULL の場合は Personal スコープをスキップ）
 --
 -- organizationGroupCd が指定された場合、以下のスコープに属する name_space_id のみを対象とする:
---   1. 指定グループ＋その祖先グループが所有する namespace（WITH RECURSIVE で取得）
---   2. 組織共通の namespace（namespace.scope_key IS NULL）
+--   1. 指定グループ自身が所有する namespace（scope_key = $2 で直接参照）
+--   2. 指定グループの祖先グループが所有する namespace（WITH RECURSIVE で取得）
+--   3. Personal スコープの namespace（namespace.scope_key = $3）
+--   4. 組織共通の namespace（namespace.scope_key IS NULL）
 -- organizationGroupCd が NULL の場合は組織内全件を返す（後方互換）
 WITH RECURSIVE ancestors AS (
   -- 基底ケース: 指定グループ CD
@@ -63,8 +66,14 @@ WHERE uc.organization_id = $1
     -- organizationGroupCd が未指定（NULL）の場合は全件取得（後方互換）
     $2 IS NULL
     OR
-    -- 指定グループ＋祖先グループが所有する namespace
+    -- 指定グループ自身が所有する namespace（ancestors CTE 非依存で確実にマッチ）
+    ns.scope_key = $2
+    OR
+    -- 指定グループの祖先グループが所有する namespace
     ns.scope_key IN (SELECT organization_group_cd FROM ancestors)
+    OR
+    -- Personal スコープの namespace（userId が指定されている場合のみ）
+    ($3 IS NOT NULL AND ns.scope_key = $3)
     OR
     -- 組織共通の namespace（scope_key が NULL = 組織全体共通）
     ns.scope_key IS NULL

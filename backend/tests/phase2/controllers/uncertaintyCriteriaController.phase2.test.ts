@@ -87,7 +87,7 @@ describe('uncertaintyCriteriaController - Phase2 テスト', () => {
 
       await getForSelector(req, res, next);
 
-      expect(uncertaintyCriteriaService.getForSelector).toHaveBeenCalledWith('org-001', null);
+      expect(uncertaintyCriteriaService.getForSelector).toHaveBeenCalledWith('org-001', null, 'user-001');
       expect(res.json).toHaveBeenCalledWith(rows);
     });
 
@@ -99,7 +99,7 @@ describe('uncertaintyCriteriaController - Phase2 テスト', () => {
 
       await getForSelector(req, res, next);
 
-      expect(uncertaintyCriteriaService.getForSelector).toHaveBeenCalledWith('org-001', 'group-001');
+      expect(uncertaintyCriteriaService.getForSelector).toHaveBeenCalledWith('org-001', 'group-001', 'user-001');
       expect(res.json).toHaveBeenCalledWith(rows);
     });
 

@@ -63,7 +63,7 @@ export async function getList(
  * UncertaintyCriteriaSelectorModal から呼び出す。
  *
  * @query organizationGroupCd - 組織グループCD（省略可）。
- *   指定時: グループ＋祖先グループ＋組織共通スコープの基準のみ返す
+ *   指定時: 指定グループ自身＋祖先グループ＋Personal スコープ＋組織共通スコープの基準のみ返す
  *   未指定: 組織内全件返す（後方互換）
  */
 export async function getForSelector(
@@ -74,8 +74,9 @@ export async function getForSelector(
   try {
     const organizationId = (req as any).organizationId as string;
     const organizationGroupCd = (req.query.organizationGroupCd as string | undefined) ?? null;
+    const userId = req.user?.userId ?? null;
 
-    const rows = await uncertaintyCriteriaService.getForSelector(organizationId, organizationGroupCd);
+    const rows = await uncertaintyCriteriaService.getForSelector(organizationId, organizationGroupCd, userId);
     res.json(rows);
   } catch (error) {
     next(error);

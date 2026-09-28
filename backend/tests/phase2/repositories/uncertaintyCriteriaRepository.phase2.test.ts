@@ -230,10 +230,10 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
 
       await findForSelector('org-001', 'group-001');
 
-      // SQL には [organizationId, organizationGroupCd] の2引数が渡る
+      // SQL には [organizationId, organizationGroupCd, userId] の3引数が渡る
       expect(mockPgp.any).toHaveBeenCalledWith(
         expect.any(String),
-        ['org-001', 'group-001']
+        ['org-001', 'group-001', null]
       );
     });
 
@@ -244,7 +244,7 @@ describe('uncertaintyCriteriaRepository - Phase2 全CRUD・バージョン管理
 
       expect(mockPgp.any).toHaveBeenCalledWith(
         expect.any(String),
-        ['org-001', null]
+        ['org-001', null, null]
       );
     });
 

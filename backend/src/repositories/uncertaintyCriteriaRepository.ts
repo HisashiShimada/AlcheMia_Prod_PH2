@@ -270,13 +270,15 @@ export async function findByKey(
  *
  * @param organizationId - 組織ID
  * @param organizationGroupCd - 組織グループCD（省略または null の場合は全件取得）
- *   指定時: グループ＋祖先グループ＋組織共通スコープの基準のみ返す
+ *   指定時: 指定グループ自身＋祖先グループ＋Personal スコープ＋組織共通スコープの基準のみ返す
  *   未指定: 組織内全件返す（後方互換）
+ * @param userId - ログインユーザーID（省略または null の場合は Personal スコープをスキップ）
  * @returns セレクター用不確かさ基準一覧（intuition_selector を集約済み）
  */
 export async function findForSelector(
   organizationId: string,
-  organizationGroupCd?: string | null
+  organizationGroupCd?: string | null,
+  userId?: string | null
 ): Promise<UncertaintyCriteriaSelectorRow[]> {
   const pgp = getPgp();
 
@@ -299,7 +301,7 @@ export async function findForSelector(
     displayOrder:     number | null;
     selectorValue:    string | null;
     displayColor:     string | null;
-  }>(sqlQuery, [organizationId, organizationGroupCd ?? null]);
+  }>(sqlQuery, [organizationId, organizationGroupCd ?? null, userId ?? null]);
 
   if (rows.length === 0) return [];
 
