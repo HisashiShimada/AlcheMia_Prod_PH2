@@ -1699,7 +1699,10 @@ interface PlanProps {
   displayKey: { taskNo: number; transitionId: string } | null;
   /**
    * データ入力エリアの読み取り専用フラグ（本体で計算して渡す）。
-   * isRecorded === true && (isErrorStatus || !isCorrectionMode) で決定される。
+   * - status === 'not_started': 常に true（想定外読み込みの安全策）
+   * - status === 'issue': 常に true（訂正不可）
+   * - status === 'completed' && isRecorded === true && !isCorrectionMode: true
+   * - それ以外（preparing/ready/in_progress/on_hold）: false
    */
   isReadOnly: boolean;
   /**
@@ -2225,6 +2228,11 @@ interface WorkRecordPanelProps {
    * ExperimentWorkerMenu 側でプロジェクト一覧再取得などの後処理を行う際に使用する。
    */
   onSave?: () => void;
+  /**
+   * 「作業に戻る」ボタン押下後コールバック（任意）。
+   * viewingKey クリア後に呼び出される。ExperimentWorkerMenu 側でタブ切り替えなどの後処理を行う際に使用する。
+   */
+  onClearViewing?: () => void;
 }
 
 /** API の xsiType 文字列を WorkProperty の xsiType に変換する */
@@ -2350,6 +2358,7 @@ export default function WorkRecordPanel({
   onForceEnd,
   onStatusChange,
   onSave,
+  onClearViewing,
 }: WorkRecordPanelProps = {}) {
   // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
@@ -2638,7 +2647,7 @@ export default function WorkRecordPanel({
         if (cancelled) return;
         uncertaintyOptionsCache = result.map((c) => ({
           value: c.key,
-          label: c.name,
+          label: c.name || c.key,
         }));
       } catch (err) {
         console.error('[WorkRecordPanel] uncertainty criteria fetch error:', err);
@@ -2914,7 +2923,10 @@ export default function WorkRecordPanel({
             const propEntries: UncertaintyValueEntry[] =
               uncertaintyValuesRef.current.get(`${item.templateId}__${propKey}`) ??
               uncertaintyValuesRef.current.get(`${item.placeId}__${propKey}`) ?? [];
-            if (propEntries.length === 0 || !Array.isArray(p.uncertainty)) return;
+            if (propEntries.length === 0) return;
+            // uncertainty[] が未定義または配列でない場合は空配列で初期化
+            if (!Array.isArray(p.uncertainty)) p.uncertainty = [];
+            // 既存エントリへの value 書き込み
             (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
               const ucKey = unc['key'] as string | undefined;
               if (!ucKey) return;
@@ -2923,6 +2935,19 @@ export default function WorkRecordPanel({
                 unc['value'] = entry.value;
               }
             });
+            // 追加行: p.uncertainty[] に存在しないキーのエントリを新規 push する
+            // （「値の追加」ボタンで追加した行をテンプレート構造に反映させるために必要）
+            const existingUncKeys = new Set(
+              (p.uncertainty as Array<Record<string, unknown>>).map((unc) => unc['key'] as string)
+            );
+            for (const entry of propEntries) {
+              if (!entry.uncertaintyKey || existingUncKeys.has(entry.uncertaintyKey)) continue;
+              if (!entry.value || isNaN(Number(entry.value))) continue;
+              (p.uncertainty as Array<Record<string, unknown>>).push({
+                key: entry.uncertaintyKey,
+                value: entry.value,
+              });
+            }
           });
         }
         return {
@@ -3061,7 +3086,10 @@ export default function WorkRecordPanel({
             const propEntries: UncertaintyValueEntry[] =
               uncertaintyValuesRef.current.get(`${item.templateId}__${propKey}`) ??
               uncertaintyValuesRef.current.get(`${item.placeId}__${propKey}`) ?? [];
-            if (propEntries.length === 0 || !Array.isArray(p.uncertainty)) return;
+            if (propEntries.length === 0) return;
+            // uncertainty[] が未定義または配列でない場合は空配列で初期化
+            if (!Array.isArray(p.uncertainty)) p.uncertainty = [];
+            // 既存エントリへの value 書き込み
             (p.uncertainty as Array<Record<string, unknown>>).forEach((unc) => {
               const ucKey = unc['key'] as string | undefined;
               if (!ucKey) return;
@@ -3070,6 +3098,19 @@ export default function WorkRecordPanel({
                 unc['value'] = entry.value;
               }
             });
+            // 追加行: p.uncertainty[] に存在しないキーのエントリを新規 push する
+            // （「値の追加」ボタンで追加した行をテンプレート構造に反映させるために必要）
+            const existingUncKeys = new Set(
+              (p.uncertainty as Array<Record<string, unknown>>).map((unc) => unc['key'] as string)
+            );
+            for (const entry of propEntries) {
+              if (!entry.uncertaintyKey || existingUncKeys.has(entry.uncertaintyKey)) continue;
+              if (!entry.value || isNaN(Number(entry.value))) continue;
+              (p.uncertainty as Array<Record<string, unknown>>).push({
+                key: entry.uncertaintyKey,
+                value: entry.value,
+              });
+            }
           });
         }
         return {
@@ -3502,12 +3543,20 @@ export default function WorkRecordPanel({
   const displayKeyRow = progressRows?.find(
     (r) => displayKey !== null && r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId
   );
+  const isNotStartedStatus = displayKeyRow?.status === 'not_started';
   const isErrorStatus = displayKeyRow?.status === 'issue';
+  const isCompletedStatus = displayKeyRow?.status === 'completed';
 
   // データ入力エリアの読み取り専用フラグ
-  // - isRecorded === true（記録済み）かつ訂正モードでない場合: 読み取り専用
-  // - isRecorded === true かつ status === 'issue'（異常終了）: 訂正モードでも読み取り専用
-  const isReadOnly = displayKeyRow?.isRecorded === true && (isErrorStatus || !isCorrectionMode);
+  // - status === 'not_started'（未着手）: 常に読み取り専用（WorkRecordPanel への読み込み想定外・安全策）
+  // - status === 'issue'（強制終了）: 常に読み取り専用（訂正不可）
+  // - status === 'completed' かつ isRecorded === true かつ訂正モードでない: 読み取り専用
+  // - status === 'completed' かつ isRecorded === true かつ訂正モード中: 編集可
+  // - それ以外（preparing/ready/in_progress/on_hold）: 常に編集可
+  const isReadOnly =
+    isNotStartedStatus ||
+    isErrorStatus ||
+    (isCompletedStatus && displayKeyRow?.isRecorded === true && !isCorrectionMode);
 
   const planProps: PlanProps = {
     tasks,
@@ -3557,7 +3606,7 @@ export default function WorkRecordPanel({
     onActualChange: handleActualChange,
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,
-    onClearViewing: () => setViewingKey(null),
+    onClearViewing: () => { setViewingKey(null); onClearViewing?.(); },
     onSkip: handleSkip,
     onCommentClick: () => setCommentDialogOpen(true),
     onInsertionAdd: handleInsertionAdd,
