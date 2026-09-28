@@ -1920,8 +1920,10 @@ const PlanB: React.FC<PlanProps> = ({
               </Flex>
             </Flex>
 
-            {/* 右側: 保存 / 次へ / コメント / スキップ（編集時のみ表示） */}
-            {!isReadOnly && (() => {
+            {/* 右側: 保存 / 次へ / コメント / スキップ
+                ブロックは常に表示し、各ボタンを個別に disabled 制御する。
+                isReadOnly=true（完了+記録済み）時は「次へ」のみ活性になる。 */}
+            {(() => {
               const nextBtnLabel = t('workRecord.transitionCompleteNext');
               // スキップボタン活性条件:
               // 1. 次に移動可能なトランジションが存在する
@@ -1959,14 +1961,17 @@ const PlanB: React.FC<PlanProps> = ({
               };
               return (
                 <Flex gap={8} align="center">
+                  {/* 保存: isReadOnly のとき disabled（記録済み・未着手・異常終了時は操作不可） */}
                   <Button
                     size="small"
                     icon={<SaveOutlined />}
-                    style={{ background: '#f6ffed', borderColor: '#b7eb8f', color: '#52c41a' }}
+                    disabled={isReadOnly}
+                    style={!isReadOnly ? { background: '#f6ffed', borderColor: '#b7eb8f', color: '#52c41a' } : undefined}
                     onClick={() => onSave(displayKey.taskNo, displayKey.transitionId)}
                   >
                     {t('workRecord.saveButton')}
                   </Button>
+                  {/* 次へ: canGoNext のみで活性制御（isReadOnly に関わらず完了+記録済みで活性） */}
                   <Tooltip title={nextTooltipTitle}>
                     <Button
                       size="small"
@@ -1979,6 +1984,7 @@ const PlanB: React.FC<PlanProps> = ({
                     </Button>
                   </Tooltip>
                   <Divider orientation="vertical" style={{ margin: '0 12px' }} />
+                  {/* コメント: 読み取り専用時も押せる */}
                   <Button
                     size="small"
                     icon={<CommentOutlined />}
@@ -1986,6 +1992,7 @@ const PlanB: React.FC<PlanProps> = ({
                   >
                     {t('workRecord.commentButton')}
                   </Button>
+                  {/* スキップ: canSkipFlag で活性制御 */}
                   <Tooltip title={canSkipFlag ? t('workRecord.skipTooltipAvailable') : t('workRecord.skipTooltipUnavailable')}>
                     <Button
                       size="small"
@@ -3223,8 +3230,11 @@ export default function WorkRecordPanel({
       );
 
       if (next) {
-        // 次のトランジションが見つかったら viewingKey をリセット（activeEntry で自動選択）
-        setViewingKey(null);
+        // 次のトランジションが見つかったら viewingKey に明示的にセット
+        // activeEntry は progressRows のステータスに依存するため、スキップ直後は
+        // スキップされたトランジションの status が変わらず activeEntry も変わらない。
+        // viewingKey に次のトランジションを明示することで即座に画面を切り替える。
+        setViewingKey(next);
         modal.info({
           title: t('workRecord.skipDone'),
           content: (
