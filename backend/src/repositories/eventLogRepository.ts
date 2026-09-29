@@ -8,8 +8,9 @@
 import { PoolClient } from 'pg';
 import { TransitionStatus, TransitionStatusEnum } from '../types/transitionData';
 import { loadSqlFile } from '../sql/loader';
-import { getPgp } from '../database/db';
+import { getPgp, getPool } from '../database/db';
 import type { EventLogRow } from '../types/eventLog';
+import type { EventLogJsonRecord } from '../utils/maimlDataWriter';
 import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
@@ -1221,6 +1222,52 @@ export class EventLogRepository {
         'Database error occurred while fetching event logs',
         error as Error
       );
+    }
+  }
+
+  /**
+   * 品質評価 eventLog エントリを maiml_event_log テーブルに一括 INSERT する
+   *
+   * `buildQualityEvalLogEntries()` が生成した EventLogJsonRecord[] を受け取り、
+   * 1件ずつ採番して INSERT する。
+   * COMMIT 後に呼ばれるため、トランザクション外（pool 直接）で実行する。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @param entries        - 品質評価 EventLogJsonRecord 配列（空の場合は何もしない）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async insertQualityEvalLogEntries(
+    organizationId: string,
+    projectId: string,
+    entries: EventLogJsonRecord[]
+  ): Promise<void> {
+    if (entries.length === 0) return;
+
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      const sequenceQuery = await this.sequenceQueryPromise;
+      const insertQuery = await this.insertQueryPromise;
+
+      for (const entry of entries) {
+        const seqResult = await client.query(sequenceQuery, [organizationId, projectId]);
+        const seq: number = seqResult.rows[0].next_sequence_no;
+        await client.query(insertQuery, [
+          organizationId,
+          projectId,
+          seq,
+          JSON.stringify(entry),
+          'system',
+        ]);
+      }
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while inserting quality eval log entries',
+        error as Error
+      );
+    } finally {
+      client.release();
     }
   }
 }
