@@ -771,6 +771,25 @@ export async function findNamespaceIdByScopeKey(
 }
 
 /**
+ * prefix テーブルに対応レコードが存在するか確認（namespace_id も含めて検索）
+ *
+ * @param organizationId - 組織ID
+ * @param namespaceId - 名前空間ID
+ * @param prefix - 名前空間の接頭辞
+ * @returns 存在する場合 true
+ */
+export async function existsPrefixInNamespace(
+  organizationId: string,
+  namespaceId: string,
+  prefix: string
+): Promise<boolean> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/existsPrefixInNamespace.sql');
+  const row = await pgp.oneOrNone(query, [organizationId, namespaceId, prefix]);
+  return row !== null;
+}
+
+/**
  * prefix テーブルのみに1件 INSERT する（Prefix 新規追加用）
  *
  * @remarks

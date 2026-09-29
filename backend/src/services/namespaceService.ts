@@ -160,6 +160,21 @@ export async function createNamespace(
   }
 
   // prefix テーブルのみ INSERT（namespace テーブルへの INSERT は行わない）
+  // INSERT 前に重複チェックを行い、既に同 prefix が存在する場合は 409 エラーをスロー
+  const alreadyExists = await namespaceTermRepository.existsPrefixInNamespace(
+    input.organizationId,
+    namespaceId,
+    input.prefix
+  );
+  if (alreadyExists) {
+    const dupErr: Error & { statusCode?: number; code?: string } = new Error(
+      getMessage(lang, 'namespace.duplicatePrefix', { prefix: input.prefix })
+    );
+    dupErr.statusCode = HTTP_STATUS.CONFLICT;
+    dupErr.code = 'E6005';
+    throw dupErr;
+  }
+
   const prefixData = {
     organizationId: input.organizationId,
     namespaceId,

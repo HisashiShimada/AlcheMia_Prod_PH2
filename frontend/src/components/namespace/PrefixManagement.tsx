@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
+import { extractErrorCode } from '@/utils/errorUtils';
 import { App, Button, Input, Table, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
 import {
   PlusOutlined,
@@ -319,8 +320,12 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         };
         await createNamespace(createNamespaceRequest);
         successCount++;
-      } catch {
-        failed.push({ prefix: row.prefix, uri: row.uri });
+      } catch (error) {
+        if (extractErrorCode(error) === 'E6005') {
+          message.error(t('prefixManagement.errorDuplicatePrefix', { prefix: row.prefix }));
+        } else {
+          failed.push({ prefix: row.prefix, uri: row.uri });
+        }
       }
     }
 

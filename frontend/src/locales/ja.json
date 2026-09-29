@@ -5393,6 +5393,7 @@
     "prefixNcnameInvalid": "Prefix は英字またはアンダースコアで始まり、英数字・ハイフン・アンダースコアのみ使用できます",
     "uriRequired": "URI を入力してください",
     "errorDuplicateGlobalPrefix": "「{prefix}」はグローバルスコープに既に登録されています",
+    "errorDuplicatePrefix": "「{prefix}」は既にこのスコープに登録されています",
     "warnTitle": "重複する Prefix が存在します",
     "warnAlreadyRegistered": "「{prefix}」は上位層「{scopeName}」に既に登録されています。現在の階層にも追加登録しますか？",
     "warnOk": "登録する",

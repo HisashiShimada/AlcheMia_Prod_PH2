@@ -5393,6 +5393,7 @@
     "prefixNcnameInvalid": "Prefix must start with a letter or underscore, and contain only letters, digits, hyphens, or underscores",
     "uriRequired": "Please enter a URI",
     "errorDuplicateGlobalPrefix": "\"{prefix}\" is already registered in the global scope",
+    "errorDuplicatePrefix": "\"{prefix}\" is already registered in this scope",
     "warnTitle": "Duplicate Prefix detected",
     "warnAlreadyRegistered": "\"{prefix}\" is already registered in the parent scope \"{scopeName}\". Register in the current scope as well?",
     "warnOk": "Register",
