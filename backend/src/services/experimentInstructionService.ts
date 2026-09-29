@@ -38,7 +38,7 @@ import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { getStorageService } from './storageService';
 import { MaimlWriterService } from './maimlWriterService';
 import { EventLogRepository } from '../repositories/eventLogRepository';
-import { ReviewTypeEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
+import { ReviewTypeEnum, TaskStatusEnum, ProjectStatusEnum } from '../enums/codeMaster.enum';
 import * as projectRepository from '../repositories/projectRepository';
 import * as uncertaintyCriteriaRepository from '../repositories/uncertaintyCriteriaRepository';
 import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
@@ -880,6 +880,23 @@ export async function recordNg(
       projectName,
       client
     );
+
+    // NG登録時: project_status=6(REVIEW_REJECTED), checkout_status=1(CHECKED_OUT) に更新
+    // 管理者側がチェックアウト状態となり、作業者側が訂正可能な状態にするため
+    await projectRepository.updateCheckoutStatus(
+      client,
+      organizationId,
+      projectId,
+      reviewUserId,
+      ProjectStatusEnum.REVIEW_REJECTED
+    );
+
+    logger.info('[experimentInstructionService] recordNg: project checkout updated', {
+      organizationId,
+      projectId,
+      reviewUserId,
+      projectStatus: ProjectStatusEnum.REVIEW_REJECTED,
+    });
 
     await client.query('COMMIT');
 
