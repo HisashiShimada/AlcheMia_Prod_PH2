@@ -1072,7 +1072,7 @@
     "completeReviewFailed": "タスクレビューの完了に失敗しました",
     "rename": {
       "title": "プロジェクト名変更",
-      "okText": "Rename",
+      "okText": "変更",
       "label": "新しいプロジェクト名",
       "required": "プロジェクト名を入力してください",
       "patternError": "プロジェクト名には英数字、アンダースコア、ハイフンのみ使用できます",

@@ -238,13 +238,15 @@ export async function getList(
  *
  * @param organizationId - 組織ID
  * @param organizationGroupCd - 組織グループCD（省略または null の場合は全件取得）
+ * @param userId - ログインユーザーID（省略または null の場合は Personal スコープをスキップ）
  * @returns セレクター用不確かさ基準一覧
  */
 export async function getForSelector(
   organizationId: string,
-  organizationGroupCd?: string | null
+  organizationGroupCd?: string | null,
+  userId?: string | null
 ): Promise<UncertaintyCriteriaSelectorRow[]> {
-  return uncertaintyCriteriaRepository.findForSelector(organizationId, organizationGroupCd);
+  return uncertaintyCriteriaRepository.findForSelector(organizationId, organizationGroupCd, userId);
 }
 
 /**
