@@ -367,6 +367,33 @@ export async function createTerm(
   );
   if (!exists) return null;
 
+  // 祖先グループスコープとの重複チェック
+  // scopeKey が指定されている場合、祖先グループに同一 prefix:localName が存在しないか確認する。
+  // （型が異なっても prefix:localName が同じであれば重複とみなす）
+  if (input.scopeKey) {
+    const ancestorDuplicate = await namespaceTermRepository.findTermInAncestorScopes(
+      input.organizationId,
+      input.scopeKey,
+      input.prefix,
+      input.localName
+    );
+    if (ancestorDuplicate) {
+      // 祖先スコープ名を取得してエラー詳細に付与
+      const scopeName = ancestorDuplicate.namespaceId
+        ? (await namespaceTermRepository.findScopeNameByNamespaceId(
+            input.organizationId,
+            ancestorDuplicate.namespaceId
+          )) ?? input.prefix
+        : input.prefix;
+      const ancestorErr: Error & { statusCode?: number; code?: string; details?: { scopeName: string } } =
+        new Error(`Term "${input.prefix}:${input.localName}" already exists in ancestor scope`);
+      ancestorErr.statusCode = HTTP_STATUS.CONFLICT;
+      ancestorErr.code = 'E6005';
+      ancestorErr.details = { scopeName };
+      throw ancestorErr;
+    }
+  }
+
   // 指示用語同時登録なし（従来通り）
   if (!input.createDirectiveTerm) {
     return namespaceTermRepository.create({

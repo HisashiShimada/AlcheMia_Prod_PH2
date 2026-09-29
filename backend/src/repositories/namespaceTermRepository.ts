@@ -64,6 +64,8 @@ export interface NamespaceTermRow {
   hasDirectiveTerm: boolean;
   /** ツリーバッジ計算用: namespace.scope_key の値（グローバル用語は null） */
   scopeKey?: string | null;
+  /** スコープ名取得用: namespace.namespace_id の値（祖先チェック時に使用） */
+  namespaceId?: string | null;
 }
 
 // ─── URI自動生成用 ──────────────────────────────────────────────────────────
@@ -517,6 +519,49 @@ export async function update(
   // 更新後、フロントエンド用フォーマットで返す
   const selectQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
   return pgp.oneOrNone<NamespaceTermRow>(selectQuery, [organizationId, prefix, localName]);
+}
+
+/**
+ * namespace_id に紐づくスコープ名（グループ名・ユーザー名）を取得
+ *
+ * 重複エラー時のエラーメッセージ生成用。
+ *
+ * @param organizationId - 組織ID
+ * @param namespaceId - 名前空間ID
+ * @returns スコープ名（グループ名・ユーザー名・scope_key のいずれか）、または null
+ */
+export async function findScopeNameByNamespaceId(
+  organizationId: string,
+  namespaceId: string
+): Promise<string | null> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findScopeNameByNamespaceId.sql');
+  const row = await pgp.oneOrNone<{ scope_name: string }>(query, [organizationId, namespaceId]);
+  return row?.scope_name ?? null;
+}
+
+/**
+ * 祖先グループスコープに同一 prefix:localName が存在するか検索
+ *
+ * 登録先スコープ（scopeKey）の祖先グループを再帰的に辿り、
+ * いずれかの祖先スコープに同一 prefix:localName が存在すれば返す。
+ * 存在しない場合は null を返す。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKey - 登録先の organization_group_cd（Personal userId は祖先なし扱い）
+ * @param prefix - 名前空間の接頭辞
+ * @param localName - ローカル名
+ * @returns 祖先スコープに存在する用語、または null
+ */
+export async function findTermInAncestorScopes(
+  organizationId: string,
+  scopeKey: string,
+  prefix: string,
+  localName: string
+): Promise<NamespaceTermRow | null> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findTermInAncestorScopes.sql');
+  return pgp.oneOrNone<NamespaceTermRow>(query, [organizationId, scopeKey, prefix, localName]);
 }
 
 /**

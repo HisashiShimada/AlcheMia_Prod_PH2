@@ -1204,13 +1204,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       if (field === 'type' && !isUnitAllowed(value as string)) {
         updated.unitHint = '';
       }
-      // 現在の登録先スコープ（scopeKeyForCreate）内の用語のみを重複チェック対象にする
+      // 全スコープ（上位グループ含む）の用語と重複チェックを行う
       // withAncestors=true で取得した terms には上位グループの用語も含まれるため、
-      // scopeKey フィルタで現在の登録先スコープの用語のみに絞り込む
+      // prefix:localName の一致のみで判定する（scopeKey によるフィルタなし）
       const p = field === 'prefix'    ? (value as string) : updated.prefix;
       const l = field === 'localName' ? (value as string) : updated.localName;
       updated._isDuplicate = !!(p && l && terms.some(
-        (t) => t.prefix === p && t.localName === l && t.scopeKey === scopeKeyForCreate
+        (t) => t.prefix === p && t.localName === l
       ));
       return updated;
     }));

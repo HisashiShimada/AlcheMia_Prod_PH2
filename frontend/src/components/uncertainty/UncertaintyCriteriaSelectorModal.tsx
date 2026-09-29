@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   App,
   Modal,
@@ -211,13 +211,8 @@ export default function UncertaintyCriteriaSelectorModal({
 
   // ----- 値入力状態（削除済み：基準キーのみ記録する設計のため不要） -----
 
-  // ----- モーダルが開くたびに初期化 & APIからデータ取得 -----
-  useEffect(() => {
-    if (!open) return;
-    setFilter(INITIAL_FILTER);
-    setSelectedCriteria(null);
-
-    // DBから不確かさ基準一覧を取得（organizationGroupCd によるスコープフィルタ適用）
+  // ----- DBから不確かさ基準一覧を再取得する関数（新規作成後のリフレッシュにも使用） -----
+  const refreshCriteriaList = useCallback(() => {
     setCriteriaLoading(true);
     fetchUncertaintyCriteriaForSelector(organizationGroupCd)
       .then((data) => {
@@ -250,6 +245,16 @@ export default function UncertaintyCriteriaSelectorModal({
         setCriteriaList([]);
       })
       .finally(() => setCriteriaLoading(false));
+  }, [organizationGroupCd, message, t]);
+
+  // ----- モーダルが開くたびに初期化 & APIからデータ取得 -----
+  useEffect(() => {
+    if (!open) return;
+    setFilter(INITIAL_FILTER);
+    setSelectedCriteria(null);
+
+    // DBから不確かさ基準一覧を取得
+    refreshCriteriaList();
 
     // 対象プロパティに合わせてフィルタを自動プリセット
     if (targetProperty) {
@@ -278,7 +283,7 @@ export default function UncertaintyCriteriaSelectorModal({
         }));
       }
     }
-  }, [open, targetProperty, organizationGroupCd]);
+  }, [open, targetProperty, organizationGroupCd, refreshCriteriaList]);
 
   // ----- initialPayload が渡された場合、criteriaList ロード後に選択状態のみ復元 -----
   useEffect(() => {
@@ -508,10 +513,6 @@ export default function UncertaintyCriteriaSelectorModal({
       </div>
       <div style={confirmRowStyle}>
         <span style={confirmLabelStyle}>{t('uncertaintyCriteriaSelector.confirmLabelEvalType')}</span>
-        <span>{isQuantitative ? t('uncertaintyCriteriaSelector.quantitativeEval') : t('uncertaintyCriteriaSelector.qualitativeEval')}</span>
-      </div>
-      <div style={confirmRowStyle}>
-        <span style={confirmLabelStyle}>{t('uncertaintyCriteriaSelector.confirmLabelEvalType')}</span>
         <span style={{ fontWeight: 600 }}>
           {isQuantitative
             ? t('uncertaintyCriteriaSelector.quantitativeEval')
@@ -719,6 +720,7 @@ export default function UncertaintyCriteriaSelectorModal({
         allCriteria={[]}
         organizationGroupCd={organizationGroupCd}
         onClose={() => setCreateModalOpen(false)}
+        onSaved={refreshCriteriaList}
       />
     </Modal>
   );
