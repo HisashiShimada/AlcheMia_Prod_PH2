@@ -24,10 +24,10 @@
 
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|------|-----------|-----------|------|-------|-------|
-| **3-1** | Creator マスタ管理 | 要件書#3 | 19件 | Playwright自動 | 17 | 2 | 0 |
-| **3-2** | Vendor マスタ管理 | 要件書#3 | 17件 | Playwright自動 | 15 | 2 | 0 |
+| **3-1** | Creator マスタ管理 | 要件書#3 | 19件 | Playwright自動 | 17 | 0 | 0 |
+| **3-2** | Vendor マスタ管理 | 要件書#3 | 17件 | Playwright自動 | 15 | 0 | 0 |
 | **3-3** | Instrument マスタ管理 | 要件書#3 | 18件 | Playwright自動 | 18 | 0 | 0 |
-| **合計** | - | - | **54件** | - | **50** | **4** | **0** |
+| **合計** | - | - | **54件** | - | **54** | **0** | **0** |
 
 ### スコープ外
 
@@ -105,8 +105,8 @@
 | 3-2-4 | ステータスフィルターで「非アクティブ」に絞り込みできること | 正常系 | `ui_master_main.md` §5.2.2 | GET `/api/v1/master/vendor` | OK | ステータスフィルタなし |
 | 3-2-5 | 「追加」ボタンから Vendor を新規作成できること | 正常系 | 要件書#3、`ui_master_add_dialog.md` §5.2 | POST `/api/v1/master/vendor` | OK | |
 | 3-2-6 | Vendor ID が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.1 | - | OK | |
-| 3-2-7 | Vendor ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-324 |
-| 3-2-8 | Vendor ID が 50 文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-325 |
+| 3-2-7 | Vendor ID に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-324 |
+| 3-2-8 | Vendor ID が 50 文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_master_add_dialog.md` §4.1 | - | OK | https://soft-service.atlassian.net/browse/AISOLMAIML-325 |
 | 3-2-9 | 既存の Vendor ID と重複する場合に重複エラーが表示されること | 異常系 | `ui_master_add_dialog.md` §7.2（MASTER_ID_DUPLICATE） | POST `/api/v1/master/vendor` | OK | |
 | 3-2-10 | 「編集」ボタンから Vendor 名を編集して保存できること | 正常系 | 要件書#3、`ui_master_edit_dialog.md` §5.2 | PUT `/api/v1/master/vendor/:vendorId` | OK | |
 | 3-2-11 | 編集ダイアログで Vendor ID が読み取り専用（変更不可）であること | 表示確認 | `ui_master_edit_dialog.md` §4.1 | - | OK | |

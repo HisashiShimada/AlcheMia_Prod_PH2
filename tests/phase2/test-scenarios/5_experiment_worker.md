@@ -43,7 +43,7 @@
 | **5-4** | プロジェクト指示確認（WorkRecordPanel内）| 要件書#8、`ui_work_record_panel.md`（v3.3.0）| 3件 | 手動 | 3 | 0 | 0 |
 | **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K、`docs/改善仕様調査/No.23/result.md`（No.23対応）、`ui_progress_overview_tab.md`（**v3.1.0** / 2026-09-09: 変更履歴重複削除のみ・機能変更なし）| 15件 | 手動 | 12 | 0 | 0 |
 | **5-6** | 作業記録パネル（WorkRecordPanel） | `docs/requirement/phase2/02_experiment_instruction_workerUI/`、`ui_work_record_panel.md`（**v3.3.0** / 2026-09-09: PropertyCard新機能追加・API連携状況更新）。API接続済み・カテゴリ別グループ表示・状態記録ダイアログ・指示確認フロー（preparing→ready→in_progress）・状態プルダウン活性化・is_recorded管理・スキップ制御・承認依頼条件 | 27件 | 手動 + 手動 | 27 | 0 | 0 |
-| **合計** | - | - | **67件** | - | **64** | **0** | **0** |
+| **合計** | - | - | **67件** | - | **67** | **0** | **0** |
 
 ### スコープ外
 
