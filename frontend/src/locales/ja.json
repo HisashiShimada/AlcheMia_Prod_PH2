@@ -2230,6 +2230,7 @@
     "correctionCount": "🔧 自動補正可能:",
     "unit": "件",
     "errorDetailLabel": "エラー詳細 (上位3件)",
+    "errorDetailLabelWithCount": "エラー詳細 ({count}件)",
     "errorDetailMore": "... 他 {count} 件のエラー",
     "errorDetailNone": "エラー詳細なし",
     "destinationLabel": "保存先を選択",

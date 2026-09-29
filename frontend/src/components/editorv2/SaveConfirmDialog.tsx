@@ -74,7 +74,9 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
   const errorCollapseItems = [
     {
       key: 'errors',
-      label: t('saveConfirmDialog.errorDetailLabel'),
+      label: errorCount > 3
+        ? t('saveConfirmDialog.errorDetailLabel')
+        : t('saveConfirmDialog.errorDetailLabelWithCount').replace('{count}', String(errorCount)),
       children: (
         <Space orientation="vertical" style={{ width: '100%' }}>
           {validationResult?.errors?.slice(0, 3).map((error, index) => (
