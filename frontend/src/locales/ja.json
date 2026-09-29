@@ -5266,6 +5266,8 @@
     "csvImportPartial2": "{saved}件を登録しました（{failCount}件失敗: {names}）",
     "csvImportSuccess2": "{count}件の用語をCSVからインポートしました",
     "csvParseError2": "CSVの解析に失敗しました",
+    "csvImportNoScope": "登録先が未確定です。左ツリーで登録先のスコープを選択してください",
+    "csvPrefixAddFailed": "Prefix「{prefix}」の追加に失敗しました。該当 Prefix の用語はスキップされます",
     "prefixFilterAll": "すべてのPrefix",
     "typeFilterAll": "すべてのデータ型",
     "unitFilterAll": "すべての単位",

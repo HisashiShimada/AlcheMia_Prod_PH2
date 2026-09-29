@@ -5266,6 +5266,8 @@
     "csvImportPartial2": "Saved {saved} item(s) ({failCount} failed: {names})",
     "csvImportSuccess2": "Imported {count} term(s) from CSV",
     "csvParseError2": "Failed to parse CSV",
+    "csvImportNoScope": "Destination scope is not selected. Please select a node from the left tree.",
+    "csvPrefixAddFailed": "Failed to add prefix \"{prefix}\". Terms with this prefix will be skipped.",
     "prefixFilterAll": "All Prefixes",
     "typeFilterAll": "All Data Types",
     "unitFilterAll": "All Units",
