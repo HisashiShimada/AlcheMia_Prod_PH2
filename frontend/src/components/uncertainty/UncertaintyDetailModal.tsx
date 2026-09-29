@@ -326,6 +326,7 @@ export default function UncertaintyDetailModal({
   const [diffPreviewOpen, setDiffPreviewOpen] = useState(false);
   const [diffData, setDiffData] = useState<DiffData | null>(null);
   const [statusState, setStatusState] = useState<'active' | 'deprecated'>('active');
+  const [hasValidationError, setHasValidationError] = useState(false);
   const [form] = Form.useForm();
 
   // ─── Attributeマスタ取得（units / formatString / scaleFactor の選択肢用） ───
@@ -360,6 +361,7 @@ export default function UncertaintyDetailModal({
     setLoading(true);
     setDetail(null);
     setDiffData(null);
+    setHasValidationError(false);
 
     fetchUncertaintyCriteriaDetail(template.key, versionNum)
       .then((data) => {
@@ -538,7 +540,7 @@ export default function UncertaintyDetailModal({
           >
             🔍 {t('uncertaintyDetail.diffPreview')}
           </Button>
-          <Button type="primary" onClick={handleSave} disabled={loading}>
+          <Button type="primary" onClick={handleSave} disabled={loading || hasValidationError}>
             {t('common.save')}
           </Button>
         </Space>
@@ -546,7 +548,12 @@ export default function UncertaintyDetailModal({
       styles={{ body: { padding: '16px 24px', maxHeight: '75vh', overflowY: 'auto' } }}
     >
       <Spin spinning={loading}>
-        <Form form={form} layout="vertical" size="middle">
+        <Form form={form} layout="vertical" size="middle"
+          onFieldsChange={() => {
+            const errors = form.getFieldsError(['toleranceUpper', 'toleranceLower']);
+            setHasValidationError(errors.some((f) => f.errors.length > 0));
+          }}
+        >
 
           {/* ===== 1. 基本情報 ===== */}
           <div style={sectionStyle}>
@@ -711,7 +718,19 @@ export default function UncertaintyDetailModal({
                   name="toleranceUpper"
                   label={t('uncertaintyDetail.toleranceUpperLabel')}
                   style={{ marginBottom: 0 }}
-                  rules={[{ required: true, message: t('uncertaintyDetail.toleranceUpperRequired') }]}
+                  dependencies={['toleranceLower']}
+                  rules={[
+                    { required: true, message: t('uncertaintyDetail.toleranceUpperRequired') },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        const lower = getFieldValue('toleranceLower');
+                        if (value === '' || value === null || value === undefined) return Promise.resolve();
+                        if (lower === '' || lower === null || lower === undefined) return Promise.resolve();
+                        if (Number(value) > Number(lower)) return Promise.resolve();
+                        return Promise.reject(new Error(t('uncertaintyDetail.toleranceUpperMustBeGreater')));
+                      },
+                    }),
+                  ]}
                 >
                   <Input type="number" placeholder={t('uncertaintyDetail.toleranceUpperPlaceholder')} />
                 </Form.Item>
@@ -720,7 +739,19 @@ export default function UncertaintyDetailModal({
                   name="toleranceLower"
                   label={t('uncertaintyDetail.toleranceLowerLabel')}
                   style={{ marginBottom: 0 }}
-                  rules={[{ required: true, message: t('uncertaintyDetail.toleranceLowerRequired') }]}
+                  dependencies={['toleranceUpper']}
+                  rules={[
+                    { required: true, message: t('uncertaintyDetail.toleranceLowerRequired') },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        const upper = getFieldValue('toleranceUpper');
+                        if (value === '' || value === null || value === undefined) return Promise.resolve();
+                        if (upper === '' || upper === null || upper === undefined) return Promise.resolve();
+                        if (Number(upper) > Number(value)) return Promise.resolve();
+                        return Promise.reject(new Error(t('uncertaintyDetail.toleranceLowerMustBeLess')));
+                      },
+                    }),
+                  ]}
                 >
                   <Input type="number" placeholder={t('uncertaintyDetail.toleranceLowerPlaceholder')} />
                 </Form.Item>

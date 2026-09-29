@@ -976,6 +976,44 @@ export function appendResultsToData(
 }
 
 // ============================================================
+// extractPlannedResultsBlocksFromMaiml
+// ============================================================
+
+/**
+ * MAIML XML 文字列の <data> タグ内から「計画データ」の <results> ブロックのみを抽出して返す
+ *
+ * 計画データの識別条件:
+ *   <results id="..."> の id 属性が "_actual" サフィックスを持たないもの。
+ *   buildPlannedValuesResultsXML() が生成する id は "results_{methodId}_{taskNo}" 形式で
+ *   "_actual" を含まないため、この条件で実績データと区別できる。
+ *
+ * writeDataAndEventLog()（targetFilter なし）の <data> 全置き換え前に呼び出し、
+ * 置き換え後に appendResultsToData() で再追記することで計画データの消失を防ぐ。
+ *
+ * @param maimlContent - MAIML XML 全文字列
+ * @returns 計画データ <results>...</results> の XML 文字列（複数の場合は改行+インデントで連結）。
+ *          存在しない場合は null を返す。
+ */
+export function extractPlannedResultsBlocksFromMaiml(maimlContent: string): string | null {
+  // <data>...</data> ブロック全体を抽出
+  const dataMatch = maimlContent.match(/<data[\s\S]*?<\/data>/i);
+  if (!dataMatch) return null;
+
+  // <data> 内の全 <results> ブロックを抽出し、id が "_actual" で終わらないものだけ残す
+  const allBlocks = [...dataMatch[0].matchAll(/<results[\s\S]*?<\/results>/g)];
+  const plannedBlocks = allBlocks
+    .map((m) => m[0])
+    .filter((block) => {
+      const idMatch = block.match(/<results[^>]*\sid="([^"]+)"/);
+      if (!idMatch) return false;
+      return !idMatch[1].endsWith('_actual');
+    });
+
+  if (plannedBlocks.length === 0) return null;
+  return plannedBlocks.join('\n    ');
+}
+
+// ============================================================
 // replaceDataAndEventLogInMaiml
 // ============================================================
 

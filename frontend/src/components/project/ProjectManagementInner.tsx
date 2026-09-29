@@ -211,6 +211,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
     });
   }, [selectedProject, t, message, refetchProjects]);
 
+  // プロジェクト完了ハンドラ
+  const handleCompletionComplete = useCallback(async () => {
+    dialogs.setCompletionDialogOpen(false);
+    message.success(t('projectCompletion.completeSuccess'));
+    await refetchProjects();
+  }, [dialogs, message, t, refetchProjects]);
+
   // ViewRenderer ダイアログ管理
   interface OpenDialog { id: string; contentType: 'file' | 'subnet'; file?: ProjectFile; fileContent?: string | null; subnetData?: any; zIndex: number; position: { x: number; y: number }; }
   const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
@@ -429,6 +436,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
         onOpenProject={(projectName) => { const target = projects.find((p) => p.name === projectName); if (target) handleProjectSelect(target.id); }}
         completionDialogOpen={dialogs.completionDialogOpen}
         onCloseCompletionDialog={() => dialogs.setCompletionDialogOpen(false)}
+        onCompletionComplete={handleCompletionComplete}
         // TODO: 暗号化・署名機能は本実装まで無効化
         // encryptionModalOpen={dialogs.encryptionModalOpen}
         // onCloseEncryptionModal={() => dialogs.setEncryptionModalOpen(false)}

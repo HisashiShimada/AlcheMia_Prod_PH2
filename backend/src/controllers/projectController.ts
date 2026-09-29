@@ -1629,85 +1629,45 @@ export async function forceTerminate(req: Request, res: Response): Promise<void>
   }
 }
 
-export async function confirmInstruction(req: Request, res: Response): Promise<void> {
+/**
+ * プロジェクト完了エンドポイント
+ * POST /api/v1/projects/:projectId/complete
+ */
+export async function complete(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   const projectService = new ProjectService();
 
   try {
-    // バリデーションはミドルウェアで処理済み
-    const { organizationId, userId, role } = req.user as any;
-    const { projectId, instructionId } = req.params;
+    const { organizationId } = req.user!;
+    const { projectId } = req.params;
 
-    // Service層呼び出し（projectIdを直接渡す）
-    const result = await projectService.confirmInstruction(
-      instructionId,
-      projectId,
-      userId,
-      organizationId,
-      role
-    );
+    const result = await projectService.completeProject(organizationId, projectId);
 
-    // エラーハンドリング
     if (!result.success) {
       const errorCode = result.error?.code || 'E4001';
-      let statusCode = 500;
-
-      // ステータスコードマッピング
-      if (errorCode === 'E6001') {
-        statusCode = 404;
-      } else if (errorCode === 'E7004') {
-        statusCode = 400;
-      } else if (errorCode === 'E5015') {
-        statusCode = 403;
-      } else if (errorCode.startsWith('E1')) {
-        statusCode = 400;
-      } else if (errorCode === 'E4002') {
-        statusCode = 500;
-      }
-
+      const statusCode = errorCode === 'E6001' ? 404 : errorCode === 'E4003' ? 409 : 500;
       res.status(statusCode).json({
         success: false,
         error: {
           code: errorCode,
-      message: result.error?.message || 'An error occurred',
-          details: result.error?.details,
+          message: result.error?.message || 'An error occurred',
         },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
+        meta: { timestamp: new Date().toISOString(), requestId },
       });
       return;
     }
 
-    // 成功レスポンス（200 OK）
-    res.status(200).json({
+    res.json({
       success: true,
       data: result.data,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   } catch (error) {
-    // 予期しないエラーのハンドリング
-    logError('Instruction confirmation error', error as Error, {
-      action: 'instruction_confirmation',
-      organizationId: req.user?.organizationId,
-      instructionId: req.params.instructionId,
-      requestId,
-    });
-
+    logError('completeProject error', error as Error, { requestId });
     res.status(500).json({
       success: false,
-      error: {
-        code: 'E4001',
-        message: 'An internal server error occurred',
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
+      error: { code: 'E4001', message: 'System error occurred' },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

@@ -361,7 +361,7 @@ export default function ProgressOverviewTab({
     <Button
       size="small"
       disabled={!isProjectRecordable || r.status === 'not_started'}
-      onClick={() => onGoToWork(r.taskNo, r.transitionId)}
+      onClick={() => onGoToWork(r.taskNo, r.transitionId, r.methodId)}
     >
       {t('experimentWork.table.record')}
     </Button>
@@ -582,7 +582,7 @@ export default function ProgressOverviewTab({
                 children: (
                   <TransitionFlowDiagram
                     transitions={flowTransitions}
-                    onRecordClick={(t) => onGoToWork(item.taskNo, t.transitionId)}
+                    onRecordClick={(t) => onGoToWork(item.taskNo, t.transitionId, item.methodId)}
                     onIssueClick={() => {}}
                     isProjectRecordable={isProjectRecordable}
                     methodName={flowMethodName}

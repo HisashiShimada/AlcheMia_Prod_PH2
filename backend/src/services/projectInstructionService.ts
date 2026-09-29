@@ -482,13 +482,15 @@ async function insertLifecycleTransitionEventsForNoPrerequisite(
     const pool = getPool();
 
     // transition_data から prerequisite_transition_ids が空のレコードを取得
+    // DISTINCT を使わず method_id, task_no, transition_id を個別に取得する。
+    // task_no ごとに lifecycle:transition ログを1件ずつ記録するため、
+    // task_no の次元を残す必要がある。
     const result = await pool.query<{
       method_id: string;
       task_no: number;
       transition_id: string;
-      prerequisite_transition_ids: string[];
     }>(
-      `SELECT DISTINCT method_id, transition_id, prerequisite_transition_ids
+      `SELECT method_id, task_no, transition_id
        FROM transition_data
        WHERE organization_id = $1
          AND project_id = $2
@@ -502,10 +504,11 @@ async function insertLifecycleTransitionEventsForNoPrerequisite(
       return;
     }
 
-    // 重複排除（method_id + transition_id 単位）
+    // 重複排除（method_id + transition_id + task_no 単位）
+    // task_no まで含めてキーを構成することで、同一トランジションの複数タスク分を個別に処理する
     const seen = new Set<string>();
     for (const row of result.rows) {
-      const key = `${row.method_id}__${row.transition_id}`;
+      const key = `${row.method_id}__${row.transition_id}__${row.task_no}`;
       if (seen.has(key)) continue;
       seen.add(key);
 
@@ -520,6 +523,7 @@ async function insertLifecycleTransitionEventsForNoPrerequisite(
           userId,
           sentAt,
           projectName,
+          taskNo: row.task_no,
         },
         client
       );

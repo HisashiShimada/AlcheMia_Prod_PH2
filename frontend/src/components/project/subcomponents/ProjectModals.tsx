@@ -71,8 +71,7 @@ export interface ProjectModalsProps {
   onOpenProject: (projectName: string) => void;
   completionDialogOpen: boolean;
   onCloseCompletionDialog: () => void;
-  completionCriteriaList?: any[];
-  onCompletionComplete?: () => Promise<void>;
+  onCompletionComplete: () => Promise<void>;
   // TODO: 暗号化・署名機能は本実装まで無効化
   // encryptionModalOpen: boolean;
   // onCloseEncryptionModal: () => void;
@@ -99,7 +98,7 @@ const ProjectModals: React.FC<ProjectModalsProps> = (p) => (
     <MaimlValidationModal open={p.validationDialogOpen} onClose={p.onCloseValidationDialog} savedValidationRow={p.savedValidationRow} isValidating={p.isValidating} hasMaimlContent={!!p.maimlContent} onValidate={p.onValidate} />
     <TransitionSetSearchModal open={p.semanticSearchModalOpen} onClose={p.onCloseSemanticSearch} initialProjectName={p.selectedProject?.name} onOpenProject={p.onOpenProject} />
     {p.completionDialogOpen && p.selectedProject && (
-      <ProjectCompletionDialog open={p.completionDialogOpen} projectId={p.selectedProject.id} projectName={p.selectedProject.name} criteriaList={p.completionCriteriaList ?? []} onCancel={p.onCloseCompletionDialog} onComplete={p.onCompletionComplete ?? (async () => {})} />
+      <ProjectCompletionDialog open={p.completionDialogOpen} projectId={p.selectedProject.id} projectName={p.selectedProject.name} onCancel={p.onCloseCompletionDialog} onComplete={p.onCompletionComplete} />
     )}
     {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
     {/* {p.selectedProject && <EncryptionManagementModal open={p.encryptionModalOpen} projectName={p.selectedProject.name} onClose={p.onCloseEncryptionModal} />} */}
