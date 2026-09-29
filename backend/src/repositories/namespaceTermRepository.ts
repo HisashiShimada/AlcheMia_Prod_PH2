@@ -605,6 +605,7 @@ export async function updateNamespace(data: {
   prefix: string;
   newPrefix?: string;
   description?: string;
+  scopeKey?: string;
 }): Promise<{ namespaceId: string; prefix: string; uri: string; scopeKey: string | null } | null> {
   const pgp = getPgp();
 
@@ -615,6 +616,14 @@ export async function updateNamespace(data: {
   const updateTermPrefixQuery = await loadSqlFile('namespace_terms/updateTermPrefix.sql');
   const updatePrefixQuery = await loadSqlFile('namespace_terms/updatePrefix.sql');
 
+  // scopeKey が指定されている場合は namespace_id を取得して WHERE 絞り込みに使用（複数スコープに同名 prefix が存在する場合のロック）
+  let namespaceId: string | null = null;
+  if (data.scopeKey) {
+    const findNsIdQuery = await loadSqlFile('namespace_terms/findNamespaceIdByScopeKey.sql');
+    const nsRow = await pgp.oneOrNone<{ namespace_id: string }>(findNsIdQuery, [data.organizationId, data.scopeKey]);
+    namespaceId = nsRow?.namespace_id ?? null;
+  }
+
   return (pgp.task(async (t: ITask<unknown>) => {
     // 1. prefix が変更される場合、先に namespace_term.prefix を UPDATE（FK 制約のため）
     if (targetPrefix !== data.prefix) {
@@ -622,7 +631,7 @@ export async function updateNamespace(data: {
     }
 
     // 2. prefix テーブルの prefix と description を UPDATE
-    const rawRow = await t.oneOrNone(updatePrefixQuery, [targetPrefix, description, data.organizationId, data.prefix]) as {
+    const rawRow = await t.oneOrNone(updatePrefixQuery, [targetPrefix, description, data.organizationId, data.prefix, namespaceId]) as {
       namespace_id: string;
       prefix: string;
       uri: string;

@@ -1036,6 +1036,8 @@ export interface UpdateNamespaceBody {
   newPrefix?: string;
   /** 説明文（省略時は null に更新） */
   description?: string;
+  /** 編集対象行のスコープキー（organization_group_cd または userId）。複数スコープに同名 prefix が存在する場合の絞り込みに使用 */
+  scopeKey?: string;
 }
 
 /**

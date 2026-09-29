@@ -101,13 +101,14 @@ export async function updateNamespace(
   try {
     const organizationId = req.user!.organizationId;
     const prefix = decodeURIComponent(req.params.prefix);
-    const { newPrefix, description } = req.body as UpdateNamespaceBody;
+    const { newPrefix, description, scopeKey } = req.body as UpdateNamespaceBody;
 
     const updateNamespaceInput: UpdateNamespaceInput = {
       organizationId,
       prefix,
       newPrefix,
       description,
+      scopeKey,
     };
     const result = await namespaceService.updateNamespace(updateNamespaceInput);
     if (!result) {

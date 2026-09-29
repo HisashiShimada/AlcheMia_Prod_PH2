@@ -97,6 +97,8 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   /** 編集中の行の元の prefix 文字列（API 呼び出し用・editingId は複合キーのため別途保持） */
   const [editingOriginalPrefix, setEditingOriginalPrefix] = useState<string | null>(null);
+  /** 編集中の行の scopeKey（複数スコープに同名 prefix が存在する場合の絞り込みに使用） */
+  const [editingScopeKey, setEditingScopeKey] = useState<string | null>(null);
   const [editingValues, setEditingValues] = useState<PrefixEditValuesWithUri>({
     prefix: '',
     uri: '',
@@ -419,6 +421,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const startEdit = (record: PrefixRow) => {
     setEditingId(record.id);
     setEditingOriginalPrefix(record.prefix);
+    setEditingScopeKey(record.scopeKey ?? null);
     setEditingValues({
       prefix: record.prefix,
       uri: record.uri,
@@ -443,10 +446,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         // （editingId は複合キーのため直接 API には渡せない）
         newPrefix: editingValues.prefix !== editingOriginalPrefix ? editingValues.prefix : undefined,
         description: editingValues.description,
+        // 複数スコープに同名 prefix が存在する場合の絞り込み用
+        scopeKey: editingScopeKey ?? undefined,
       };
       await updateNamespace(editingOriginalPrefix, updateNamespaceRequest);
       setEditingId(null);
       setEditingOriginalPrefix(null);
+      setEditingScopeKey(null);
       message.success(t('prefixManagement.updateSuccess'));
       // reloadNamespaces を使うことで selectedNsKey / orgGroupCds の両方を
       // 考慮した正しいスコープでデータを再取得する
@@ -459,6 +465,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const cancelEdit = () => {
     setEditingId(null);
     setEditingOriginalPrefix(null);
+    setEditingScopeKey(null);
   };
 
   // ── 非アクティブ化（is_active = false に設定）
@@ -691,7 +698,11 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }
         const r = record as PrefixRow;
         return r.id === editingId ? (
-          <Input disabled size="small" value={editingValues.prefix} />
+          <Input
+            size="small"
+            value={editingValues.prefix}
+            onChange={(e) => setEditingValues((prev) => ({ ...prev, prefix: e.target.value }))}
+          />
         ) : (
           <Text strong>{r.prefix}</Text>
         );

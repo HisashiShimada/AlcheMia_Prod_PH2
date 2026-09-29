@@ -4,6 +4,7 @@
 -- $2: description（変更後の description。NULL を渡すと NULL に更新される）
 -- $3: organization_id
 -- $4: current_prefix（変更前の prefix 文字列）
+-- $5: namespace_id（NULLの場合は namespace_id 条件なし・後方互換）
 UPDATE prefix
 SET
   prefix      = $1
@@ -11,6 +12,7 @@ SET
   , update_at  = CURRENT_TIMESTAMP
 WHERE organization_id = $3
   AND prefix          = $4
+  AND ($5::VARCHAR IS NULL OR namespace_id = $5)
 RETURNING
   (
     SELECT n.namespace_id
