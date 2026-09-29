@@ -2262,4 +2262,58 @@ export class ProjectService {
       client.release();
     }
   }
+
+  /**
+   * プロジェクト完了ボタン活性条件チェック
+   *
+   * 以下の4条件をすべて確認する:
+   *   ① project_status = 3 (REVIEW_WAITING)
+   *   ② 全タスクが COMPLETED(3) or REVIEW_NG(5)、かつ1件以上存在
+   *   ③ 全トランジションが終状態(6)、かつ1件以上存在
+   *   ④ project_overall_evaluations に evaluation_scope='MAIML_PROJECT' のレコード存在
+   *
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @returns eligible（全条件が満たされているか）と各条件の詳細
+   */
+  async getCompletionEligibility(
+    organizationId: string,
+    projectId: string
+  ): Promise<ServiceResult<{
+    eligible: boolean;
+    reasons: {
+      isReviewWaiting: boolean;
+      allTasksDone: boolean;
+      allTransitionsCompleted: boolean;
+      hasProjectEvaluation: boolean;
+    };
+  }>> {
+    try {
+      const pool = getPool();
+      const sql = await loadSqlFile('project/getCompletionEligibility.sql');
+      const result = await pool.query(sql, [organizationId, projectId]);
+
+      if (result.rows.length === 0) {
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+
+      const row = result.rows[0];
+      const reasons = {
+        isReviewWaiting:          Boolean(row.is_review_waiting),
+        allTasksDone:             Boolean(row.all_tasks_done),
+        allTransitionsCompleted:  Boolean(row.all_transitions_completed),
+        hasProjectEvaluation:     Boolean(row.has_project_evaluation),
+      };
+      const eligible =
+        reasons.isReviewWaiting &&
+        reasons.allTasksDone &&
+        reasons.allTransitionsCompleted &&
+        reasons.hasProjectEvaluation;
+
+      return { success: true, data: { eligible, reasons } };
+    } catch (error) {
+      logError('getCompletionEligibility error', error as Error, { organizationId, projectId });
+      return { success: false, error: { code: 'E4002', message: 'Database error occurred' } };
+    }
+  }
 }

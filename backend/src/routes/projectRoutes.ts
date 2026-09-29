@@ -369,6 +369,30 @@ router.get(
 );
 
 /**
+ * プロジェクト完了ボタン活性条件チェック
+ * GET /api/v1/projects/:projectId/completion-eligibility
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
+ * @description プロジェクト完了ボタンの活性/非活性を決める4条件を確認して返す
+ * @roles experiment_admin（読取専用）
+ */
+router.get(
+  '/:projectId/completion-eligibility',
+  authMiddleware,
+  checkPermission('040000', 0),
+  [
+    param('projectId')
+      .notEmpty()
+      .withMessage('projectIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectIdは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.getCompletionEligibility
+);
+
+/**
  * 作業指示一覧取得
  * GET /api/v1/projects/:projectId/worker-instructions
  * 
