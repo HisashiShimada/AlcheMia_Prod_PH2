@@ -19,12 +19,14 @@ const EvaluationRegistrationTabContent: React.FC<EvaluationRegistrationTabConten
   const isProjectCompleted =
     selectedProject.status === ProjectStatus.COMPLETED ||
     selectedProject.status === ProjectStatus.ERROR;
+  const isProjectPlanning = selectedProject.status === ProjectStatus.PLANNING;
   return (
     <div style={{ height: '100%', padding: '8px 16px', overflowY: 'auto' }}>
       <EvaluationRegistrationTab
         projectId={selectedProject.id}
         isEditable={selectedProject.isEditable !== false}
         isProjectCompleted={isProjectCompleted}
+        isProjectPlanning={isProjectPlanning}
         isCheckoutLocked={isProjectCheckedOut}
         maimlHasErrors={maimlHasErrors}
       />
