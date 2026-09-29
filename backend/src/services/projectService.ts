@@ -29,6 +29,13 @@ import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
 import { XMLParser } from 'fast-xml-parser';
+import {
+  buildQualityEvalLogEntries,
+  resolveTransitionToInstructionMap,
+  resolveTransitionToProgramMap,
+  removeUncertaintiesWrapper,
+} from '../utils/maimlQualityWriter';
+import * as projectOverallEvaluationRepository from '../repositories/projectOverallEvaluationRepository';
 import type {
   Project,
   Pagination,
@@ -791,7 +798,7 @@ export class ProjectService {
       await transitionDataRepository.updateStatusForCheckout(client, organizationId, projectId, userId);
 
       console.log(`[DEBUG] checkout - Updated transition_data status to PREPARING for prerequisite-less transitions`);
-
+      
       // チェックアウト時イベントログ記録（COMMIT前・トランザクション内）
       // updateStatusForCheckout で PREPARING になったトランジションに対して lifecycle:transition を記録する
       try {
@@ -2238,8 +2245,65 @@ export class ProjectService {
 
       await client.query('COMMIT');
 
-      // ③ COMMIT 後: MAiML ファイルの <eventLog> のみ書き出し（実績データは完了時点で書き込み済みのため不要）（失敗は警告扱い）
+      // ③ COMMIT 後: 品質評価 eventLog を maiml_event_log テーブルに INSERT（失敗は警告扱い）
       const projectName = project.project_name ?? projectId;
+      try {
+        const storageService = getStorageService();
+        const filePath = await resolveMaimlFilePath(organizationId, projectId, projectName);
+        const fileExists = await storageService.fileExists(organizationId, filePath);
+
+        let transToInstMap: Map<string, string> = new Map();
+        let transToProgMap: Map<string, string> = new Map();
+
+        if (fileExists) {
+          const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+          let maimlXml = fileBuffer.toString('utf-8');
+          maimlXml = removeUncertaintiesWrapper(maimlXml);
+          transToInstMap = resolveTransitionToInstructionMap(maimlXml);
+          transToProgMap = resolveTransitionToProgramMap(maimlXml);
+        } else {
+          console.warn(
+            '[ProjectService.completeProject] MAiMLファイルが存在しないためマッピング解決をスキップします'
+          );
+        }
+
+        const [subEvaluations, overallEvals] = await Promise.all([
+          projectOverallEvaluationRepository.findSubEvaluationsByProject(organizationId, projectId),
+          projectOverallEvaluationRepository.findByProject(organizationId, projectId),
+        ]);
+        const latestOverallEval = overallEvals.length > 0 ? overallEvals[0] : null;
+
+        const qualityEntries = buildQualityEvalLogEntries(
+          subEvaluations,
+          latestOverallEval,
+          transToInstMap,
+          transToProgMap,
+          projectId
+        );
+
+        if (qualityEntries.length > 0) {
+          const eventLogRepository = new EventLogRepository();
+          await eventLogRepository.insertQualityEvalLogEntries(
+            organizationId,
+            projectId,
+            qualityEntries
+          );
+          console.log(
+            `[ProjectService.completeProject] 品質評価 eventLog INSERT 完了: ${qualityEntries.length}件`
+          );
+        } else {
+          console.log(
+            '[ProjectService.completeProject] 品質評価データなし、INSERT をスキップします'
+          );
+        }
+      } catch (qualityInsertError) {
+        console.warn(
+          '[ProjectService.completeProject] 品質評価 eventLog INSERT に失敗しました（処理は継続）:',
+          qualityInsertError
+        );
+      }
+
+      // ④ COMMIT 後: MAiML ファイルの <eventLog> のみ書き出し（実績データは完了時点で書き込み済みのため不要）（失敗は警告扱い）
       try {
         const maimlWriterService = new MaimlWriterService();
         await maimlWriterService.writeEventLogOnly(organizationId, projectId, projectName);
@@ -2260,6 +2324,60 @@ export class ProjectService {
       return { success: false, error: { code: 'E4002', message: 'Database error occurred' } };
     } finally {
       client.release();
+    }
+  }
+
+  /**
+   * プロジェクト完了ボタン活性条件チェック
+   *
+   * 以下の4条件をすべて確認する:
+   *   ① project_status = 3 (REVIEW_WAITING)
+   *   ② 全タスクが COMPLETED(3) or REVIEW_NG(5)、かつ1件以上存在
+   *   ③ 全トランジションが終状態(6)、かつ1件以上存在
+   *   ④ project_overall_evaluations に evaluation_scope='MAIML_PROJECT' のレコード存在
+   *
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @returns eligible（全条件が満たされているか）と各条件の詳細
+   */
+  async getCompletionEligibility(
+    organizationId: string,
+    projectId: string
+  ): Promise<ServiceResult<{
+    eligible: boolean;
+    reasons: {
+      isReviewWaiting: boolean;
+      allTasksDone: boolean;
+      allTransitionsCompleted: boolean;
+      hasProjectEvaluation: boolean;
+    };
+  }>> {
+    try {
+      const pool = getPool();
+      const sql = await loadSqlFile('project/getCompletionEligibility.sql');
+      const result = await pool.query(sql, [organizationId, projectId]);
+
+      if (result.rows.length === 0) {
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+
+      const row = result.rows[0];
+      const reasons = {
+        isReviewWaiting:          Boolean(row.is_review_waiting),
+        allTasksDone:             Boolean(row.all_tasks_done),
+        allTransitionsCompleted:  Boolean(row.all_transitions_completed),
+        hasProjectEvaluation:     Boolean(row.has_project_evaluation),
+      };
+      const eligible =
+        reasons.isReviewWaiting &&
+        reasons.allTasksDone &&
+        reasons.allTransitionsCompleted &&
+        reasons.hasProjectEvaluation;
+
+      return { success: true, data: { eligible, reasons } };
+    } catch (error) {
+      logError('getCompletionEligibility error', error as Error, { organizationId, projectId });
+      return { success: false, error: { code: 'E4002', message: 'Database error occurred' } };
     }
   }
 }

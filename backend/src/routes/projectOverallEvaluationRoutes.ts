@@ -50,22 +50,6 @@ router.get(
 );
 
 /**
- * 品質評価データを MAiML ファイルの <eventLog> に書き込む
- * POST /api/v1/project-overall-evaluations/:projectId/export-to-maiml
- * ※ /:projectId より先に登録すること（具体パスを優先させるため）
- */
-router.post(
-  '/:projectId/export-to-maiml',
-  authMiddleware,
-  tenantIsolation,
-  [
-    param('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
-  ],
-  handleValidationErrors,
-  projectOverallEvaluationController.exportToMaiml
-);
-
-/**
  * 下位評価を一括保存
  * POST /api/v1/project-overall-evaluations/:projectId/sub-evaluations
  * ※ /:projectId より先に登録すること（具体パスを優先させるため）

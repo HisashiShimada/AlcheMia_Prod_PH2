@@ -11,8 +11,8 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { usePublishStatusPoller } from '@/hooks/usePublishStatusPoller';
-import { ProjectStatus, TaskStatus } from '@/constants/codeMaster';
-import { getProjectFiles, getPublishStatus, forceTerminateProject, getProjectTasks } from '@/services/projectApiService';
+import { ProjectStatus } from '@/constants/codeMaster';
+import { getProjectFiles, getPublishStatus, forceTerminateProject, getCompletionEligibility } from '@/services/projectApiService';
 
 import { useProjectList } from '@/hooks/project/useProjectList';
 import { useProjectSelection } from '@/hooks/project/useProjectSelection';
@@ -64,7 +64,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
   } = listState;
 
   const [projectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
-  const [allTasksCompleted, setAllTasksCompleted] = useState(false);
+  const [isCompletionEligible, setIsCompletionEligible] = useState(false);
   const [projectFilesDataState, setProjectFilesDataState] = useState<Record<string, ProjectFilesData>>({});
 
   const selectionState = useProjectSelection({
@@ -137,18 +137,14 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
       .finally(() => setPublishStatusLoading(false));
   }, [selectedProject]);
 
-  // 全タスク完了状態チェック: selectedProject が変わるたびに project_task_detail の全タスクステータスを確認
+  // プロジェクト完了ボタン活性条件チェック: selectedProject が変わるたびに4条件をAPIで確認
   useEffect(() => {
-    if (!selectedProject) { setAllTasksCompleted(false); return; }
-    getProjectTasks(selectedProject.id)
+    if (!selectedProject) { setIsCompletionEligible(false); return; }
+    getCompletionEligibility(selectedProject.id)
       .then((result) => {
-        const tasks = result.tasks;
-        const allCompleted =
-          tasks.length > 0 &&
-          tasks.every((task) => task.workStatus === TaskStatus.COMPLETED);
-        setAllTasksCompleted(allCompleted);
+        setIsCompletionEligible(result.eligible);
       })
-      .catch(() => setAllTasksCompleted(false));
+      .catch(() => setIsCompletionEligible(false));
   }, [selectedProject]);
 
   const handleProjectReload = useCallback(async () => {
@@ -334,8 +330,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                   <Button danger icon={<DeleteOutlined />} onClick={handleProjectDelete} disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}>{t('projectManagement.deleteButton')}</Button>
                   <Button type="primary" icon={<FileTextOutlined />} onClick={handleToggleCheckout} disabled={selectedProject?.status === ProjectStatus.COMPLETED || selectedProject?.status === ProjectStatus.ERROR || selectedProject?.isEditable === false} style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }} data-testid="checkout-checkin-button">{isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}</Button>
                   <Button type="primary" icon={<ExclamationCircleOutlined />} onClick={handleOpenIssueManagement} style={{ backgroundColor: token.colorWarning, borderColor: token.colorWarning }}>{t('projectManagement.issueCheck')}</Button>
-                  <Tooltip title={!allTasksCompleted ? t('projectManagement.completionDisabledTooltip') : selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : undefined}>
-                    <Button type="primary" disabled={!allTasksCompleted || selectedProject?.isEditable === false} style={allTasksCompleted && selectedProject?.isEditable !== false ? { backgroundColor: '#52c41a', borderColor: '#52c41a' } : undefined} onClick={() => dialogs.setCompletionDialogOpen(true)}>{t('projectManagement.completionButton')}</Button>
+                  <Tooltip title={!isCompletionEligible ? t('projectManagement.completionDisabledTooltip') : selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : undefined}>
+                    <Button type="primary" disabled={!isCompletionEligible || selectedProject?.isEditable === false} style={isCompletionEligible && selectedProject?.isEditable !== false ? { backgroundColor: '#52c41a', borderColor: '#52c41a' } : undefined} onClick={() => dialogs.setCompletionDialogOpen(true)}>{t('projectManagement.completionButton')}</Button>
                   </Tooltip>
                   {isPublished ? (<Button type="primary" data-testid="maiml-toolbar-unpublish-button" style={{ backgroundColor: token.colorError, borderColor: token.colorError }} onClick={handleUnpublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.unpublish')}</Button>) : (<Button type="primary" data-testid="maiml-toolbar-publish-button" style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }} onClick={handlePublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || selectedProject?.status !== ProjectStatus.COMPLETED || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.publish')}</Button>)}
                   <Button
