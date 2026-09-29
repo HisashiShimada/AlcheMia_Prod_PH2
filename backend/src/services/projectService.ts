@@ -29,6 +29,13 @@ import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
 import { XMLParser } from 'fast-xml-parser';
+import {
+  buildQualityEvalLogEntries,
+  resolveTransitionToInstructionMap,
+  resolveTransitionToProgramMap,
+  removeUncertaintiesWrapper,
+} from '../utils/maimlQualityWriter';
+import * as projectOverallEvaluationRepository from '../repositories/projectOverallEvaluationRepository';
 import type {
   Project,
   Pagination,
@@ -791,7 +798,7 @@ export class ProjectService {
       await transitionDataRepository.updateStatusForCheckout(client, organizationId, projectId, userId);
 
       console.log(`[DEBUG] checkout - Updated transition_data status to PREPARING for prerequisite-less transitions`);
-
+      
       // チェックアウト時イベントログ記録（COMMIT前・トランザクション内）
       // updateStatusForCheckout で PREPARING になったトランジションに対して lifecycle:transition を記録する
       try {
@@ -2238,8 +2245,65 @@ export class ProjectService {
 
       await client.query('COMMIT');
 
-      // ③ COMMIT 後: MAiML ファイルの <eventLog> のみ書き出し（実績データは完了時点で書き込み済みのため不要）（失敗は警告扱い）
+      // ③ COMMIT 後: 品質評価 eventLog を maiml_event_log テーブルに INSERT（失敗は警告扱い）
       const projectName = project.project_name ?? projectId;
+      try {
+        const storageService = getStorageService();
+        const filePath = await resolveMaimlFilePath(organizationId, projectId, projectName);
+        const fileExists = await storageService.fileExists(organizationId, filePath);
+
+        let transToInstMap: Map<string, string> = new Map();
+        let transToProgMap: Map<string, string> = new Map();
+
+        if (fileExists) {
+          const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+          let maimlXml = fileBuffer.toString('utf-8');
+          maimlXml = removeUncertaintiesWrapper(maimlXml);
+          transToInstMap = resolveTransitionToInstructionMap(maimlXml);
+          transToProgMap = resolveTransitionToProgramMap(maimlXml);
+        } else {
+          console.warn(
+            '[ProjectService.completeProject] MAiMLファイルが存在しないためマッピング解決をスキップします'
+          );
+        }
+
+        const [subEvaluations, overallEvals] = await Promise.all([
+          projectOverallEvaluationRepository.findSubEvaluationsByProject(organizationId, projectId),
+          projectOverallEvaluationRepository.findByProject(organizationId, projectId),
+        ]);
+        const latestOverallEval = overallEvals.length > 0 ? overallEvals[0] : null;
+
+        const qualityEntries = buildQualityEvalLogEntries(
+          subEvaluations,
+          latestOverallEval,
+          transToInstMap,
+          transToProgMap,
+          projectId
+        );
+
+        if (qualityEntries.length > 0) {
+          const eventLogRepository = new EventLogRepository();
+          await eventLogRepository.insertQualityEvalLogEntries(
+            organizationId,
+            projectId,
+            qualityEntries
+          );
+          console.log(
+            `[ProjectService.completeProject] 品質評価 eventLog INSERT 完了: ${qualityEntries.length}件`
+          );
+        } else {
+          console.log(
+            '[ProjectService.completeProject] 品質評価データなし、INSERT をスキップします'
+          );
+        }
+      } catch (qualityInsertError) {
+        console.warn(
+          '[ProjectService.completeProject] 品質評価 eventLog INSERT に失敗しました（処理は継続）:',
+          qualityInsertError
+        );
+      }
+
+      // ④ COMMIT 後: MAiML ファイルの <eventLog> のみ書き出し（実績データは完了時点で書き込み済みのため不要）（失敗は警告扱い）
       try {
         const maimlWriterService = new MaimlWriterService();
         await maimlWriterService.writeEventLogOnly(organizationId, projectId, projectName);

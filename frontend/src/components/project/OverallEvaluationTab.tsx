@@ -246,8 +246,15 @@ const OverallEvaluationTab: React.FC<OverallEvaluationTabProps> = ({
       getByProject(projectId).catch(() => [] as ProjectOverallEvaluation[]),
       getSubEvaluationsByProject(projectId).catch(() => [] as SubEvaluationRow[]),
     ]).then(([overallList, subList]) => {
-      setLatestEval(overallList.length > 0 ? overallList[0] : null);
+      const latest = overallList.length > 0 ? overallList[0] : null;
+      setLatestEval(latest);
       setSubEvalCount(subList.length);
+      // 登録済みデータをフォームに復元
+      if (latest) {
+        setDigitalValue((latest.overall_digital as '良好' | '要確認' | '不良') ?? null);
+        setScore(latest.overall_score ?? 0);
+        setAnalog(latest.overall_analog ?? '');
+      }
     }).finally(() => setEvalLoading(false));
   }, [projectId]);
 
@@ -284,9 +291,6 @@ const OverallEvaluationTab: React.FC<OverallEvaluationTabProps> = ({
       message.success(t('overallEvaluation.successRegistered'));
       fetchEvalData();
       refetchSummary();
-      setDigitalValue(null);
-      setScore(0);
-      setAnalog('');
     } catch {
       message.error(t('overallEvaluation.errorRegistered'));
     } finally {
