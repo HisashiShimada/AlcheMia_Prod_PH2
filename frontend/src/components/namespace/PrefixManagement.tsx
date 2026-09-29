@@ -974,7 +974,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>
             {t('prefixManagement.btnImport')}
           </Button>
-          <Button onClick={handleCsvDownload}>{t('prefixManagement.btnExport')}</Button>
+          <Button disabled={rows.length === 0} onClick={handleCsvDownload}>{t('prefixManagement.btnExport')}</Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
