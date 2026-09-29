@@ -203,6 +203,8 @@ interface WorkInsertionSlot {
 
 interface WorkTemplate {
   id: string;
+  /** MAIMLのtemplate.id（template_data.property_set.templateId に対応） */
+  templateId?: string;
   name: string;
   category: 'Conditions' | 'Materials' | 'Results';
   properties: WorkProperty[];
@@ -841,7 +843,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
             defaultConfidence: initialConf?.confidence ?? prop.defaultConfidence,
             qualitativeReason: initialConf?.qualitativeReason ?? prop.qualitativeReason,
           };
-          const initialUncValues = onGetInitialUncertaintyValues?.(template.id, prop.key) ?? [];
+          const initialUncValues = onGetInitialUncertaintyValues?.(template.templateId ?? template.id, prop.key) ?? [];
           return (
           <Col span={8} key={prop.key}>
             <PropertyCard
@@ -856,7 +858,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
                 if (displayKey) onActualChange(displayKey.taskNo, displayKey.transitionId, key, value);
               }}
               onUncertaintyValuesChange={(entries) => {
-                onUncertaintyValuesChange?.(template.id, entries);
+                onUncertaintyValuesChange?.(template.templateId ?? template.id, entries);
               }}
               onConfidenceChange={(propKey, value, uncertaintyKey) => {
                 onConfidenceChange?.(template.id, propKey, value, uncertaintyKey);
@@ -2462,6 +2464,7 @@ export default function WorkRecordPanel({
                     (normalizedCategory === 'material' || rawCategory === 'Materials') ? 'Materials' : 'Conditions';
                   return {
                     id: String(item.placeId || `tpl-${row.transitionId}-${_tplIdx}`),
+                    templateId: item.templateId,
                     name: String(item.data.templateName ?? item.data.template_name ?? item.data.templateId ?? row.transitionId),
                     category,
                     properties,
@@ -2537,7 +2540,7 @@ export default function WorkRecordPanel({
         for (const [, builtTemplates] of templatesMap.entries()) {
           for (const tpl of builtTemplates) {
             for (const wp of tpl.properties) {
-              const refKey = `${tpl.id}__${wp.key}`;
+              const refKey = `${tpl.templateId ?? tpl.id}__${wp.key}`;
               if (uncertaintyValuesRef.current.has(refKey)) continue;
               const entries: UncertaintyValueEntry[] = (wp.quantitativeUncertainties ?? [])
                 .filter((qu) => qu.recordedValue != null)
