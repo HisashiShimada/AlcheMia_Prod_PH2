@@ -2229,6 +2229,7 @@
     "correctionCount": "🔧 Auto-correctable:",
     "unit": "",
     "errorDetailLabel": "Error Details (top 3)",
+    "errorDetailLabelWithCount": "Error Details ({count})",
     "errorDetailMore": "... {count} more error(s)",
     "errorDetailNone": "No error details",
     "destinationLabel": "Select Destination",
