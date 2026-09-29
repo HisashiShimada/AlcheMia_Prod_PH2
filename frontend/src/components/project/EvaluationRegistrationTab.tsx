@@ -67,6 +67,8 @@ projectId: string;
   isEditable?: boolean;
   /** プロジェクト完了フラグ。true の場合は変更系ボタンを非活性にする */
   isProjectCompleted?: boolean;
+  /** プロジェクト計画中フラグ。true の場合は変更系ボタンを非活性にする */
+  isProjectPlanning?: boolean;
   /** チェックアウト中フラグ。true の場合は変更系ボタンを非活性にする */
   isCheckoutLocked?: boolean;
   /** MAIMLバリデーションエラーがある場合 true。true の場合は変更系ボタンを非活性にする */
@@ -347,6 +349,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
   projectId,
   isEditable = true,
   isProjectCompleted = false,
+  isProjectPlanning = false,
   isCheckoutLocked = false,
   maimlHasErrors = false,
 }) => {
@@ -572,7 +575,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
 
         {/* ① 「評価を入力」ボタン（左端） */}
         <Flex justify="flex-start">
-          <Button type="primary" icon={<EditOutlined />} size="small" disabled={!isEditable || isProjectCompleted || isCheckoutLocked || maimlHasErrors} onClick={() => setInputModalOpen(true)}>
+          <Button type="primary" icon={<EditOutlined />} size="small" disabled={!isEditable || isProjectPlanning || isProjectCompleted || isCheckoutLocked || maimlHasErrors} onClick={() => setInputModalOpen(true)}>
             {t('evaluation.buttons.inputEvaluation')}
           </Button>
         </Flex>
