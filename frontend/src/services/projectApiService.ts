@@ -1973,6 +1973,47 @@ export const completeProject = async (
 };
 
 /**
+ * プロジェクト完了ボタン活性条件チェック
+ *
+ * @description 以下の4条件をすべて確認する:
+ *   ① project_status = 3 (REVIEW_WAITING)
+ *   ② 全タスクが COMPLETED(3) or REVIEW_NG(5)、かつ1件以上存在
+ *   ③ 全トランジションが終状態(6)、かつ1件以上存在
+ *   ④ project_overall_evaluations に evaluation_scope='MAIML_PROJECT' のレコード存在
+ */
+export const getCompletionEligibility = async (
+  projectId: string
+): Promise<{
+  eligible: boolean;
+  reasons: {
+    isReviewWaiting: boolean;
+    allTasksDone: boolean;
+    allTransitionsCompleted: boolean;
+    hasProjectEvaluation: boolean;
+  };
+}> => {
+  const client = createApiClient();
+  try {
+    const response = await client.get<{
+      success: boolean;
+      data: {
+        eligible: boolean;
+        reasons: {
+          isReviewWaiting: boolean;
+          allTasksDone: boolean;
+          allTransitionsCompleted: boolean;
+          hasProjectEvaluation: boolean;
+        };
+      };
+    }>(`/projects/${projectId}/completion-eligibility`);
+    return response.data.data;
+  } catch (error) {
+    console.error('[getCompletionEligibility] エラー', { error, projectId });
+    throw error;
+  }
+};
+
+/**
  * プロジェクトのグループメンバー（Owner候補ユーザー）を取得
  *
  * @remarks

@@ -525,9 +525,56 @@ export async function getProjectTasks(req: Request, res: Response): Promise<void
 }
 
 /**
+ * プロジェクト完了ボタン活性条件チェックエンドポイント
+ * GET /api/v1/projects/:projectId/completion-eligibility
+ *
+ * @description 完了ボタンの活性/非活性を決める4条件をすべて確認して返す
+ * @roles experiment_admin（読取専用）
+ */
+export async function getCompletionEligibility(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectId } = req.params;
+
+    const result = await projectService.getCompletionEligibility(organizationId, projectId);
+
+    if (!result.success) {
+      const errorCode = result.error?.code || 'E4001';
+      const statusCode = errorCode === 'E6001' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: { code: errorCode, message: result.error?.message || 'エラーが発生しました' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('getCompletionEligibility error', error as Error, {
+      organizationId: req.user?.organizationId,
+      projectId: req.params.projectId,
+      requestId,
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
  * プロジェクトMAIML取得エンドポイント
  * GET /api/v1/projects/:projectId/maiml
- * 
+ *
  * @description プロジェクトの最新MAIMLファイルをXML形式で取得する（プロジェクト管理画面で使用）
  * @note フロントエンドProjectMaimlContext用エンドポイント
  * Requirements: REQ-1, REQ-2, REQ-4, REQ-5, REQ-7

@@ -1424,7 +1424,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
               <Form.Item
                 label={t('experimentInstructionTab.ngModal.reasonLabel')}
                 required
-                style={{ marginBottom: 0 }}
+                style={{ marginBottom: 10 }}
               >
                 <Input.TextArea
                   rows={3}
