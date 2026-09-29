@@ -1236,6 +1236,29 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     // ダイアログ開始前に setIsSaving(true) を設定する
     setIsSaving(true);
     try {
+    // 別Prefix・同ローカル名の重複チェック
+    // 既存用語（terms）と localName が一致し、かつ prefix が異なる行を検出する
+    const crossPrefixRows = newTerms.filter(
+      (row) =>
+        row.prefix &&
+        row.localName &&
+        terms.some((t) => t.localName === row.localName && t.prefix !== row.prefix)
+    );
+    if (crossPrefixRows.length > 0) {
+      const crossPrefixConfirmed = await new Promise<boolean>((resolve) => {
+        const warnConfig = {
+          title: t('namespaceMain.warnDuplicateTitle'),
+          content: t('namespaceMain.warnDuplicateContent'),
+          okText: t('namespaceMain.warnRegister'),
+          cancelText: t('namespaceMain.warnCancel'),
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        };
+        modal.confirm(warnConfig);
+      });
+      if (!crossPrefixConfirmed) return; // finally ブロックで setIsSaving(false) が自動実行される
+    }
+
     // createDirectiveTerm が false の行がある場合、確認警告を表示
     const uncheckedRows = newTerms.filter((r) => !r.createDirectiveTerm);
     if (uncheckedRows.length > 0) {
