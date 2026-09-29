@@ -2834,18 +2834,22 @@ export default function WorkRecordPanel({
     const taskTransition = task?.transitions.find((tt) => tt.transitionId === transitionId);
 
     // ── 定性評価の必須バリデーション ──
-    // rawTemplateItemsRef の該当トランジションのプロパティに qualitativeOptions が
-    // 1件でも存在する場合、confidenceValuesRef にエントリが1件もなければエラーにする
-    const hasQualitativeProps = rawItems.some((item) => {
+    // 確信度ボタンは readOnly でない限りすべての通常プロパティ（isCustomProperty !== true）で表示される。
+    // テンプレートに qualitativeOptions が指定されていない場合もデフォルト選択肢が表示されるため、
+    // qualitativeOptions の有無に関わらず、通常プロパティ全件を対象にチェックする。
+    for (const item of rawItems) {
       const props = (item.data?.properties ?? []) as Array<Record<string, unknown>>;
-      return props.some((p) => {
-        const opts = p.qualitativeOptions as Array<unknown> | null | undefined;
-        return Array.isArray(opts) && opts.length > 0;
-      });
-    });
-    if (hasQualitativeProps && confidenceValuesRef.current.size === 0) {
-      message.error(t('workRecord.correctionQualitativeRequired'));
-      return;
+      for (const p of props) {
+        if (p.isCustomProperty === true) continue;
+        const propKey = String(p.key ?? '');
+        const entry =
+          confidenceValuesRef.current.get(`${item.placeId}__${propKey}`) ??
+          confidenceValuesRef.current.get(`${item.templateId}__${propKey}`);
+        if (!entry || !entry.value) {
+          message.error(t('workRecord.correctionQualitativeRequired'));
+          return;
+        }
+      }
     }
 
     setCorrectionLoading(true);
@@ -3006,6 +3010,25 @@ export default function WorkRecordPanel({
       setIsDirty(false);
       onSave?.();
       return;
+    }
+
+    // ── 定性評価の必須バリデーション ──
+    // 確信度ボタンは readOnly でない限りすべての通常プロパティ（isCustomProperty !== true）で表示される。
+    // テンプレートに qualitativeOptions が指定されていない場合もデフォルト選択肢が表示されるため、
+    // qualitativeOptions の有無に関わらず、通常プロパティ全件を対象にチェックする。
+    for (const item of rawItems) {
+      const props = (item.data?.properties ?? []) as Array<Record<string, unknown>>;
+      for (const p of props) {
+        if (p.isCustomProperty === true) continue;
+        const propKey = String(p.key ?? '');
+        const entry =
+          confidenceValuesRef.current.get(`${item.placeId}__${propKey}`) ??
+          confidenceValuesRef.current.get(`${item.templateId}__${propKey}`);
+        if (!entry || !entry.value) {
+          message.error(t('workRecord.qualitativeRequired'));
+          return;
+        }
+      }
     }
 
     try {

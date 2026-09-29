@@ -76,6 +76,7 @@
     "correctionSaved": "訂正を保存しました",
     "correctionError": "訂正の保存に失敗しました",
     "correctionQualitativeRequired": "定性評価を選択してから訂正保存してください",
+    "qualitativeRequired": "定性評価を選択してから保存してください",
     "saveSuccess": "保存しました",
     "saveContent": "作業記録を保存しました。",
     "transitionComplete": "トランジション完了",

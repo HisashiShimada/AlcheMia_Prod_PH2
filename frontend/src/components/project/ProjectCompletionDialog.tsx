@@ -24,7 +24,6 @@ import {
   App,
 } from 'antd';
 import { completeProject } from '@/services/projectApiService';
-import { exportToMaiml as exportOverallEvaluationToMaiml } from '@/services/projectOverallEvaluationApiService';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
@@ -61,24 +60,10 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
   const handleComplete = async () => {
     setSubmitting(true);
     try {
-      // ① プロジェクトステータスを COMPLETED(4) に更新
+      // ① プロジェクトステータスを COMPLETED(4) に更新（品質評価 eventLog の MAiML 書き出しも含む）
       await completeProject(projectId);
 
-      // ② 品質評価データを MAiML ファイルの <eventLog> に書き込み
-      try {
-        const qualityResult = await exportOverallEvaluationToMaiml(projectId);
-        if (!qualityResult.skipped && qualityResult.written > 0) {
-          message.success(
-            t('projectCompletion.maimlQualityWriteSuccess', { count: String(qualityResult.written) })
-          );
-        }
-      } catch (qualityExportErr) {
-        // 品質評価 MAiML 書き込み失敗はワーニング扱い（完了処理自体は続行）
-        console.warn('[ProjectCompletionDialog] exportOverallEvaluationToMaiml error:', qualityExportErr);
-        message.warning(t('projectCompletion.maimlQualityWriteWarning'));
-      }
-
-      // ③ 親コンポーネントへ完了通知
+      // ② 親コンポーネントへ完了通知
       await onComplete();
     } catch (err) {
       console.error('[ProjectCompletionDialog] error:', err);
