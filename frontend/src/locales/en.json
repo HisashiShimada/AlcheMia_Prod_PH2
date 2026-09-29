@@ -2355,7 +2355,7 @@
     "toolbar": {
       "viewPetriNet": "Petri Net",
       "viewTemplates": "Templates",
-      "viewXml": "XML View",
+      "viewXml": "MaiML Viewer",
       "nodeDisplayAttrTooltip": "Switch the attribute displayed on nodes",
       "addMaterialTooltip": "Add Material Place",
       "addConditionTooltip": "Add Condition Place",
@@ -2819,7 +2819,7 @@
     "lines": "lines",
     "copyTitle": "Copy XML",
     "copyButton": "Copy",
-    "downloadTitle": "Download XML",
+    "downloadTitle": "Download MaiML file",
     "downloadButton": "Download",
     "copySuccess": "XML copied to clipboard",
     "copyFailed": "Failed to copy"

@@ -2355,7 +2355,7 @@
     "toolbar": {
       "viewPetriNet": "ペトリネット",
       "viewTemplates": "テンプレート",
-      "viewXml": "XMLビュー",
+      "viewXml": "MaiMLビューアー",
       "nodeDisplayAttrTooltip": "ノードに表示する属性を切り替えます",
       "addMaterialTooltip": "Material Placeを追加",
       "addConditionTooltip": "Condition Placeを追加",
@@ -2819,7 +2819,7 @@
     "lines": "行",
     "copyTitle": "XMLをコピー",
     "copyButton": "コピー",
-    "downloadTitle": "XMLをダウンロード",
+    "downloadTitle": "MaiMLファイルをダウンロード",
     "downloadButton": "ダウンロード",
     "copySuccess": "XMLをクリップボードにコピーしました",
     "copyFailed": "コピーに失敗しました"
