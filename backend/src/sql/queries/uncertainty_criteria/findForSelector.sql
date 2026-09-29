@@ -71,6 +71,7 @@ LEFT JOIN intuition_selector ins
  AND ins.version          = uc.version
 WHERE uc.organization_id = $1
   AND uc.is_Invalid = FALSE
+  AND SPLIT_PART(uc.uncertainty_key, ':', 2) NOT LIKE 'SupervisorDirective%'
   AND (
     -- organizationGroupCd が未指定（NULL）の場合は全件取得（後方互換）
     $2 IS NULL

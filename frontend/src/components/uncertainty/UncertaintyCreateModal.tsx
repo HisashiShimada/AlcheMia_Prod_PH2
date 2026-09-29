@@ -183,7 +183,7 @@ export default function UncertaintyCreateModal({
   // ─── Key属性設定の選択肢（namespace_term から取得した用語一覧を使用） ───
   const keyOptions = React.useMemo(() => {
     return termRows
-      .filter((t) => t.isActive !== false)
+      .filter((t) => t.isActive !== false && !t.localName.startsWith('SupervisorDirective'))
       .map((t) => ({
         value: t.qname,
         label: t.displayName ? `${t.displayName}（${t.qname}）` : t.qname,
