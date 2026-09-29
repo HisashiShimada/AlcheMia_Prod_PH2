@@ -1,4 +1,5 @@
 -- project_overall_evaluations: プロジェクトの全体評価を取得（新しい順）
+-- evaluation_scope = 'MAIML_PROJECT' のレコードのみを対象とする（下位評価は除外）
 SELECT
     evaluation_seq,
     organization_id,
@@ -20,4 +21,5 @@ SELECT
 FROM project_overall_evaluations
 WHERE organization_id = $1
   AND project_id = $2
+  AND evaluation_scope = 'MAIML_PROJECT'
 ORDER BY evaluated_at DESC
