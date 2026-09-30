@@ -22,7 +22,7 @@ import {
   MAIML_PROPERTY_TYPES,
   isUnitAllowed,
 } from '@/utils/xsiTypeAttributes';
-import { getTerms, createTerm, updateTerm, toggleTermActive, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster, shareTerms as shareTermsApi } from '@/services/namespaceApiService';
+import { getTerms, createTerm, updateTerm, toggleTermActive, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster, shareTerms as shareTermsApi, fetchSuggestedUri } from '@/services/namespaceApiService';
 import { getOrgUsersForGroups, getGroupMembers } from '@/services/organizationGroupApiService';
 import DetailModal from './DetailModal';
 import ShareScopeModal from './ShareScopeModal';
@@ -1937,6 +1937,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
+        // ── スコープ未確定チェック（左ツリーで登録先が選択されていない場合はインポート不可）
+        if (!scopeKeyForCreate) {
+          message.error(t('namespaceMain.csvImportNoScope'));
+          if (csvInputRef.current) csvInputRef.current.value = '';
+          return;
+        }
+
         const text  = (ev.target?.result as string).replace(/^\uFEFF/, '');
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         if (lines.length < 2) { message.error(t('namespaceMain.csvEmpty2')); return; }
@@ -1972,11 +1979,45 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
         if (rows.length === 0) { message.error(t('namespaceMain.csvNoData2')); return; }
 
+        // ── CSVに含まれる prefix のうち、現在のスコープに未登録のものを自動追加
+        const csvPrefixes = [...new Set(rows.map((r) => r.prefix).filter(Boolean))];
+        const existingPrefixSet = new Set(dbPrefixes);
+        const missingPrefixes = csvPrefixes.filter((p) => !existingPrefixSet.has(p));
+        const prefixAddFailed = new Set<string>();
+
+        if (missingPrefixes.length > 0) {
+          // 登録先スコープの URI を取得（全 prefix で共通の URI ベースを使用）
+          let suggestedUri = '';
+          try {
+            suggestedUri = await fetchSuggestedUri(scopeKeyForCreate);
+          } catch {
+            // URI 取得失敗時は空文字で続行（バックエンドがデフォルト URI を割り当て）
+          }
+          for (const missingPrefix of missingPrefixes) {
+            try {
+              const createNsRequest: Parameters<typeof createNamespace>[0] = {
+                prefix:   missingPrefix,
+                uri:      suggestedUri,
+                scopeKey: scopeKeyForCreate,
+              };
+              await createNamespace(createNsRequest);
+            } catch {
+              prefixAddFailed.add(missingPrefix);
+              message.warning(t('namespaceMain.csvPrefixAddFailed', { prefix: missingPrefix }));
+            }
+          }
+        }
+
         // 各行を API で DB に保存
         const added: Term[] = [];
         const failed: string[] = [];
 
         for (const row of rows) {
+          // Prefix 追加に失敗した prefix の用語はスキップ
+          if (prefixAddFailed.has(row.prefix)) {
+            failed.push(row.localName);
+            continue;
+          }
           try {
             const csvTermRequest: Parameters<typeof createTerm>[0] = {
               prefix:        row.prefix,
@@ -1985,6 +2026,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               description:   row.description,
               typeHint:      row.type || 'stringType',
               unitHint:      row.unitHint,
+              scopeKey:      scopeKeyForCreate,
             };
             const saved = await createTerm(csvTermRequest);
             added.push(saved as Term);
@@ -1994,7 +2036,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }
 
         if (added.length > 0) {
-          setTerms((prev) => [...prev, ...added]);
+          // DB から最新状態を再取得して一覧に反映
+          fetchTermsForCurrentNsKey(effectiveNsKey);
+          fetchPrefixesForCurrentNsKey(effectiveNsKey);
         }
         if (failed.length > 0) {
           message.warning(t('namespaceMain.csvImportPartial2', { saved: added.length.toString(), failCount: failed.length.toString(), names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : '') }));

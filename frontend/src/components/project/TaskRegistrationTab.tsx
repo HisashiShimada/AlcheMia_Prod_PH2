@@ -160,6 +160,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   // 実験計画ダイアログの状態
   const [isExperimentPlanDialogOpen, setIsExperimentPlanDialogOpen] = useState<boolean>(false);
   const [selectedMethodIdForPlan, setSelectedMethodIdForPlan] = useState<string>('');
+  const [selectedExperimentOrderForPlan, setSelectedExperimentOrderForPlan] = useState<number>(1);
   
   // チェックアウト状態はPropsを優先し、なければAPI取得結果を使用
   const isCheckoutLocked = isCheckoutLockedProp ?? false;
@@ -319,8 +320,9 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   /**
    * 指示追加ボタンのクリックハンドラ（実験計画ダイアログを開く）
    */
-  const handleAddInstructionClick = useCallback((methodId: string) => {
+  const handleAddInstructionClick = useCallback((methodId: string, experimentOrder: number) => {
     setSelectedMethodIdForPlan(methodId);
+    setSelectedExperimentOrderForPlan(experimentOrder);
     setIsExperimentPlanDialogOpen(true);
   }, []);
 
@@ -863,7 +865,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             type="primary"
             size="small"
             icon={<PlusOutlined />}
-            onClick={() => handleAddInstructionClick(record.methodId)}
+            onClick={() => handleAddInstructionClick(record.methodId, record.experimentOrder ?? 1)}
             disabled={isFieldDisabled(record)}
             data-testid={`task-add-instruction-button-${record.id}`}
           >
@@ -991,9 +993,26 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         open={isExperimentPlanDialogOpen}
         projectId={projectId}
         methodId={selectedMethodIdForPlan}
-        taskNumbers={taskDetails
-          .filter((t) => t.methodId === selectedMethodIdForPlan)
-          .flatMap((t) => Array.from({ length: t.trialCount }, (_, i) => i + 1))}
+        taskNumbers={(() => {
+          const sameMethods = taskDetails
+            .filter((t) => t.methodId === selectedMethodIdForPlan)
+            .sort((a, b) => (a.experimentOrder ?? 0) - (b.experimentOrder ?? 0));
+
+          // selectedExperimentOrderForPlan より前の行の trialCount を累積してオフセットを算出
+          let offset = 0;
+          for (const t of sameMethods) {
+            if ((t.experimentOrder ?? 0) >= selectedExperimentOrderForPlan) break;
+            offset += t.trialCount;
+          }
+
+          // 選択行の trialCount 分だけ連番を生成（offset+1 始まり）
+          const selectedRow = sameMethods.find(
+            (t) => (t.experimentOrder ?? 0) === selectedExperimentOrderForPlan
+          );
+          if (!selectedRow) return [];
+
+          return Array.from({ length: selectedRow.trialCount }, (_, i) => offset + i + 1);
+        })()}
         creatorRefOptions={creatorRefOptions}
         instrumentRefOptions={instrumentRefOptions}
         ownerRefOptions={ownerRefOptions}
@@ -1001,6 +1020,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         onClose={() => {
           setIsExperimentPlanDialogOpen(false);
           setSelectedMethodIdForPlan('');
+          setSelectedExperimentOrderForPlan(1);
         }}
         onSave={() => {
           message.success(t('taskRegistration.saveMockSuccess'));

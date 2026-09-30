@@ -646,14 +646,20 @@ export class MaimlWriterService {
     const plannedDataXml = buildPlannedValuesResultsXML(experimentPlans, dataId, existingUuids, validSupervisorKeySet);
 
     if (plannedDataXml) {
-      // planned_values に値がある場合のみ <data> セクションを置き換える
-      maimlContent = this._replaceDataSection(maimlContent, plannedDataXml);
-      console.log(
-        `[MaimlWriterService.writeExperimentPlanProperties] planned_values から <data> XML 生成・置換完了`
-      );
+      // <data> 全体を置換せず、計画 <results> ブロックを </data> 直前に追記する。
+      // appendResultsToData は同一 id の重複を自動スキップするため、
+      // チェックアウトを複数回実行しても二重追記されない。
+      // また既存の実績データ（_actual 付き <results>）は一切触らないため消失しない。
+      const plannedResultsXml = extractResultsBlocksFromDataXml(plannedDataXml);
+      if (plannedResultsXml) {
+        maimlContent = appendResultsToData(maimlContent, plannedResultsXml);
+        console.log(
+          `[MaimlWriterService.writeExperimentPlanProperties] planned_values から <results> 生成・追記完了`
+        );
+      }
     } else {
       console.log(
-        '[MaimlWriterService.writeExperimentPlanProperties] planned_values に値がないため <data> セクションの置換をスキップ'
+        '[MaimlWriterService.writeExperimentPlanProperties] planned_values に値がないため <results> の追記をスキップ'
       );
     }
 

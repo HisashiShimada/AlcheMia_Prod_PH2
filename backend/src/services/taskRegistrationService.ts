@@ -282,6 +282,24 @@ export async function saveTaskRegistration(
     // 6-2. project_task_detailテーブルへの処理
     // task_status=0（未着手）のレコードのみ削除 → 連番で追加
     // batchInsert内で既存の最大task_no+1から採番される
+    //
+    // ★ transition_data / template_data の INSERT 開始 task_no を確定するため、
+    //    project_task_detail の未着手DELETE・batchInsert より前に
+    //    各メソッドの「実行済み最大 task_no」を取得しておく。
+    //    （batchInsert後だと新規行が混入して最大値がズレる）
+    const methodStartTaskNoMap = new Map<string, number>();
+    for (const task of requestData.tasks) {
+      if (!methodStartTaskNoMap.has(task.methodId)) {
+        const maxTaskNo = await projectTaskDetailRepository.findMaxTaskNoByMethod(
+          t,
+          organizationId,
+          project.project_id,
+          task.methodId
+        );
+        methodStartTaskNoMap.set(task.methodId, maxTaskNo + 1);
+      }
+    }
+
     await projectTaskDetailRepository.deleteByProjectAndStatus(
       t,
       organizationId,
@@ -306,7 +324,8 @@ export async function saveTaskRegistration(
       project.project_id,
       userId,
       requestData.tasks,
-      parser
+      parser,
+      methodStartTaskNoMap
     );
     
     // 6-4. template_dataテーブルへ削除＋INSERT
@@ -316,7 +335,8 @@ export async function saveTaskRegistration(
       project.project_id,
       userId,
       requestData.tasks,
-      parser
+      parser,
+      methodStartTaskNoMap
     );
     
     // 6-5. experiment_planテーブルへの初期レコードINSERT
@@ -372,10 +392,11 @@ async function deleteAndInsertTransitionData(
   projectId: string,
   userId: string,
   tasks: SaveTaskRegistrationRequest['tasks'],
-  parser: MaimlParserTyped
+  parser: MaimlParserTyped,
+  methodStartTaskNoMap: Map<string, number>
 ): Promise<void> {
-  // 1. 既存レコードを全削除
-  await transitionDataRepository.deleteByProject(organizationId, projectId, client);
+  // 1. 未着手タスクのレコードのみ削除（実行済み・完了済みタスクは保護）
+  await transitionDataRepository.deleteByProjectAndPendingTasks(organizationId, projectId, client);
 
   // 2. MAIMLのメソッドごとにトランジション情報を取得
   const methodList = parser.getMethodList();
@@ -459,7 +480,13 @@ async function deleteAndInsertTransitionData(
 
     const orderMap = methodOrderMap.get(task.methodId);
 
-    for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
+    // methodStartTaskNoMap から開始 task_no を取得する
+    // （deleteByProjectAndPendingTasks実行前・project_task_detail batchInsert前に
+    //   呼び出し元で確定済みのため、batchInsert後にズレることはない）
+    const startTaskNo = methodStartTaskNoMap.get(task.methodId) ?? 1;
+
+    for (let i = 0; i < task.trialCount; i++) {
+      const taskNo = startTaskNo + i;
       for (const transitionId of transitionIds) {
         const orderInfo = orderMap?.get(transitionId);
         await transitionDataRepository.insert(
@@ -499,10 +526,11 @@ async function deleteAndInsertTemplateData(
   projectId: string,
   userId: string,
   tasks: SaveTaskRegistrationRequest['tasks'],
-  parser: MaimlParserTyped
+  parser: MaimlParserTyped,
+  methodStartTaskNoMap: Map<string, number>
 ): Promise<void> {
-  // 1. 既存レコードを全削除
-  await templateDataRepository.deleteByProject(organizationId, projectId, client);
+  // 1. 未着手タスクのレコードのみ削除（実行済み・完了済みタスクは保護）
+  await templateDataRepository.deleteByProjectAndPendingTasks(organizationId, projectId, client);
 
   // 2. MAIMLのメソッドごとに place_id → property_set のマッピングを構築
   // getMethods() でメソッドオブジェクトを取得し、各メソッドのテンプレートとplaceRefを抽出する
@@ -610,7 +638,13 @@ async function deleteAndInsertTemplateData(
       continue;
     }
 
-    for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
+    // methodStartTaskNoMap から開始 task_no を取得する
+    // （deleteByProjectAndPendingTasks実行前・project_task_detail batchInsert前に
+    //   呼び出し元で確定済みのため、batchInsert後にズレることはない）
+    const startTaskNo = methodStartTaskNoMap.get(task.methodId) ?? 1;
+
+    for (let i = 0; i < task.trialCount; i++) {
+      const taskNo = startTaskNo + i;
       for (const { placeId, propertySet } of entries) {
         await templateDataRepository.insert(
           organizationId,

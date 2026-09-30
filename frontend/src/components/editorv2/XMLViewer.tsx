@@ -157,7 +157,7 @@ const XMLViewer: React.FC<XMLViewerProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `maiml_export_${new Date().getTime()}.xml`;
+    a.download = `maiml_export_${new Date().getTime()}.maiml`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
