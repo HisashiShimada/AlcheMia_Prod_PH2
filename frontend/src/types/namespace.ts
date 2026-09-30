@@ -346,8 +346,8 @@ export interface PrefixManagementProps {
   globalOnly?: boolean;
   /** trueのとき「共有する」ボタンを表示する（実験管理者メニューのみ true を渡す） */
   showShareButton?: boolean;
-  /** 「共有する」ボタン押下時に呼ばれるコールバック（選択中の行キー一覧を渡す） */
-  onShareSelected?: (selectedKeys: React.Key[]) => void;
+  /** 「共有する」ボタン押下時に呼ばれるコールバック（選択中の Prefix 文字列の配列を渡す） */
+  onShareSelected?: (prefixes: string[]) => void;
   /** trueのとき閲覧モード（検索・フィルター以外のボタンを非活性） */
   viewOnly?: boolean;
   /** 外部から渡される選択中の名前空間ノードキー（左ツリー連動用） */

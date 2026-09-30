@@ -330,6 +330,33 @@ export class TemplateDataRepository {
   }
 
   /**
+   * プロジェクト内の未着手タスクのテンプレートデータのみ削除（タスク登録再保存時）
+   *
+   * project_task_detail.task_status=0（未着手）の (method_id, task_no) に紐づく
+   * template_data のみを削除する。実行中・完了済みタスクのデータは保護される。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param client - トランザクション用PoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async deleteByProjectAndPendingTasks(
+    organizationId: string,
+    projectId: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('template_data/deleteByProjectAndPendingTasks.sql');
+      await client.query(query, [organizationId, projectId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while deleting pending template data by project',
+        error as Error
+      );
+    }
+  }
+
+  /**
    * planned_values のテンプレート想定値を property_set に反映して一括 UPDATE
    *
    * - `planValues`: { [fieldKey]: value } のフラットマップ

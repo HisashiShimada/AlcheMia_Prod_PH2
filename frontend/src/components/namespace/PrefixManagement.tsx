@@ -922,7 +922,14 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }}>
           {showShareButton && (
             <Button
-              onClick={() => onShareSelected?.(selectedRowKeys)}
+              onClick={() => {
+                // selectedRowKeys は "prefix__scopeKey" 形式の複合 ID のため、
+                // rows から対応する prefix 文字列を抽出してコールバックに渡す
+                const selectedPrefixes = rows
+                  .filter((r) => selectedRowKeys.includes(r.id))
+                  .map((r) => r.prefix);
+                onShareSelected?.(selectedPrefixes);
+              }}
               style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
             >
               {t('prefixManagement.btnShare', { count: String(selectedRowKeys.length) })}

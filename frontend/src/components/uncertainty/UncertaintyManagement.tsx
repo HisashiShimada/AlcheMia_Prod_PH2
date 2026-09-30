@@ -797,9 +797,9 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
     return root ? [root] : [];
   }, [namespaceTree, selectedNsKey, isSysAdmin, chiefGroupCds, targetUserGroups, t]);
 
-  // ── 共有ボタンクリック: 選択 Prefix キーを保存してモーダルを開く
-  const handleShareSelected = useCallback((keys: React.Key[]) => {
-    setSelectedPrefixKeys(keys as string[]);
+  // ── 共有ボタンクリック: 選択 Prefix 文字列配列を保存してモーダルを開く
+  const handleShareSelected = useCallback((prefixes: string[]) => {
+    setSelectedPrefixKeys(prefixes);
     setShareScopeOpen(true);
   }, []);
 
@@ -1137,7 +1137,7 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
         onShare={async (target: ShareTarget) => {
           setShareLoading(true);
           try {
-            const result = await sharePrefixes(selectedPrefixKeys as string[], target.key);
+            const result = await sharePrefixes(selectedPrefixKeys, target.key);
             message.success(
               t('prefixShare.toastSuccess', {
                 count: String(result.copiedCount ?? selectedPrefixKeys.length),
@@ -1145,6 +1145,8 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
               })
             );
             setShareScopeOpen(false);
+            // 共有成功後に Prefix 一覧を再取得する
+            setPrefixTabActivatedAt(Date.now());
           } catch {
             message.error(t('prefixShare.toastError'));
           } finally {
