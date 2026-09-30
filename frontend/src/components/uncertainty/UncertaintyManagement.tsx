@@ -988,8 +988,15 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
               }}>
                 {/* 左側：フィルタ */}
                 <Space size={8} wrap>
+                  <Input
+                    prefix={<SearchOutlined />}
+                    placeholder={t('uncertainty.management.searchPlaceholder')}
+                    style={{ width: 220 }}
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    allowClear
+                  />
                   <Select
-                    size="small"
                     style={{ width: 150 }}
                     placeholder={t('uncertainty.management.filterEvalMethodAll')}
                     value={evalFilter || undefined}
@@ -1001,7 +1008,6 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
                     ]}
                   />
                   <Select
-                    size="small"
                     style={{ width: 130 }}
                     placeholder={t('uncertainty.management.filterStatusAll')}
                     value={statusFilter || undefined}
@@ -1011,15 +1017,6 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
                       { value: 'active', label: t('uncertainty.listTable.statusActive') },
                       { value: 'deprecated', label: t('uncertainty.listTable.statusDeprecated') },
                     ]}
-                  />
-                  <Input
-                    size="small"
-                    prefix={<SearchOutlined />}
-                    placeholder={t('uncertainty.management.searchPlaceholder')}
-                    style={{ width: 220 }}
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    allowClear
                   />
                 </Space>
                 {/* 右側：操作ボタン */}

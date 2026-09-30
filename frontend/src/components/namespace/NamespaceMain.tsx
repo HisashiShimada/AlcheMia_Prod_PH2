@@ -13,6 +13,8 @@ import {
   BankOutlined,
   UserOutlined,
   ExclamationCircleOutlined,
+  ImportOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
@@ -2180,7 +2182,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         if ('_rowId' in a || '_rowId' in b) return 0;
         return (a as Term).prefix.localeCompare((b as Term).prefix);
       },
-      defaultSortOrder: 'ascend',
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
           const r = record as NewTermRow;
@@ -2480,7 +2481,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               </Button>
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, gap: 2 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 2,
+            background: '#fff',
+            borderBottom: '1px solid #e8e8e8',
+            padding: '8px 16px',
+            margin: '-12px -16px 0 -16px',
+            flexWrap: 'wrap',
+          }}>
             <Input
               prefix={<SearchOutlined />} placeholder={t('namespaceMain.searchPlaceholder')} allowClear
               value={termSearch} onChange={(e) => setTermSearch(e.target.value)}
@@ -2515,8 +2523,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               onChange={(val) => { setFilterUnit(val || null); setCurrentPage(1); }}
             />
             <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
-            <Button disabled={effectiveViewOnly} onClick={() => csvInputRef.current?.click()}>{t('namespaceMain.btnImport')}</Button>
-            <Button disabled={effectiveViewOnly} onClick={handleCsvDownload}>{t('namespaceMain.btnExport')}</Button>
+            <Button icon={<ImportOutlined />} disabled={effectiveViewOnly} onClick={() => csvInputRef.current?.click()}>{t('namespaceMain.btnImport')}</Button>
+            <Button icon={<ExportOutlined />} disabled={effectiveViewOnly} onClick={handleCsvDownload}>{t('namespaceMain.btnExport')}</Button>
             <Tooltip title={!effectiveViewOnly && availablePrefixOptions.length === 0 ? t('namespaceMain.noPrefixTooltip') : ''}>
               <Button
                 type="primary"
@@ -2548,10 +2556,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             const tableRowSelection = {
               type: 'checkbox' as const, selectedRowKeys: selectedTermIds,
               columnTitle: (
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={filteredTerms.length > 0 && selectedTermIds.length === filteredTerms.length}
-                  style={{ cursor: 'pointer' }}
                   onChange={() => {
                     if (selectedTermIds.length === filteredTerms.length) {
                       setSelectedTermIds([]);
@@ -2586,6 +2592,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               <Table<Term | NewTermRow>
                 rowKey={(record) => '_rowId' in record ? (record as NewTermRow)._rowId : (record as Term).id}
                 size="small"
+                scroll={{ x: 'max-content' }}
                 loading={termsLoading}
                 columns={visibleColumns}
                 dataSource={tableData}
