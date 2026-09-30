@@ -50,7 +50,8 @@ import {
   recordNg,
   correctRecord,
 } from '@/services/experimentInstructionApiService';
-import { getProjectMaiml, getTaskRegistration } from '@/services/projectApiService';
+import { AxiosError } from 'axios';
+import { getProjectMaiml, getTaskRegistration, sendInstructions, checkoutProject } from '@/services/projectApiService';
 import type {
   InstructionMethodResponse,
   ProjectMethod,
@@ -85,6 +86,11 @@ export interface ExperimentInstructionTabProps {
    * TemplateInputPanel の用語キー選択モーダルで使用する用語スコープ絞り込みに使用する。
    */
   organizationGroupCd?: string;
+  /**
+   * NG 登録後にチェックアウト処理が完了した際に呼ばれるコールバック（任意）。
+   * 親コンポーネントでプロジェクト一覧の再取得などを行う場合に渡す。
+   */
+  onAfterCheckout?: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -387,6 +393,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   isCheckoutLocked = false,
   maimlHasErrors = false,
   organizationGroupCd,
+  onAfterCheckout,
 }) => {
   const { message } = App.useApp();
   const { t } = useLanguage();
@@ -680,6 +687,33 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       if (bulkSelectedAction === 'ng') {
         await recordNg(projectId, methodId, taskNumber, { ngReason: bulkSelectedNgReason });
         message.warning(t('experimentInstruction.ngRecorded').replace('#{no}', String(taskNumber)));
+        // NG 登録後にチェックアウト処理を実行する
+        try {
+          await sendInstructions(projectId, {});
+          await checkoutProject(projectId);
+          message.success(t('experimentInstruction.ngCheckoutSuccess'));
+          await onAfterCheckout?.();
+        } catch (checkoutErr) {
+          if (checkoutErr instanceof AxiosError && checkoutErr.response?.data) {
+            const errorData = checkoutErr.response.data;
+            const errorCode = errorData.error?.code || 'UNKNOWN_ERROR';
+            const errorDetails = errorData.error?.details;
+            const errorMessage = errorData.error?.message || t('project.checkInOutError');
+            switch (errorCode) {
+              case 'TASK_IN_PROGRESS': message.error(t('project.checkinErrorTaskInProgress')); break;
+              case 'CHECKOUT_NO_MAIML_FILE': message.error(t('project.checkoutErrorNoMaiml')); break;
+              case 'CHECKOUT_INVALID_STATUS': message.error(t('project.checkoutErrorInvalidStatus', { status: errorDetails?.currentStatusName || t('common.unknown') })); break;
+              case 'CHECKOUT_NO_TASKS': message.error(t('project.checkoutErrorNoTasks')); break;
+              case 'CHECKOUT_NO_TRANSITIONS': message.error(t('project.checkoutErrorNoTransitions')); break;
+              case 'CHECKOUT_NO_EXPERIMENT_PLAN': message.error(t('project.checkoutErrorNoExperimentPlan')); break;
+              case 'PROJECT_ALREADY_CHECKED_OUT': message.warning(t('project.checkoutWarningAlreadyCheckedOut', { user: errorDetails?.checkedOutBy || t('common.otherUser') })); break;
+              case 'RESOURCE_NOT_FOUND': message.error(t('project.notFound')); break;
+              default: message.error(errorMessage);
+            }
+          } else {
+            message.error(t('project.checkInOutError'));
+          }
+        }
       } else {
         await approveTask(projectId, methodId, taskNumber);
         message.success(t('experimentInstruction.approveSuccess').replace('#{no}', String(taskNumber)));
@@ -692,7 +726,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     } finally {
       setActionLoading(false);
     }
-  }, [bulkSelectedTaskKey, bulkSelectedAction, bulkSelectedNgReason, projectId, fetchData, message]);
+  }, [bulkSelectedTaskKey, bulkSelectedAction, bulkSelectedNgReason, projectId, fetchData, message, onAfterCheckout, t]);
 
   // ─────────────────────────────────────────────────────────
   // 承認処理

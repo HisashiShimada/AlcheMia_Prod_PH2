@@ -291,6 +291,7 @@
     "ngRecorded": "タスク #{no} に NG を記録しました",
     "approveSuccess": "タスク #{no} を承認しました",
     "approveError": "承認処理に失敗しました",
+    "ngCheckoutSuccess": "NG登録後のチェックアウトが完了しました",
     "ngError": "NG記録処理に失敗しました",
     "correctionSaved": "訂正を保存しました",
     "correctionError": "訂正の保存に失敗しました",

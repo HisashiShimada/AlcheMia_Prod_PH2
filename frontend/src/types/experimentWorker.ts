@@ -321,7 +321,8 @@ export function isSelectableStatus(status: ProjectStatus): boolean {
 
 /**
  * 実験記録の参照・操作が可能な状態かどうかを判定
- * タスク実行待ち(1)・タスク実行中（2）・承認待ち（3）・完了（4）の場合に記録ボタンを活性化する
+ * タスク実行待ち(1)・タスク実行中（2）・承認待ち（3）・完了（4）・レビュー差戻（6）の場合に記録ボタンを活性化する
+ * REVIEW_REJECTED(6) はNGタスクの訂正作業のために記録ボタンを活性化する必要がある
  * @param status プロジェクト状態（数値）
  * @returns 記録を参照・操作可能な場合true
  */
@@ -330,7 +331,8 @@ export function isRecordViewableStatus(status: ProjectStatus): boolean {
     status === ProjectStatusConst.TASK_PENDING ||
     status === ProjectStatusConst.TASK_IN_PROGRESS ||
     status === ProjectStatusConst.REVIEW_WAITING ||
-    status === ProjectStatusConst.COMPLETED
+    status === ProjectStatusConst.COMPLETED ||
+    status === ProjectStatusConst.REVIEW_REJECTED
   );
 }
 

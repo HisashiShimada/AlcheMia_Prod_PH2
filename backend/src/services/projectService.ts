@@ -1340,8 +1340,13 @@ export class ProjectService {
         };
       }
 
-      // プロジェクトステータス検証: task_in_progress (2) のみ許可
-      if (project.project_status !== ProjectStatusEnum.TASK_IN_PROGRESS) {
+      // プロジェクトステータス検証: task_in_progress (2) または review_rejected (6) のみ許可
+      // review_rejected はレビュー差戻後に再度承認依頼を行うケースで許可
+      const allowedProjectStatuses = [
+        ProjectStatusEnum.TASK_IN_PROGRESS,
+        ProjectStatusEnum.REVIEW_REJECTED,
+      ];
+      if (!allowedProjectStatuses.includes(project.project_status as typeof ProjectStatusEnum.TASK_IN_PROGRESS)) {
       // ステータス名のマッピング
         const statusNames: { [key: number]: string } = {
           0: 'Planning',
@@ -1350,6 +1355,7 @@ export class ProjectService {
           3: 'Task Review Waiting',
           4: 'Project Completed',
           5: 'Task Error',
+          6: 'Review Rejected',
         };
         const currentStatusName = statusNames[project.project_status] || 'Unknown';
 
@@ -1402,10 +1408,25 @@ export class ProjectService {
           userId
         );
 
-        logger.info('requestApproval - task_status updated IN_PROGRESS -> REVIEW_WAITING', {
+        // タスクステータス一括更新: REVIEW_NG(5) → REVIEW_WAITING(2)
+        // レビュー差戻（REVIEW_REJECTED）からの再承認依頼時のみ実行する
+        // TASK_IN_PROGRESS からの承認依頼では実行しない（NGタスクが意図せず更新されるのを防ぐ）
+        if (project.project_status === ProjectStatusEnum.REVIEW_REJECTED) {
+          await projectTaskRepository.bulkUpdateTaskStatusByProject(
+            t,
+            organizationId,
+            projectId,
+            TaskStatusEnum.REVIEW_NG, // fromStatus: 5（NG）
+            TaskStatusEnum.REVIEW_WAITING, // toStatus: 2（レビュー待ち）
+            userId
+          );
+        }
+
+        logger.info('requestApproval - task_status updated', {
           organizationId,
           projectId,
           userId,
+          fromProjectStatus: project.project_status,
         });
       });
 
