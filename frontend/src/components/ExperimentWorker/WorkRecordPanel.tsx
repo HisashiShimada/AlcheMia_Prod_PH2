@@ -1533,8 +1533,16 @@ function canAccessTransitionInTask(
  * progressRows の order 昇順を正規の実行順序として扱い、
  * 現在インデックスより後ろを先に探し、見つからない場合は先頭から循環検索する。
  */
+/**
+ * 複合キー（taskNo + transitionId）でスキップ済みかどうかを判定するためのキー生成ヘルパー。
+ * skippedIds の要素形式と一致させる。
+ */
+function makeSkipKey(taskNo: number, transitionId: string): string {
+  return `${taskNo}__${transitionId}`;
+}
+
 function findNextAvailableTransitionFromRows(
-  currentTransitionId: string,
+  current: { taskNo: number; transitionId: string },
   skippedIds: string[],
   progressRows: ProgressRow[]
 ): { taskNo: number; transitionId: string; methodId: string } | null {
@@ -1542,13 +1550,17 @@ function findNextAvailableTransitionFromRows(
 
   // order 昇順でソート（order 未設定は 0 扱い）
   const sorted = [...progressRows].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const currentIdx = sorted.findIndex((r) => r.transitionId === currentTransitionId);
+  // taskNo + transitionId の複合キーで現在インデックスを検索
+  const currentIdx = sorted.findIndex(
+    (r) => r.taskNo === current.taskNo && r.transitionId === current.transitionId
+  );
 
   // 作業可能かどうかを判定するヘルパー
+  // taskNo + transitionId の複合キーで現在行を除外し、同名の別タスクを誤除外しない
   const isAvailable = (r: ProgressRow): boolean => {
-    if (r.transitionId === currentTransitionId) return false;
+    if (r.taskNo === current.taskNo && r.transitionId === current.transitionId) return false;
     if (r.status === 'completed' || r.status === 'issue' || r.status === 'not_started') return false;
-    if (skippedIds.includes(r.transitionId)) return false;
+    if (skippedIds.includes(makeSkipKey(r.taskNo, r.transitionId))) return false;
     return true;
   };
 
@@ -1924,7 +1936,7 @@ const PlanB: React.FC<PlanProps> = ({
               // 1. 次に移動可能なトランジションが存在する
               // 2. 現在のトランジションが動作状態（in_progress）でない
               //    動作状態: 非活性 / 休止・準備・準備完了状態: 活性
-              const hasNextTransition = findNextAvailableTransitionFromRows(displayKey.transitionId, skippedTransitionIds, progressRows ?? []) !== null;
+              const hasNextTransition = findNextAvailableTransitionFromRows(displayKey, skippedTransitionIds, progressRows ?? []) !== null;
               const currentProgressRow = progressRows?.find(
                 (r) => r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId
               );
@@ -2153,7 +2165,7 @@ const PlanB: React.FC<PlanProps> = ({
             taskTransition={displayTTWithCurrentStatus}
             isReadOnly={isReadOnly}
             displayKey={displayKey}
-            canSkip={!isReadOnly && displayKey !== null && findNextAvailableTransitionFromRows(displayKey.transitionId, skippedTransitionIds, progressRows ?? []) !== null}
+            canSkip={!isReadOnly && displayKey !== null && findNextAvailableTransitionFromRows(displayKey, skippedTransitionIds, progressRows ?? []) !== null}
             onActualChange={onActualChange}
             onSave={onSave}
             onSaveAndNext={onSaveAndNext}
@@ -2619,8 +2631,80 @@ export default function WorkRecordPanel({
   }, [viewingKey]);
   // 進捗確認タブの「記録」ボタン押下で initialTaskNo/initialTransitionId/initialMethodId が変化した際に
   // viewingKey を更新して、押下した行のトランジション情報を実験記録タブで表示する
+  // また、タスクNoが異なる同一 transitionId に遷移した際に前回の入力値が残らないよう
+  // rawTemplateItemsRef から対象 taskNo + transitionId の actuals を再構築してリセットする
   useEffect(() => {
     if (initialTaskNo !== undefined && initialTransitionId !== undefined) {
+      const mapKey = `${initialTaskNo}__${initialTransitionId}`;
+      const rawItems = rawTemplateItemsRef.current.get(mapKey) ?? [];
+
+      // rawTemplateItemsRef の TemplateDataItem[] から actuals を再構築する
+      // buildTransitions 内と同一のロジック:
+      //   DB実績あり（recordedBy !== null）→ DB の記録値を使用
+      //   DB未記録（recordedBy === null）   → properties[].plannedValue を想定値として使用
+      const freshActuals: Record<string, ActualValue> = {};
+      for (const item of rawItems) {
+        const rawProps = Array.isArray(item.data.properties)
+          ? (item.data.properties as Record<string, unknown>[])
+          : [];
+        if (item.recordedBy !== null) {
+          // DB実績あり: data.properties の各プロパティの value を取り込む
+          for (const prop of rawProps) {
+            const propKey = String(prop.key ?? '');
+            if (!propKey) continue;
+            freshActuals[propKey] = (prop.value as ActualValue) ?? null;
+          }
+        } else {
+          // DB未記録: plannedValue（想定値）を初期値として使用
+          // buildTransitions 内の「DB未記録のプロパティ: expected を初期値として使う」と同等
+          for (const prop of rawProps) {
+            const propKey = String(prop.key ?? '');
+            if (!propKey) continue;
+            // DB実績で取得済みのキーは上書きしない
+            if (freshActuals[propKey] != null) continue;
+            const planned = prop.plannedValue as ActualValue | undefined;
+            if (planned != null) {
+              freshActuals[propKey] = planned;
+            }
+          }
+        }
+      }
+
+      // 対象 taskNo + transitionId に対応する confidenceValuesRef / uncertaintyValuesRef の
+      // エントリをクリアする。テンプレートIDが別タスクで同一の場合、前タスクの確信度が
+      // onGetInitialConfidence 経由で復元されてしまうことを防ぐ。
+      for (const item of rawItems) {
+        const templateKey = item.templateId || item.placeId;
+        // confidenceValuesRef: キー形式 `${templateId}__${propKey}` または `${placeId}__${propKey}`
+        // propKey 単位まで特定が難しいため、テンプレートIDプレフィックスに一致するキーを全削除
+        for (const key of Array.from(confidenceValuesRef.current.keys())) {
+          if (key.startsWith(`${templateKey}__`) || key.startsWith(`${item.placeId}__`)) {
+            confidenceValuesRef.current.delete(key);
+          }
+        }
+        // uncertaintyValuesRef: キー形式 `${placeId}__${propKey}`
+        for (const key of Array.from(uncertaintyValuesRef.current.keys())) {
+          if (key.startsWith(`${item.placeId}__`) || key.startsWith(`${templateKey}__`)) {
+            uncertaintyValuesRef.current.delete(key);
+          }
+        }
+      }
+
+      // tasks state の対象 taskNo + transitionId の actuals を API 取得済みの実績値でリセット
+      // タスクNoが異なる同名トランジションへの遷移時に前回の入力値が引き継がれることを防ぐ
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== initialTaskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== initialTransitionId) return tt;
+              return { ...tt, actuals: freshActuals };
+            }),
+          };
+        })
+      );
+
       setViewingKey({ taskNo: initialTaskNo, transitionId: initialTransitionId, methodId: initialMethodId ?? methodId });
     }
   }, [initialTaskNo, initialTransitionId, initialMethodId, methodId]);
@@ -3235,10 +3319,9 @@ export default function WorkRecordPanel({
       // 「次へ」の責務は次のトランジションへの移動のみ。
       // 保存は「保存」ボタン、ステータス変更は WorkHeader「終了」ボタンが担う。
       // canGoNext 条件（completed && isRecorded && hasNextTransition）が満たされた場合のみ呼ばれる。
-      void taskNo;
-      void transitionId;
       // progressRows ベースで次の作業可能なトランジションを検索して viewingKey にセット
-      const next = findNextAvailableTransitionFromRows(transitionId, skippedTransitionIds, progressRows ?? []);
+      // taskNo + transitionId の複合キーで現在行を正確に特定する
+      const next = findNextAvailableTransitionFromRows({ taskNo, transitionId }, skippedTransitionIds, progressRows ?? []);
       setViewingKey(next);
       setPendingEndKey(null);
       setIsDirty(false);
@@ -3248,17 +3331,18 @@ export default function WorkRecordPanel({
 
   const handleSkip = useCallback(
     (taskNo: number, transitionId: string) => {
-      void taskNo;
-      // スキップリストに追加
+      // スキップリストに複合キー（taskNo + transitionId）で追加
+      // transitionId のみで管理すると、タスクNo違いの同名トランジションも誤ってスキップ対象になるため
+      const skipKey = makeSkipKey(taskNo, transitionId);
       setSkippedTransitionIds((prev) =>
-        prev.includes(transitionId) ? prev : [...prev, transitionId]
+        prev.includes(skipKey) ? prev : [...prev, skipKey]
       );
 
       // progressRows ベースで次の実行可能なトランジションを検索
       // 今追加したものも skippedIds に含めて検索する
       const next = findNextAvailableTransitionFromRows(
-        transitionId,
-        [...skippedTransitionIds, transitionId],
+        { taskNo, transitionId },
+        [...skippedTransitionIds, skipKey],
         progressRows ?? []
       );
 
