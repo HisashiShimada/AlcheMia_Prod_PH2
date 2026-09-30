@@ -715,6 +715,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       dataIndex: 'uri',
       key: 'uri',
       width: 180,
+      ellipsis: true,
       render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
         if ('_rowId' in record) {
           // 新規行: URI は自動生成済み・編集不可（グレーアウト）
@@ -905,6 +906,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        width: '100%',
         overflow: 'hidden',
         background: '#fafafa',
       }}
@@ -1019,7 +1021,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
                 : (record as PrefixRow).id
             }
             size="small"
-            scroll={{ x: 'max-content' }}
+            scroll={{ x: 800 }}
             columns={columns}
             dataSource={tableData}
             rowSelection={{
