@@ -123,14 +123,16 @@ const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = ({ viewOnly = fa
       key: 'uri',
       sorter: (a, b) => a.uri.localeCompare(b.uri),
       render: (uri: string) => (
-        <Tooltip title={uri}>
-          <Text
-            copyable={{ text: uri }}
-            style={{ maxWidth: 600, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-          >
-            {uri}
-          </Text>
-        </Tooltip>
+        <span style={{ display: 'inline-flex', alignItems: 'center', maxWidth: 600 }}>
+          <Tooltip title={uri}>
+            <Text
+              style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 560 }}
+            >
+              {uri}
+            </Text>
+          </Tooltip>
+          <Text copyable={{ text: uri, tooltips: [t('common.copy'), t('common.copied')] }} />
+        </span>
       ),
     },
   ];

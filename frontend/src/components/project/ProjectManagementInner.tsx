@@ -43,10 +43,12 @@ interface ProjectManagementInnerProps {
   onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
   user?: User;
   onNavigateToGroupManagement?: () => void;
+  /** タブがアクティブになった時刻（ms）。値の変化をトリガーとしてデータを再取得する */
+  tabActivatedAt?: number;
 }
 
 const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
-  onEdit, onOpenWorkerScreen, user, onNavigateToGroupManagement,
+  onEdit, onOpenWorkerScreen, user, onNavigateToGroupManagement, tabActivatedAt,
 }) => {
   const { message, modal } = App.useApp();
   const { t } = useLanguage();
@@ -62,6 +64,14 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
     checkoutFilter, setCheckoutFilter, projectStatusFilter, setProjectStatusFilter,
     sortBy, sortOrder, handleSortChange, sortedProjects,
   } = listState;
+
+  // タブ切り替え時（tabActivatedAt 変化時）にプロジェクト一覧を最新化する
+  useEffect(() => {
+    if (tabActivatedAt === undefined) return;
+    refetchProjects();
+  // refetchProjects は useCallback で安定しているため依存配列から除外
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabActivatedAt]);
 
   const [projectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
   const [isCompletionEligible, setIsCompletionEligible] = useState(false);

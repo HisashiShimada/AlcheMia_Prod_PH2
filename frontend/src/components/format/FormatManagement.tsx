@@ -58,13 +58,15 @@ const LS_KEY_ORG_GROUP = 'format_selected_org_group_cd';
  */
 interface FormatManagementProps {
   user: User;
+  /** タブがアクティブになった時刻（ms）。値の変化をトリガーとしてデータを再取得する */
+  tabActivatedAt?: number;
 }
 
 /**
  * フォーマット管理画面メインコンポーネント
  * XMLフォーマットファイルの管理に特化
  */
-const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
+const FormatManagement: React.FC<FormatManagementProps> = ({ user, tabActivatedAt }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const { message, modal } = App.useApp();
@@ -132,6 +134,14 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     fetchFormatsForGroup,
     [selectedOrganizationGroupCd]
   );
+
+  // タブ切り替え時（tabActivatedAt 変化時）にフォーマット一覧を最新化する
+  React.useEffect(() => {
+    if (tabActivatedAt === undefined) return;
+    refetchFormats();
+  // refetchFormats は useCallback で安定しているため依存配列から除外
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabActivatedAt]);
 
   // フォーマットデータが取得できたらstateを更新
   React.useEffect(() => {

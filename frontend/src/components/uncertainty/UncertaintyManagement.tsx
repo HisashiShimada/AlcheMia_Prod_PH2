@@ -473,6 +473,17 @@ export default function UncertaintyManagement({ user, tabActivatedAt }: Uncertai
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabActivatedAt]);
 
+  // ── tabActivatedAt 変化時に内部アクティブタブのデータも再取得する
+  // 組織ツリー（上のuseEffect）と同期してコンテンツを最新化する
+  useEffect(() => {
+    if (tabActivatedAt === undefined) return;
+    const now = Date.now();
+    if (activeTab === 'namespace') setNamespaceTabActivatedAt(now);
+    if (activeTab === 'prefix')    setPrefixTabActivatedAt(now);
+    if (activeTab === 'criteria')  setCriteriaTabActivatedAt(now);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabActivatedAt]);
+
   // ── mousedown でコンテキストメニューを閉じる
   // visible が既に false の場合は同じ参照を返して不要な再レンダーを防ぐ
   useEffect(() => {

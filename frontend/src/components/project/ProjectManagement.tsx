@@ -14,6 +14,8 @@ interface ProjectManagementProps {
   user?: User;
   /** グループ管理タブへ遷移するコールバック */
   onNavigateToGroupManagement?: () => void;
+  /** タブがアクティブになった時刻（ms）。値の変化をトリガーとしてデータを再取得する */
+  tabActivatedAt?: number;
 }
 
 const ProjectManagement: React.FC<ProjectManagementProps> = (props) => {

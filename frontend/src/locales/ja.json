@@ -519,7 +519,9 @@
     "jumpToPage": "ページへ移動",
     "page": "ページ",
     "qualitative": "定性",
-    "update": "更新"
+    "update": "更新",
+    "copy": "コピー",
+    "copied": "コピーしました"
   },
   "languages": {
     "ja": "日本語",

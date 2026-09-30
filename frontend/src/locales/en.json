@@ -519,7 +519,9 @@
     "jumpToPage": "Go to page",
     "page": "",
     "qualitative": "Qualitative",
-    "update": "Update"
+    "update": "Update",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "languages": {
     "ja": "Japanese",

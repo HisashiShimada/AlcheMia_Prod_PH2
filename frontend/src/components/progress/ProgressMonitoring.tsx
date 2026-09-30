@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   App,
   Card,
@@ -37,7 +37,7 @@ const { Text } = Typography;
 /**
  * 進捗管理画面コンポーネント
  */
-export default function ProgressMonitoring() {
+export default function ProgressMonitoring({ tabActivatedAt }: { tabActivatedAt?: number } = {}) {
   const { message } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -62,6 +62,14 @@ export default function ProgressMonitoring() {
     getProjects,
     []
   );
+
+  // タブ切り替え時（tabActivatedAt 変化時）にプロジェクト一覧を最新化する
+  useEffect(() => {
+    if (tabActivatedAt === undefined) return;
+    refetchProjects();
+  // refetchProjects は useCallback で安定しているため依存配列から除外
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabActivatedAt]);
 
   /**
    * プロジェクトステータスの数値コードを文字列キーに変換する

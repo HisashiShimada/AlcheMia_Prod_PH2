@@ -15,7 +15,7 @@ import type { OrganizationGroupRow, Group, GroupMember } from '@/types/group';
 
 const { Text, Title } = Typography;
 
-const GroupManagementPanel: React.FC = () => {
+const GroupManagementPanel: React.FC<{ tabActivatedAt?: number }> = ({ tabActivatedAt }) => {
   const { t } = useLanguage();
   const { message } = App.useApp();
   const [groups, setGroups]               = useState<Group[]>([]);
@@ -56,6 +56,14 @@ const GroupManagementPanel: React.FC = () => {
   }, [rowToGroup, t]);
 
   useEffect(() => { loadGroups(); }, [loadGroups]);
+
+  // タブ切り替え時（tabActivatedAt 変化時）にグループ一覧を最新化する
+  useEffect(() => {
+    if (tabActivatedAt === undefined) return;
+    loadGroups();
+  // loadGroups は useCallback で安定しているため依存配列から除外
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabActivatedAt]);
 
   useEffect(() => {
     if (!selectedGroup) return;

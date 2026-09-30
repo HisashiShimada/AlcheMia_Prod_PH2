@@ -255,35 +255,7 @@ export default function UncertaintyCriteriaSelectorModal({
 
     // DBから不確かさ基準一覧を取得
     refreshCriteriaList();
-
-    // 対象プロパティに合わせてフィルタを自動プリセット
-    if (targetProperty) {
-      if (initialPayload) {
-        // 編集モード → initialPayload の evalType を優先（上書きしない）
-        setFilter((prev) => ({
-          ...prev,
-          evalType: initialPayload.criteria.evalType,
-          section: targetProperty.section,
-        }));
-      } else if (targetProperty.tag === 'property' && targetProperty.type !== 'Binary') {
-        setFilter((prev) => ({
-          ...prev,
-          evalType: 'quantitative',
-          tag: 'property',
-          section: targetProperty.section,
-          typeMatch: 'match',
-          unitMatch: 'match',
-        }));
-      } else if (targetProperty.tag === 'content') {
-        setFilter((prev) => ({
-          ...prev,
-          evalType: 'qualitative',
-          tag: 'all',
-          section: targetProperty.section,
-        }));
-      }
-    }
-  }, [open, targetProperty, organizationGroupCd, refreshCriteriaList]);
+  }, [open, organizationGroupCd, refreshCriteriaList]);
 
   // ----- initialPayload が渡された場合、criteriaList ロード後に選択状態のみ復元 -----
   useEffect(() => {

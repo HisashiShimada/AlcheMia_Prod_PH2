@@ -52,9 +52,13 @@ export default function ExperimentAdminMenu({
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
 
-  // タブ4（名前空間管理）がアクティブになった時刻を管理する
-  // UncertaintyManagement に渡し、タブ切り替え時の組織ツリー再取得をトリガーする
+  // 各タブがアクティブになった時刻を管理する
+  // 対応するコンポーネントに渡し、タブ切り替え時の最新データ再取得をトリガーする
+  const [projectTabActivatedAt,  setProjectTabActivatedAt]  = useState<number | undefined>(undefined);
+  const [formatTabActivatedAt,   setFormatTabActivatedAt]   = useState<number | undefined>(undefined);
+  const [progressTabActivatedAt, setProgressTabActivatedAt] = useState<number | undefined>(undefined);
   const [namespaceTabActivatedAt, setNamespaceTabActivatedAt] = useState<number | undefined>(undefined);
+  const [groupTabActivatedAt,    setGroupTabActivatedAt]    = useState<number | undefined>(undefined);
   
   // localStorageからpermissionsを取得（userInfo経由）
   const permissions = getPermissionsFromToken();
@@ -116,11 +120,13 @@ export default function ExperimentAdminMenu({
 
   const handleTabChange = (key: string) => {
     setCurrentTab(key);
-    // タブ4（名前空間管理）に切り替えた際にタイムスタンプを更新する
-    // → UncertaintyManagement の useEffect がトリガーされ組織ツリーを再取得する
-    if (key === '4') {
-      setNamespaceTabActivatedAt(Date.now());
-    }
+    // タブ切り替え時にタイムスタンプを更新し、各コンポーネントの最新データ再取得をトリガーする
+    const now = Date.now();
+    if (key === '1') setProjectTabActivatedAt(now);
+    if (key === '2') setFormatTabActivatedAt(now);
+    if (key === '3') setProgressTabActivatedAt(now);
+    if (key === '4') setNamespaceTabActivatedAt(now);
+    if (key === '5') setGroupTabActivatedAt(now);
   };
 
   const handleMenuChange = (menuType: MenuType) => {
@@ -188,17 +194,18 @@ export default function ExperimentAdminMenu({
             onOpenWorkerScreen={handleOpenWorkerScreen}
             user={user}
             onNavigateToGroupManagement={() => setCurrentTab('5')}
+            tabActivatedAt={projectTabActivatedAt}
           />
         </div>
 
         {/* タブ2: フォーマット管理 - display:none でマウント維持し state を保持 */}
         <div style={{ display: currentTab === '2' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
-          <FormatManagement user={user} />
+          <FormatManagement user={user} tabActivatedAt={formatTabActivatedAt} />
         </div>
 
         {/* タブ3: 進捗確認 - display:none でマウント維持し state を保持 */}
         <div style={{ display: currentTab === '3' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
-          <ProgressMonitoring />
+          <ProgressMonitoring tabActivatedAt={progressTabActivatedAt} />
         </div>
 
         {/* タブ4: 名前空間管理 - display:none でマウント維持し state を保持 */}
@@ -208,7 +215,7 @@ export default function ExperimentAdminMenu({
 
         {/* タブ5: グループ管理 */}
         <div style={{ display: currentTab === '5' ? 'block' : 'none', height: '100%', overflow: 'hidden', background: '#fff' }}>
-          <GroupManagementPanel />
+          <GroupManagementPanel tabActivatedAt={groupTabActivatedAt} />
         </div>
 
         {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
