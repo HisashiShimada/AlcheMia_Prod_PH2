@@ -60,16 +60,16 @@ router.post(
   tenantIsolation,
   [
     param('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
-    body('evaluations').isArray({ min: 1 }).withMessage('evaluations は空でない配列でなければなりません'),
+    body('evaluations').isArray({ min: 1 }).withMessage('evaluations が0件です'),
     body('evaluations.*.evaluationScope')
       .notEmpty()
       .withMessage('evaluationScope は必須です')
       .isIn(Object.values(SubEvaluationScopeValues))
-      .withMessage('evaluationScope は METHOD / TASK / TRANSITION_METHOD / TRANSITION_TASK のいずれかでなければなりません'),
+      .withMessage('evaluationScope は METHOD / TASK / TRANSITION_METHOD / TRANSITION_TASK のいずれかを設定してください'),
     body('evaluations.*.evaluationValue')
       .optional()
       .isIn(['良好', '要確認', '不良'])
-      .withMessage('evaluationValue は『良好』『要確認』『不良』のいずれかでなければなりません'),
+      .withMessage('evaluationValue は『良好』『要確認』『不良』のいずれかを設定してください'),
   ],
   handleValidationErrors,
   projectOverallEvaluationController.saveSubEvaluations
@@ -85,8 +85,8 @@ router.post(
   tenantIsolation,
   [
     body('projectId').notEmpty().withMessage('projectIdは必須です').isString(),
-    body('overallDigital').optional().isIn(['良好', '要確認', '不良']).withMessage('overallDigital は『良好』『要確認』『不良』のいずれかでなければなりません'),
-    body('overallScore').optional().isInt({ min: 0, max: 100 }).withMessage('overallScore は 0〜100 の範囲でなければなりません'),
+    body('overallDigital').optional().isIn(['良好', '要確認', '不良']).withMessage('overallDigital は『良好』『要確認』『不良』のいずれかを設定してください'),
+    body('overallScore').optional().isInt({ min: 0, max: 100 }).withMessage('overallScore は 0〜100 の範囲で入力してください'),
     body('overallAnalog').optional().isString(),
   ],
   handleValidationErrors,

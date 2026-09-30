@@ -53,12 +53,12 @@ router.post(
       .notEmpty()
       .withMessage('ユーザーIDは必須です')
       .isLength({ min: 1, max: 100 })
-      .withMessage('ユーザーIDは 1〜100文字の範囲でなければなりません'),
+      .withMessage('ユーザーIDは 1〜100文字の範囲で入力してください'),
     body('password')
       .notEmpty()
       .withMessage('パスワードは必須です')
       .isLength({ min: 8, max: 255 })
-      .withMessage('パスワードは 8〜255文字の範囲でなければなりません'),
+      .withMessage('パスワードは 8〜255文字の範囲で入力してください'),
     validateOrgId(),
   ],
   handleValidationErrors,
@@ -75,7 +75,7 @@ router.post(
       .notEmpty()
       .withMessage('PIN コードは必須です')
       .matches(/^\d{6}$/)
-      .withMessage('PIN コードは 6 桁でなければなりません'),
+      .withMessage('PIN コードは 6 桁で入力してください'),
     header('authorization')
       .notEmpty()
       .withMessage('Authorization ヘッダーは必須です')
@@ -143,7 +143,7 @@ router.post(
       .isEmail()
       .withMessage('有効なメールアドレスが必要です')
       .isLength({ min: 1, max: 100 })
-      .withMessage('メールアドレスは 1〜100文字の範囲でなければなりません'),
+      .withMessage('メールアドレスは 1〜100文字の範囲で入力してください'),
     validateOrgId(),
   ],
   handleValidationErrors,
@@ -162,7 +162,7 @@ router.post(
       .notEmpty()
       .withMessage('新しいパスワードは必須です')
       .isLength({ min: 8, max: 255 })
-      .withMessage('パスワードは 8〜255文字の範囲でなければなりません'),
+      .withMessage('パスワードは 8〜255文字の範囲で入力してください'),
   ],
   handleValidationErrors,
   authController.resetPassword
@@ -181,7 +181,7 @@ router.post(
       .notEmpty()
       .withMessage('新しいパスワードは必須です')
       .isLength({ min: 8, max: 255 })
-      .withMessage('パスワードは 8〜255文字の範囲でなければなりません'),
+      .withMessage('パスワードは 8〜255文字の範囲で入力してください'),
   ],
   handleValidationErrors,
   authController.changePassword

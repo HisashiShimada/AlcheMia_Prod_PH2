@@ -52,23 +52,23 @@ router.get(
     query('search')
       .optional()
       .isString()
-      .withMessage('検索は文字列でなければなりません'),
+      .withMessage('検索が文字列ではありません'),
     query('is_active')
       .optional()
       .isBoolean()
-      .withMessage('アクティブ/非アクティブは boolean（真偽値）でなければなりません'),
+      .withMessage('アクティブ/非アクティブが boolean（真偽値）ではありません'),
     query('role_cd')
       .optional()
       .isString()
-      .withMessage('ロールCDは文字列でなければなりません'),
+      .withMessage('ロールCDが文字列ではありません'),
     query('sort_by')
       .optional()
       .isIn(['user_id', 'user_name', 'update_at'])
-      .withMessage('sort_by は user_id / user_name / update_at のいずれかでなければなりません'),
+      .withMessage('sort_by は user_id / user_name / update_at のいずれかを設定してください'),
     query('sort_order')
       .optional()
       .isIn(['asc', 'desc'])
-      .withMessage('sort_order は昇順または降順のいずれかでなければなりません'),
+      .withMessage('sort_order は昇順または降順のいずれかを設定してください'),
   ],
   handleValidationErrors,
   userController.getUsers
@@ -117,9 +117,9 @@ router.get(
       .notEmpty()
       .withMessage('ユーザーIDは必須です')
       .isString()
-      .withMessage('ユーザーIDは文字列でなければなりません')
+      .withMessage('ユーザーIDが文字列ではありません')
       .isEmail()
-      .withMessage('ユーザーIDは有効なメールアドレスでなければなりません'),
+      .withMessage('ユーザーIDが有効なメールアドレスではありません'),
   ],
   handleValidationErrors,
   userController.getUserById
@@ -139,34 +139,34 @@ router.post(
       .notEmpty()
       .withMessage('ユーザーIDは必須です')
       .isEmail()
-      .withMessage('ユーザーIDは有効なメールアドレスでなければなりません'),
+      .withMessage('ユーザーIDは有効なメールアドレスを入力してください'),
     body('userName')
       .notEmpty()
       .withMessage('ユーザー名は必須です')
       .isString()
-      .withMessage('ユーザー名は文字列でなければなりません')
+      .withMessage('ユーザー名が文字列ではありません')
       .isLength({ max: 30 })
-      .withMessage('ユーザー名は 30 文字以内でなければなりません'),
+      .withMessage('ユーザー名は 30 文字以内で入力してください'),
     body('mailAddress')
       .notEmpty()
       .withMessage('メールアドレスは必須です')
       .isEmail()
-      .withMessage('メールアドレスは有効なメールアドレスでなければなりません'),
+      .withMessage('メールアドレスは有効なメールアドレスを入力してください'),
     body('roleCd')
       .notEmpty()
       .withMessage('ロールCDは必須です')
       .isString()
-      .withMessage('ロールCDは文字列でなければなりません'),
+      .withMessage('ロールCDが文字列ではありません'),
     body('isActive')
       .optional()
       .isBoolean()
-      .withMessage('状態は boolean（真偽値）でなければなりません'),
+      .withMessage('状態が boolean（真偽値）ではありません'),
     body('password')
       .optional()
       .isString()
-      .withMessage('パスワードは文字列でなければなりません')
+      .withMessage('パスワードが文字列ではありません')
       .isLength({ min: 8 })
-      .withMessage('パスワードは 8 文字以上でなければなりません'),
+      .withMessage('パスワードは 8 文字以上で入力してください'),
   ],
   handleValidationErrors,
   userController.createUser
@@ -186,19 +186,19 @@ router.put(
       .notEmpty()
       .withMessage('ユーザーIDは必須です')
       .isString()
-      .withMessage('ユーザーIDは文字列でなければなりません')
+      .withMessage('ユーザーIDが文字列ではありません')
       .isEmail()
-      .withMessage('ユーザーIDは有効なメールアドレスでなければなりません'),
+      .withMessage('ユーザーIDは有効なメールアドレスを入力してください'),
     body('userName')
       .optional()
       .isString()
-      .withMessage('ユーザー名は文字列でなければなりません')
+      .withMessage('ユーザー名が文字列ではありません')
       .isLength({ max: 30 })
-      .withMessage('ユーザー名は 30 文字以内でなければなりません'),
+      .withMessage('ユーザー名は 30 文字以内で入力してください'),
     body('roleCd')
       .optional()
       .isString()
-      .withMessage('ロールCDは文字列でなければなりません'),
+      .withMessage('ロールCDが文字列ではありません'),
   ],
   handleValidationErrors,
   userController.updateUser
@@ -218,14 +218,14 @@ router.patch(
       .notEmpty()
       .withMessage('ユーザーIDは必須です')
       .isString()
-      .withMessage('ユーザーIDは文字列でなければなりません')
+      .withMessage('ユーザーIDが文字列ではありません')
       .isEmail()
-      .withMessage('ユーザーIDは有効なメールアドレスでなければなりません'),
+      .withMessage('ユーザーIDは有効なメールアドレスを入力してください'),
     body('isActive')
       .notEmpty()
       .withMessage('状態は必須です')
       .isBoolean()
-      .withMessage('状態は boolean（真偽値）でなければなりません'),
+      .withMessage('状態が boolean（真偽値）ではありません'),
   ],
   handleValidationErrors,
   userController.updateUserStatus

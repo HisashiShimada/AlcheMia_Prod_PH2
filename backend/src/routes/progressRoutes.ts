@@ -107,30 +107,30 @@ router.get(
       .notEmpty()
       .withMessage('projectIdは必須です')
       .isString()
-      .withMessage('projectIdは文字列でなければなりません')
+      .withMessage('projectIdが文字列ではありません')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectId は 1〜255文字でなければなりません'),
+      .withMessage('projectId は 1〜255文字の範囲で入力してください'),
     
     // クエリパラメータバリデーション（オプション）
     query('status')
       .optional()
       .isIn(['not_started', 'started', 'in_progress', 'completed', 'forced_terminated'])
-      .withMessage('ステータスは次のいずれかでなければなりません：未開始, 開始済み, 実行中, 完了, 強制終了'),
+      .withMessage('ステータスは次のいずれかを設定してください：未開始, 開始済み, 実行中, 完了, 強制終了'),
     
     query('assignedTo')
       .optional()
       .isUUID()
-      .withMessage('assignedTo は有効な UUID でなければなりません'),
+      .withMessage('assignedTo が有効な UUID ではありません'),
     
     query('sortBy')
       .optional()
       .isIn(['task_no', 'created_at', 'updated_at', 'status'])
-      .withMessage('ソート項目は次のいずれかでなければなりません：タスク番号、作成日時、更新日時、ステータス'),
+      .withMessage('ソート項目は次のいずれかを設定してください：タスク番号、作成日時、更新日時、ステータス'),
     
     query('order')
       .optional()
       .isIn(['asc', 'desc'])
-      .withMessage('ソート順は昇順または降順のいずれかでなければなりません'),
+      .withMessage('ソート順は昇順または降順のいずれかを設定してください'),
   ],
   handleValidationErrors,
   progressController.getWorkerTasks

@@ -48,19 +48,19 @@ router.get(
     query('search')
       .optional()
       .isString()
-      .withMessage('検索は文字列でなければなりません'),
+      .withMessage('検索が文字列ではありません'),
     query('is_active')
       .optional()
       .isBoolean()
-      .withMessage('アクティブ/非アクティブは boolean（真偽値）でなければなりません'),
+      .withMessage('アクティブ/非アクティブが boolean（真偽値）ではありません'),
     query('sort_by')
       .optional()
       .isString()
-      .withMessage('sort_by は文字列でなければなりません'),
+      .withMessage('sort_by が文字列ではありません'),
     query('sort_order')
       .optional()
       .isIn(['asc', 'desc'])
-      .withMessage('sort_order は昇順または降順のいずれかでなければなりません'),
+      .withMessage('sort_order は昇順または降順のいずれかを設定してください'),
   ],
   handleValidationErrors,
   corporationController.getCorporation
@@ -103,7 +103,7 @@ router.get(
       .notEmpty()
       .withMessage('会社のIDは必須です')
       .isString()
-      .withMessage('会社のIDは文字列でなければなりません'),
+      .withMessage('会社のIDが文字列ではありません'),
   ],
   handleValidationErrors,
   corporationController.getCorporationById
@@ -121,11 +121,11 @@ router.post(
       .notEmpty()
       .withMessage('会社名は必須です')
       .isString()
-      .withMessage('会社名は文字列でなければなりません'),
+      .withMessage('会社名が文字列ではありません'),
     body('isActive')
       .optional()
       .isBoolean()
-      .withMessage('状態は boolean（真偽値）でなければなりません'),
+      .withMessage('状態が boolean（真偽値）ではありません'),
   ],
   handleValidationErrors,
   corporationController.createCorporation
@@ -143,16 +143,16 @@ router.put(
       .notEmpty()
       .withMessage('会社のIDは必須です')
       .isString()
-      .withMessage('会社のIDは文字列でなければなりません'),
+      .withMessage('会社のIDが文字列ではありません'),
     body('corporationName')
       .notEmpty()
       .withMessage('会社名は必須です')
       .isString()
-      .withMessage('会社名は文字列でなければなりません'),
+      .withMessage('会社名が文字列ではありません'),
     body('isActive')
       .optional()
       .isBoolean()
-      .withMessage('状態は boolean（真偽値）でなければなりません'),
+      .withMessage('状態が boolean（真偽値）ではありません'),
   ],
   handleValidationErrors,
   corporationController.updateCorporation
@@ -170,7 +170,7 @@ router.patch(
       .notEmpty()
       .withMessage('会社のIDは必須です')
       .isString()
-      .withMessage('会社のIDは文字列でなければなりません'),
+      .withMessage('会社のIDが文字列ではありません'),
   ],
   handleValidationErrors,
   corporationController.updateCorporationStatus

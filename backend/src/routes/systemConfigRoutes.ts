@@ -40,7 +40,7 @@ router.get(
     query('keys')
       .optional()
       .isString()
-      .withMessage('keys はカンマ区切りの文字列でなければなりません'),
+      .withMessage('keys がカンマ区切りの文字列ではありません'),
   ],
   handleValidationErrors,
   getSystemConfig

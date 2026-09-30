@@ -54,9 +54,9 @@ router.post(
   authMiddleware,
   tenantIsolation,
   [
-    body('score_good').optional().isInt({ min: 0, max: 100 }).withMessage('score_good は 0〜100 の範囲でなければなりません'),
-    body('score_caution').optional().isInt({ min: 0, max: 100 }).withMessage('score_caution は 0〜100 の範囲でなければなりません'),
-    body('score_bad').optional().isInt({ min: 0, max: 100 }).withMessage('score_bad は 0〜100 の範囲でなければなりません'),
+    body('score_good').optional().isInt({ min: 0, max: 100 }).withMessage('score_good は 0〜100 の範囲で入力してください'),
+    body('score_caution').optional().isInt({ min: 0, max: 100 }).withMessage('score_caution は 0〜100 の範囲で入力してください'),
+    body('score_bad').optional().isInt({ min: 0, max: 100 }).withMessage('score_bad は 0〜100 の範囲で入力してください'),
     body('target_rollup').optional().isIn(Object.values(TargetRollup)),
     body('level_status_rule').optional().isIn(Object.values(LevelStatusRule)),
     body('level_score_rule').optional().isIn(Object.values(LevelScoreRule)),

@@ -56,15 +56,15 @@ router.get(
     query('display_scope')
       .optional()
       .isIn(['all', 'own'])
-      .withMessage('表示切替は “全体” か “自組織” のいずれかでなければなりません'),
+      .withMessage('表示切替は “全体” か “自組織” のいずれかを設定してください'),
     query('search')
       .optional()
       .isString()
-      .withMessage('検索は文字列でなければなりません'),
+      .withMessage('検索が文字列ではありません'),
     query('is_active')
       .optional()
       .isBoolean()
-      .withMessage('アクティブ/非アクティブは boolean（真偽値）でなければなりません'),
+      .withMessage('アクティブ/非アクティブが boolean（真偽値）ではありません'),
   ],
   handleValidationErrors,
   masterController.getCreators
@@ -110,7 +110,7 @@ router.get(
       .notEmpty()
       .withMessage('CreatorのIDは必須です')
       .isString()
-      .withMessage('CreatorのIDは文字列でなければなりません'),
+      .withMessage('CreatorのIDが文字列ではありません'),
   ],
   handleValidationErrors,
   masterController.getCreatorById
@@ -167,7 +167,7 @@ router.get(
       .notEmpty()
       .withMessage('InstrumentのIDは必須です')
       .isString()
-      .withMessage('InstrumentのIDは文字列でなければなりません'),
+      .withMessage('InstrumentのIDが文字列ではありません'),
   ],
   handleValidationErrors,
   masterController.getInstrumentById
@@ -224,7 +224,7 @@ router.get(
       .notEmpty()
       .withMessage('VendorのIDは必須です')
       .isString()
-      .withMessage('VendorのIDは文字列でなければなりません'),
+      .withMessage('VendorのIDが文字列ではありません'),
   ],
   handleValidationErrors,
   masterController.getVendorById
@@ -242,18 +242,18 @@ router.post(
       .notEmpty()
       .withMessage('InstrumentのIDは必須です')
       .isString()
-      .withMessage('InstrumentのIDは文字列でなければなりません')
+      .withMessage('InstrumentのIDが文字列ではありません')
       .isLength({ max: 50 })
-      .withMessage('InstrumentのIDは 50 文字以内でなければなりません')
+      .withMessage('InstrumentのIDは 50 文字以内で入力してください')
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('InstrumentのIDは半角の英数字、ハイフン、またはアンダースコアのみで構成されていなければなりません'),
+      .withMessage('InstrumentのIDは半角の英数字、ハイフン、またはアンダースコアのみで入力してください'),
     body('instrumentName')
       .notEmpty()
       .withMessage('Instrumentの名称は必須です')
       .isString()
-      .withMessage('Instrumentの名称は文字列でなければなりません')
+      .withMessage('Instrumentの名称が文字列ではありません')
       .isLength({ max: 50 })
-      .withMessage('Instrumentの名称は 50 文字以内でなければなりません'),
+      .withMessage('Instrumentの名称は 50 文字以内で入力してください'),
   ],
   handleValidationErrors,
   masterController.createInstrument
@@ -271,13 +271,13 @@ router.put(
       .notEmpty()
       .withMessage('InstrumentのIDは必須です')
       .isString()
-      .withMessage('InstrumentのIDは文字列でなければなりません'),
+      .withMessage('InstrumentのIDが文字列ではありません'),
     body('instrumentName')
       .optional()
       .isString()
-      .withMessage('Instrumentの名称は文字列でなければなりません')
+      .withMessage('Instrumentの名称が文字列ではありません')
       .isLength({ max: 50 })
-      .withMessage('Instrumentの名称は 50 文字以内でなければなりません'),
+      .withMessage('Instrumentの名称は 50 文字以内で入力してください'),
   ],
   handleValidationErrors,
   masterController.updateInstrument
@@ -295,7 +295,7 @@ router.patch(
       .notEmpty()
       .withMessage('InstrumentのIDは必須です')
       .isString()
-      .withMessage('InstrumentのIDは文字列でなければなりません'),
+      .withMessage('InstrumentのIDが文字列ではありません'),
   ],
   handleValidationErrors,
   masterController.updateInstrumentStatus
@@ -313,18 +313,18 @@ router.post(
       .notEmpty()
       .withMessage('VendorのIDは必須です')
       .isString()
-      .withMessage('VendorのIDは文字列でなければなりません')
+      .withMessage('VendorのIDが文字列ではありません')
       .isLength({ max: 50 })
-      .withMessage('VendorのIDは 50 文字以内でなければなりません')
+      .withMessage('VendorのIDは 50 文字以内で入力してください')
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('VendorのIDは半角の英数字、ハイフン、またはアンダースコアのみで構成されていなければなりません'),
+      .withMessage('VendorのIDは半角の英数字、ハイフン、またはアンダースコアのみで入力してください'),
     body('vendorName')
       .notEmpty()
       .withMessage('Vendorの名称は必須です')
       .isString()
-      .withMessage('Vendorの名称は文字列でなければなりません')
+      .withMessage('Vendorの名称が文字列ではありません')
       .isLength({ max: 50 })
-      .withMessage('Vendorの名称は 50 文字以内でなければなりません'),
+      .withMessage('Vendorの名称は 50 文字以内で入力してください'),
   ],
   handleValidationErrors,
   masterController.createVendor
@@ -342,13 +342,13 @@ router.put(
       .notEmpty()
       .withMessage('VendorのIDは必須です')
       .isString()
-      .withMessage('VendorのIDは文字列でなければなりません'),
+      .withMessage('VendorのIDが文字列ではありません'),
     body('vendorName')
       .optional()
       .isString()
-      .withMessage('Vendorの名称は文字列でなければなりません')
+      .withMessage('Vendorの名称が文字列ではありません')
       .isLength({ max: 50 })
-      .withMessage('Vendorの名称は 50 文字以内でなければなりません'),
+      .withMessage('Vendorの名称は 50 文字以内で入力してください'),
   ],
   handleValidationErrors,
   masterController.updateVendor
@@ -366,7 +366,7 @@ router.patch(
       .notEmpty()
       .withMessage('VendorのIDは必須です')
       .isString()
-      .withMessage('VendorのIDは文字列でなければなりません'),
+      .withMessage('VendorのIDが文字列ではありません'),
   ],
   handleValidationErrors,
   masterController.updateVendorStatus
@@ -384,18 +384,18 @@ router.post(
       .notEmpty()
       .withMessage('CreatorのIDは必須です')
       .isString()
-      .withMessage('CreatorのIDは文字列でなければなりません')
+      .withMessage('CreatorのIDが文字列ではありません')
       .isLength({ max: 50 })
-      .withMessage('CreatorのIDは 50 文字以内でなければなりません')
+      .withMessage('CreatorのIDは 50 文字以内で入力してください')
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('CreatorのIDは半角の英数字、ハイフン、またはアンダースコアのみで構成されていなければなりません'),
+      .withMessage('CreatorのIDは半角の英数字、ハイフン、またはアンダースコアのみで入力してください'),
     body('creatorName')
       .notEmpty()
       .withMessage('Creatorの名称は必須です')
       .isString()
-      .withMessage('Creatorの名称は文字列でなければなりません')
+      .withMessage('Creatorの名称が文字列ではありません')
       .isLength({ max: 50 })
-      .withMessage('Creatorの名称は 50 文字以内でなければなりません'),
+      .withMessage('Creatorの名称は 50 文字以内で入力してください'),
   ],
   handleValidationErrors,
   masterController.createCreator
@@ -413,13 +413,13 @@ router.put(
       .notEmpty()
       .withMessage('CreatorのIDは必須です')
       .isString()
-      .withMessage('CreatorのIDは文字列でなければなりません'),
+      .withMessage('CreatorのIDが文字列ではありません'),
     body('creatorName')
       .optional()
       .isString()
-      .withMessage('Creatorの名称は文字列でなければなりません')
+      .withMessage('Creatorの名称が文字列ではありません')
       .isLength({ max: 50 })
-      .withMessage('Creatorの名称は 50 文字以内でなければなりません'),
+      .withMessage('Creatorの名称は 50 文字以内で入力してください'),
   ],
   handleValidationErrors,
   masterController.updateCreator
@@ -437,7 +437,7 @@ router.patch(
       .notEmpty()
       .withMessage('CreatorのIDは必須です')
       .isString()
-      .withMessage('CreatorのIDは文字列でなければなりません'),
+      .withMessage('CreatorのIDが文字列ではありません'),
   ],
   handleValidationErrors,
   masterController.updateCreatorStatus
@@ -455,9 +455,9 @@ router.get(
   '/attribute',
   authMiddleware,
   [
-    query('search').optional().isString().withMessage('検索は文字列でなければなりません'),
-    query('is_active').optional().isBoolean().withMessage('アクティブ/非アクティブは boolean（真偽値）でなければなりません'),
-    query('attribute_name').optional().isString().withMessage('属性名は文字列でなければなりません'),
+    query('search').optional().isString().withMessage('検索が文字列ではありません'),
+    query('is_active').optional().isBoolean().withMessage('アクティブ/非アクティブが boolean（真偽値）ではありません'),
+    query('attribute_name').optional().isString().withMessage('属性名が文字列ではありません'),
   ],
   handleValidationErrors,
   masterController.getAttributes

@@ -67,7 +67,7 @@ router.get(
       .notEmpty()
       .withMessage('ロールIDは必須です')
       .isString()
-      .withMessage('ロールIDは文字列でなければなりません'),
+      .withMessage('ロールIDが文字列ではありません'),
   ],
   handleValidationErrors,
   roleController.getRoleById
@@ -139,7 +139,7 @@ router.put(
       .notEmpty()
       .withMessage('ロールIDは必須です')
       .isString()
-      .withMessage('ロールIDは文字列でなければなりません'),
+      .withMessage('ロールIDが文字列ではありません'),
     body('roleName')
       .optional()
       .isString()
@@ -173,14 +173,14 @@ router.put(
       .notEmpty()
       .withMessage('ロールIDは必須です')
       .isString()
-      .withMessage('ロールIDは文字列でなければなりません'),
+      .withMessage('ロールIDが文字列ではありません'),
     body('functionName')
       .isString()
-      .withMessage('機能名は文字列でなければなりません'),
+      .withMessage('機能名が文字列ではありません'),
     body('functionWritePermissions')
       .optional()
       .isString()
-      .withMessage('functionWritePermissions は文字列でなければなりません'),
+      .withMessage('functionWritePermissions が文字列ではありません'),
   ],
   handleValidationErrors,
   roleController.updateRolePermissions
@@ -200,12 +200,12 @@ router.patch(
       .notEmpty()
       .withMessage('ロールIDは必須です')
       .isString()
-      .withMessage('ロールIDは文字列でなければなりません'),
+      .withMessage('ロールIDが文字列ではありません'),
     body('isActive')
       .notEmpty()
       .withMessage('状態は必須です')
       .isBoolean()
-      .withMessage('状態は boolean（真偽値）でなければなりません'),
+      .withMessage('状態が boolean（真偽値）ではありません'),
   ],
   handleValidationErrors,
   roleController.updateRoleStatus

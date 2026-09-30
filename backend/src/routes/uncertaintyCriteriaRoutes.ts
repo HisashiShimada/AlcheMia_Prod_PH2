@@ -51,7 +51,7 @@ router.get(
     query('scopeKey')
       .optional()
       .isString()
-      .withMessage('scopeKeyは文字列でなければなりません'),
+      .withMessage('scopeKeyが文字列ではありません'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.getList
@@ -76,7 +76,7 @@ router.get(
     query('organizationGroupCd')
       .optional()
       .isString()
-      .withMessage('組織グループCDは文字列でなければなりません'),
+      .withMessage('組織グループCDが文字列ではありません'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.getForSelector
@@ -101,7 +101,7 @@ router.get(
     query('format')
       .optional()
       .isIn(['xml', 'json'])
-      .withMessage('フォーマットは xml または json でなければなりません'),
+      .withMessage('フォーマットは xml または json を設定してください'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.exportCriteria
@@ -147,31 +147,31 @@ router.post(
       .notEmpty()
       .withMessage('評価方式は必須です')
       .isInt({ min: 1, max: 2 })
-      .withMessage('評価方式は 1（定量評価）または 2（定性評価）でなければなりません'),
+      .withMessage('評価方式は 1（定量評価）または 2（定性評価）を設定してください'),
     body('uncertaintyName')
       .optional()
       .isString()
-      .withMessage('不確かさ基準名は文字列でなければなりません'),
+      .withMessage('不確かさ基準名が文字列ではありません'),
     body('isInvalid')
       .optional()
       .isBoolean()
-      .withMessage('無効フラグは boolean（真偽値）でなければなりません」'),
+      .withMessage('無効フラグが boolean（真偽値）ではありません」'),
     body('qualitativeOptions')
       .optional()
       .isArray()
-      .withMessage('qualitativeOptions は配列でなければなりません'),
+      .withMessage('qualitativeOptions が配列ではありません'),
     body('qualitativeOptions.*.displayOrder')
       .optional()
       .isInt({ min: 1 })
-      .withMessage('qualitativeOptions[].displayOrder は正の整数でなければなりません'),
+      .withMessage('qualitativeOptions[].displayOrder は1以上の整数を設定してください'),
     body('qualitativeOptions.*.value')
       .optional()
       .isString()
-      .withMessage('qualitativeOptions[].value は文字列でなければなりません'),
+      .withMessage('qualitativeOptions[].value が文字列ではありません'),
     body('qualitativeOptions.*.displayColor')
       .optional()
       .matches(/^#[0-9A-Fa-f]{6}$/)
-      .withMessage('qualitativeOptions[].displayColor は #RRGGBB 形式でなければなりません'),
+      .withMessage('qualitativeOptions[].displayColor は #RRGGBB 形式で設定してください'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.createNewVersion
@@ -196,7 +196,7 @@ router.get(
       .notEmpty()
       .withMessage('バージョン（整数）は必須です')
       .isInt({ min: 1 })
-      .withMessage('バージョンは 1 以上の整数でなければなりません'),
+      .withMessage('バージョンは 1 以上の整数を設定してください'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.getDetail

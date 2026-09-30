@@ -49,7 +49,7 @@ router.delete(
       .notEmpty()
       .withMessage('トークンIDは必須です')
       .isUUID()
-      .withMessage('トークンID は有効な UUID でなければなりません'),
+      .withMessage('トークンID が有効な UUID ではありません'),
   ],
   handleValidationErrors,
   sessionController.terminate

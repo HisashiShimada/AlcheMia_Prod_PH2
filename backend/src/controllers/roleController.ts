@@ -457,7 +457,7 @@ export async function updateRoleStatus(
         success: false,
         error: {
           code: 'INVALID_IS_ACTIVE',
-          message: '状態は boolean（真偽値）でなければなりません',
+          message: '状態が boolean（真偽値）ではありません',
         },
         meta: {
           timestamp: new Date().toISOString(),
