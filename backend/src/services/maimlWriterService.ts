@@ -739,12 +739,13 @@ export class MaimlWriterService {
    */
   private _replaceDataSection(maimlContent: string, dataXml: string): string {
     // <data ...>...</data> を正規表現で検索・置換
+    // trimEnd() で末尾の改行を除去し、</data> と <eventLog> の間に空白行が発生しないようにする
     const dataPattern = /<data[\s\S]*?<\/data>/i;
     if (dataPattern.test(maimlContent)) {
-      return maimlContent.replace(dataPattern, dataXml);
+      return maimlContent.replace(dataPattern, dataXml.trimEnd());
     }
     // <data> タグが存在しない場合は </maiml> 直前に追加
-    return maimlContent.replace(/<\/maiml>/i, `${dataXml}\n</maiml>`);
+    return maimlContent.replace(/<\/maiml>/i, `${dataXml.trimEnd()}\n</maiml>`);
   }
 
   /**
