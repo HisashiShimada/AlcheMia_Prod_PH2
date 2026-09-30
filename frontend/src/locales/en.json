@@ -291,6 +291,7 @@
     "ngRecorded": "NG recorded for task #{no}",
     "approveSuccess": "Approved",
     "approveError": "Approval process failed",
+    "ngCheckoutSuccess": "Checkout completed after NG registration",
     "ngError": "NG recording process failed",
     "correctionSaved": "Corrections saved successfully",
     "correctionError": "Failed to save corrections",

@@ -3595,10 +3595,13 @@ export default function WorkRecordPanel({
   // - status === 'issue'（強制終了）: 常に読み取り専用（訂正不可）
   // - status === 'completed' かつ isRecorded === true かつ訂正モードでない: 読み取り専用
   // - status === 'completed' かつ isRecorded === true かつ訂正モード中: 編集可
+  // - taskStatus === REVIEW_WAITING（レビュー依頼中）: 常に読み取り専用（レビュー中のため編集不可）
   // - それ以外（preparing/ready/in_progress/on_hold）: 常に編集可
+  const isReviewWaitingTask = displayKeyRow?.taskStatus === TaskStatusConst.REVIEW_WAITING;
   const isReadOnly =
     isNotStartedStatus ||
     isErrorStatus ||
+    isReviewWaitingTask ||
     (isCompletedStatus && displayKeyRow?.isRecorded === true && !isCorrectionMode);
 
   const planProps: PlanProps = {

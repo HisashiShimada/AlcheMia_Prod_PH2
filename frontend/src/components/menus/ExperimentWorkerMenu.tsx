@@ -374,9 +374,10 @@ export default function ExperimentWorkerMenu({
   const toTaskStatusNumber = (taskStatus: string): number => {
     if (taskStatus === 'not_started') return TaskStatus.PENDING;
     if (taskStatus === 'started' || taskStatus === 'in_progress') return TaskStatus.IN_PROGRESS;
+    if (taskStatus === 'review_waiting') return TaskStatus.REVIEW_WAITING;
+    if (taskStatus === 'review_ng') return TaskStatus.REVIEW_NG;
     if (taskStatus === 'completed') return TaskStatus.COMPLETED;
     if (taskStatus === 'forced_terminated') return TaskStatus.FORCED_TERMINATED;
-    // review_waiting / review_ng はバックエンドからの返却値に応じて対応
     return TaskStatus.PENDING;
   };
 

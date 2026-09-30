@@ -9,12 +9,14 @@ interface ExperimentInstructionTabContentProps {
   selectedProject: Project;
   isProjectCheckedOut: boolean;
   maimlHasErrors: boolean;
+  onAfterCheckout?: () => Promise<void>;
 }
 
 const ExperimentInstructionTabContent: React.FC<ExperimentInstructionTabContentProps> = ({
   selectedProject,
   isProjectCheckedOut,
   maimlHasErrors,
+  onAfterCheckout,
 }) => {
   const isProjectCompleted =
     selectedProject.status === ProjectStatus.COMPLETED ||
@@ -29,6 +31,7 @@ const ExperimentInstructionTabContent: React.FC<ExperimentInstructionTabContentP
         isCheckoutLocked={isProjectCheckedOut}
         maimlHasErrors={maimlHasErrors}
         organizationGroupCd={selectedProject.organizationGroup}
+        onAfterCheckout={onAfterCheckout}
       />
     </div>
   );
