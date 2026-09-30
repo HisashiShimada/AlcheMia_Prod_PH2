@@ -185,18 +185,16 @@ export class ExperimentDataService {
           taskNo,
         });
 
-        // プロジェクトステータスが TASK_PENDING(1) または REVIEW_REJECTED(6) のときのみ TASK_IN_PROGRESS(2) に更新
-        // REVIEW_REJECTED(6): 承認NG後に作業者が訂正保存したとき project_status を IN_PROGRESS に戻す
-        if (projectStatus === 1 || projectStatus === 6) { // TASK_PENDING or REVIEW_REJECTED
+        // プロジェクトステータスが TASK_PENDING(1) のときのみ TASK_IN_PROGRESS(2) に更新
+        if (projectStatus === 1) { // TASK_PENDING
           await projectRepository.updateStatusIfPending(
             organizationId,
             projectId,
             client
           );
-          logger.info('[ExperimentDataService] project_status updated -> 2(TASK_IN_PROGRESS) on save (if applicable)', {
+          logger.info('[ExperimentDataService] project_status updated 1(TASK_PENDING) -> 2(TASK_IN_PROGRESS) on save (if applicable)', {
             organizationId,
             projectId,
-            previousStatus: projectStatus,
           });
         }
       } catch (statusUpdateErr) {
