@@ -953,15 +953,26 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── selectedNsKey 変化時に API から用語一覧を取得
   // externalSelectedNsKey（DepartmentTreeManagement で選択したノードキー）を scopeKey として渡す
+  // stale fetch 対策: フェッチごとにシーケンス番号を払い出し、
+  // 古いフェッチ結果（スコープ切替後に遅延完了したもの）を破棄する
+  const fetchTermsSeqRef = useRef(0);
   const fetchTerms = useCallback((options?: { scopeKey?: string; scopeKeys?: string[]; globalFlg?: boolean; withAncestors?: boolean }) => {
+    const seq = ++fetchTermsSeqRef.current;
     setTermsLoading(true);
     getTerms(options)
-      .then((data) => setTerms(data as Term[]))
+      .then((data) => {
+        // このフェッチ開始後に新たなフェッチが始まっていたら結果を破棄（stale fetch 対策）
+        if (seq !== fetchTermsSeqRef.current) return;
+        setTerms(data as Term[]);
+      })
       .catch(() => {
+        if (seq !== fetchTermsSeqRef.current) return;
         // 未ログイン(401)等でAPIが失敗した場合は空配列を設定
         setTerms([]);
       })
-      .finally(() => setTermsLoading(false));
+      .finally(() => {
+        if (seq === fetchTermsSeqRef.current) setTermsLoading(false);
+      });
   }, []);
 
   // ──── 現在の effectiveNsKey に対応するオプションで用語を再フェッチする共通関数
