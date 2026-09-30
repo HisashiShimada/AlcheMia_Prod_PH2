@@ -275,7 +275,7 @@ export function buildEventLogXML(
     // XSD準拠: eventLogType は log が必須（minOccurs=1）のため最小構造を返す
     const emptyLogId = `log_${eventLogId}_empty`;
     return [
-      `<eventLog id="${escapeXml(eventLogId)}">`,
+      `  <eventLog id="${escapeXml(eventLogId)}">`,
       `    <uuid>${eventLogUuidValue}</uuid>`,
       `    <log id="${escapeXml(emptyLogId)}" ref="${escapeXml(emptyLogId)}">`,
       `      <uuid>${resolveUuid(`log:${emptyLogId}`, existingUuids, randomUUID)}</uuid>`,
@@ -972,7 +972,7 @@ export function appendResultsToData(
     return maimlContent;
   }
 
-  return maimlContent.replace(/<\/data>/i, `${toAppend}  </data>`);
+  return maimlContent.replace(/\n[ \t]*<\/data>/i, `\n${toAppend}  </data>`);
 }
 
 // ============================================================
@@ -1176,7 +1176,8 @@ export function updateDocumentUuidAndParent(maimlContent: string): string {
   let result = maimlContent;
 
   // 1. 既存の <parent>...</parent> を除去（2回目以降の書き出しでの重複防止）
-  result = result.replace(/<parent>[\s\S]*?<\/parent>\n?/g, '');
+  // [ \t]* で手前の行頭インデント（スペース・タブ）もまとめて除去し、後続要素のインデントずれを防ぐ
+  result = result.replace(/[ \t]*<parent>[\s\S]*?<\/parent>\n?/g, '');
   // 1b. 孤立した </parent> を除去（過去のバグで残存している場合の対応）
   result = result.replace(/[ \t]*<\/parent>[ \t]*\n?/g, '');
 
@@ -1189,7 +1190,7 @@ export function updateDocumentUuidAndParent(maimlContent: string): string {
   // 3. 新しい <uuid> の直後に <parent><uuid>旧uuid</uuid></parent> を挿入
   result = result.replace(
     `<uuid>${newUuid}</uuid>`,
-    `<uuid>${newUuid}</uuid>\n  <parent>\n    <uuid>${escapeXml(oldUuid)}</uuid>\n  </parent>`
+    `<uuid>${newUuid}</uuid>\n    <parent>\n      <uuid>${escapeXml(oldUuid)}</uuid>\n    </parent>`
   );
 
   return result;
