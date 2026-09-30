@@ -1130,17 +1130,18 @@ export function appendOwnerToDocument(
     return maimlContent;
   }
 
-  // 追記する <owner> XML を組み立て
+  // 追記する <owner> XML を組み立て（<document> 直下 = 4スペース、子要素 = 6スペース）
   const ownerXml = [
-    `  <owner id="${escapeXml(ownerId)}">`,
-    `    <name>${escapeXml(ownerName)}</name>`,
-    `  </owner>`,
+    `    <owner id="${escapeXml(ownerId)}">`,
+    `      <name>${escapeXml(ownerName)}</name>`,
+    `    </owner>`,
   ].join('\n');
 
   // </document> の直前に挿入
+  // $1 は "\n  "（改行+2スペース）を捕捉するため、余分な \n は不要
   return maimlContent.replace(
     /(\s*)<\/document>/,
-    `\n${ownerXml}\n$1</document>`
+    `\n${ownerXml}$1</document>`
   );
 }
 
