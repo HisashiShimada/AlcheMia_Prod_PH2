@@ -1021,7 +1021,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
                 : (record as PrefixRow).id
             }
             size="small"
-            scroll={{ x: 800 }}
             columns={columns}
             dataSource={tableData}
             rowSelection={{

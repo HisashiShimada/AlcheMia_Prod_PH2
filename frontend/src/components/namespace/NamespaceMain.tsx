@@ -1054,8 +1054,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     if (externalSelectedNsKey === undefined || externalSelectedNsKey === null) return;
 
-    // ノード切り替え時にチェック状態をリセット
+    // ノード切り替え時にチェック状態・ページをリセット
     setSelectedTermIds([]);
+    setCurrentPage(1);
 
     const nsKey = externalSelectedNsKey as string;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
@@ -1129,8 +1130,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (externalSelectedNsKey !== undefined) return;
     if (!selectedNsKey) return;
 
-    // ノード切り替え時にチェック状態をリセット
+    // ノード切り替え時にチェック状態・ページをリセット
     setSelectedTermIds([]);
+    setCurrentPage(1);
 
     const nsKey = selectedNsKey;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
