@@ -516,7 +516,7 @@
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| 09/09 | 佐藤 | NG | ステップ 4：インポート機能がおかしい。https://soft-service.atlassian.net/browse/AISOLMAIML-423?atlOrigin=eyJpIjoiZGI5NGUzMWY5NzlhNDRlMWFkMmI3ZDE5ZDIyMjJkN2UiLCJwIjoiaiJ9
+| 09/09 | 佐藤 | OK | ステップ 4：インポート機能がおかしい。https://soft-service.atlassian.net/browse/AISOLMAIML-423?atlOrigin=eyJpIjoiZGI5NGUzMWY5NzlhNDRlMWFkMmI3ZDE5ZDIyMjJkN2UiLCJwIjoiaiJ9
 ---
 
 ## シナリオ一覧サマリ
@@ -528,4 +528,4 @@
 | B-UC-03 | 不確かさ基準の編集・廃止・バージョン差分確認 | experiment_admin | OK |
 | B-UC-04 | 実験指示タブの一覧確認・フィルタ・列切り替え | experiment_admin | 実施不要 |
 | B-UC-05 | 実験指示タブからの承認処理（承認・NG） | experiment_admin | 実施不要 |
-| B-UC-06 | CSVインポート・エクスポート（不確かさ基準） | experiment_admin | NG |
+| B-UC-06 | CSVインポート・エクスポート（不確かさ基準） | experiment_admin | OK |
