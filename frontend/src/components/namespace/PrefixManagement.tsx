@@ -701,7 +701,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           <Input
             size="small"
             value={editingValues.prefix}
-            onChange={(e) => setEditingValues((prev) => ({ ...prev, prefix: e.target.value }))}
+            disabled
           />
         ) : (
           <Text strong>{r.prefix}</Text>

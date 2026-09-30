@@ -2203,7 +2203,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }
         const term = record as Term;
         return term.id === editingTermId
-          ? <Input size="small" value={editingValues.localName} onChange={(e) => setEditingValues((p) => ({ ...p, localName: e.target.value }))} />
+          ? <Input size="small" value={editingValues.localName} disabled />
           : term.localName;
       },
     },
