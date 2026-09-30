@@ -108,7 +108,6 @@ export default function UncertaintyListTable({
       title: t('uncertaintyListTable.colName'),
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name),
-      defaultSortOrder: 'ascend',
       minWidth: 200,
       render: (_, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
 import { extractErrorCode } from '@/utils/errorUtils';
-import { App, Button, Input, Table, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
+import { App, Button, Checkbox, Input, Table, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
@@ -16,6 +16,8 @@ import {
   WarningOutlined,
   BankOutlined,
   DeleteOutlined,
+  ImportOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import {
@@ -978,10 +980,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
             style={{ display: 'none' }}
             onChange={handleCsvUpload}
           />
-          <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>
+          <Button icon={<ImportOutlined />} disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>
             {t('prefixManagement.btnImport')}
           </Button>
-          <Button disabled={rows.length === 0} onClick={handleCsvDownload}>{t('prefixManagement.btnExport')}</Button>
+          <Button icon={<ExportOutlined />} disabled={rows.length === 0} onClick={handleCsvDownload}>{t('prefixManagement.btnExport')}</Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -1008,7 +1010,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       </div>
 
       {/* ── テーブルエリア ── */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '0 16px' }}>
         <Spin spinning={loading} tip={t('prefixManagement.loading')}>
           <Table<PrefixRow | NewPrefixRow>
             rowKey={(record) =>
@@ -1017,15 +1019,14 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
                 : (record as PrefixRow).id
             }
             size="small"
+            scroll={{ x: 'max-content' }}
             columns={columns}
             dataSource={tableData}
             rowSelection={{
               selectedRowKeys,
               columnTitle: (
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={filteredRows.length > 0 && selectedRowKeys.length === filteredRows.length}
-                  style={{ cursor: 'pointer' }}
                   onChange={() => {
                     if (selectedRowKeys.length === filteredRows.length) {
                       setSelectedRowKeys([]);
